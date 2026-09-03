@@ -1,0 +1,40 @@
+/* Design tokens — see /docs/design-handoff.md#design-tokens for the source spec. */
+:root {
+  --bg-root: #050706;
+  --bg-panel-solid: #080e0d;
+  --bg-inset: rgba(4, 8, 7, 0.7);
+
+  --accent-teal: #4fd6b8;
+  --accent-amber: #e07b28;
+  --state-err: #e0705f;
+
+  --text-primary: #e6f4ef;
+  --text-body: rgba(196, 220, 212, 0.78);
+  --text-muted: rgba(150, 185, 175, 0.45);
+  --text-faint: rgba(160, 196, 187, 0.28);
+
+  --line-hairline: rgba(79, 214, 184, 0.14);
+  --line-strong: rgba(79, 214, 184, 0.35);
+  --line-row: rgba(79, 214, 184, 0.06);
+
+  --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+
+  color-scheme: dark;
+  font-family: var(--font-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg-root);
+  color: var(--text-body);
+}
+
+#app {
+  min-height: 100vh;
+}
