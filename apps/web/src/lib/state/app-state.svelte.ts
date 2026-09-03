@@ -28,6 +28,7 @@ export const appState = $state({
   range: '3D' as Range,
   clock: '--:--:--',
   tick: 0,
+  logN: 6,
   series: {
     a: seedSeries(26, 44, 16),
     b: seedSeries(26, 62, 10),
@@ -47,6 +48,7 @@ export function startAppClocks() {
 
   telemetryTimer = setInterval(() => {
     appState.tick += 1
+    appState.logN = Math.min(14, appState.logN + 1)
     appState.series = {
       a: bump(appState.series.a),
       b: bump(appState.series.b),
