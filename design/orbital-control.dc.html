@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#04070b;color:#dff3fb}
+*{box-sizing:border-box}
+a{color:#7cf1ff;text-decoration:none}
+a:hover{color:#c9fbff}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:rgba(124,241,255,.22)}
+::-webkit-scrollbar-track{background:transparent}
+@keyframes sweep{0%{transform:translateY(-30vh)}100%{transform:translateY(130vh)}}
+@keyframes drift{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(0,-60px,0)}}
+@keyframes blip{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes dash{to{stroke-dashoffset:-320}}
+@keyframes packet{0%{offset-distance:0%;opacity:0}12%{opacity:1}88%{opacity:1}100%{offset-distance:100%;opacity:0}}
+@keyframes riseIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes flick{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes glowline{0%,100%{opacity:.3}50%{opacity:.9}}
+</style>
+</helmet>
+<div style="--acc:{{acc}};--acc2:{{acc2}};position:relative;min-height:100vh;background:radial-gradient(1200px 700px at 78% -10%,rgba(20,70,100,.5),transparent 60%),radial-gradient(900px 600px at 0% 100%,rgba(40,25,80,.35),transparent 65%),#04070b;font-family:'Chakra Petch',system-ui,sans-serif;overflow-x:auto">
+
+  <div style="position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;background-image:linear-gradient(rgba(124,241,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(124,241,255,.07) 1px,transparent 1px);background-size:56px 56px;animation:drift 22s linear infinite"></div>
+  <div style="position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,.028) 0 1px,transparent 1px 3px)"></div>
+  <div style="position:fixed;left:0;right:0;height:180px;pointer-events:none;z-index:1;background:linear-gradient(180deg,transparent,rgba(124,241,255,.055),transparent);animation:sweep 9s linear infinite"></div>
+  <div style="position:fixed;inset:0;pointer-events:none;z-index:1;box-shadow:inset 0 0 240px rgba(0,0,0,.85)"></div>
+
+  <sc-if value="{{ booting }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:60;background:#04070b;display:flex;align-items:center;justify-content:center">
+      <div style="width:520px">
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:22px">
+          <div style="width:12px;height:12px;background:var(--acc,#7cf1ff);transform:rotate(45deg);animation:blip 1.1s ease-in-out infinite"></div>
+          <div style="font:700 20px/1 'Chakra Petch',sans-serif;letter-spacing:.34em;color:#dff3fb">ORBITAL</div>
+          <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.24em;color:rgba(150,215,235,.5)">CTRL v4.2</div>
+        </div>
+        <sc-for list="{{ bootShown }}" as="line" hint-placeholder-count="4">
+          <div style="display:flex;gap:12px;font:500 12px/1.9 'IBM Plex Mono',monospace;color:rgba(190,235,250,.72);animation:riseIn .28s ease both">
+            <span style="color:var(--acc,#7cf1ff)">›</span><span style="flex:1">{{ line.t }}</span><span style="color:rgba(124,241,255,.7)">{{ line.s }}</span>
+          </div>
+        </sc-for>
+        <div style="margin-top:24px;height:2px;background:rgba(124,241,255,.15)">
+          <div style="height:100%;width:{{ bootPct }}%;background:var(--acc,#7cf1ff);box-shadow:0 0 12px var(--acc,#7cf1ff);transition:width .3s linear"></div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="position:relative;z-index:2;display:grid;grid-template-columns:150px 1fr;min-height:100vh;min-width:1360px">
+
+    <nav style="border-right:1px solid rgba(124,241,255,.14);padding:20px 0 18px;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(10,20,30,.7),rgba(6,10,16,.4))">
+      <div style="padding:0 16px 22px;display:flex;align-items:center;gap:9px">
+        <div style="width:10px;height:10px;background:var(--acc,#7cf1ff);transform:rotate(45deg);box-shadow:0 0 14px var(--acc,#7cf1ff)"></div>
+        <div style="font:700 13px/1 'Chakra Petch',sans-serif;letter-spacing:.26em">ORBITAL</div>
+      </div>
+      <sc-for list="{{ nav }}" as="item" hint-placeholder-count="6">
+        <div onClick="{{ item.go }}" style="{{ item.style }}">
+          <div style="{{ item.barStyle }}"></div>
+          <div style="font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;opacity:.6">{{ item.code }}</div>
+          <div style="font:600 12.5px/1 'Chakra Petch',sans-serif;letter-spacing:.06em">{{ item.name }}</div>
+        </div>
+      </sc-for>
+      <div style="margin-top:auto;padding:16px;border-top:1px solid rgba(124,241,255,.12)">
+        <div style="font:600 9px/1.6 'IBM Plex Mono',monospace;letter-spacing:.18em;color:rgba(150,215,235,.45)">LINK</div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:6px">
+          <div style="width:6px;height:6px;border-radius:50%;background:#5ff2b4;box-shadow:0 0 10px #5ff2b4;animation:blip 2s ease-in-out infinite"></div>
+          <div style="font:500 11px/1 'IBM Plex Mono',monospace;color:rgba(190,235,250,.8)">{{ ping }} ms</div>
+        </div>
+        <div style="font:500 9.5px/1.7 'IBM Plex Mono',monospace;color:rgba(150,215,235,.4);margin-top:8px">NODE · {{ callsign }}</div>
+      </div>
+    </nav>
+
+    <main style="min-width:0;display:flex;flex-direction:column">
+
+      <header style="display:flex;align-items:center;gap:22px;padding:14px 26px;border-bottom:1px solid rgba(124,241,255,.14);background:linear-gradient(90deg,rgba(10,22,32,.6),rgba(6,10,16,.25))">
+        <div style="display:flex;align-items:baseline;gap:10px;min-width:250px">
+          <div style="font:700 15px/1 'Chakra Petch',sans-serif;letter-spacing:.14em;color:#eafaff">{{ title }}</div>
+          <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:rgba(150,215,235,.5)">{{ subtitle }}</div>
+        </div>
+        <div style="flex:1;min-width:0;overflow:hidden;height:22px;position:relative;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)">
+          <div style="display:flex;gap:34px;width:max-content;animation:marq 34s linear infinite;font:500 10.5px/22px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(170,225,245,.55);white-space:nowrap">
+            <span>{{ tickerA }}</span><span>{{ tickerA }}</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:18px">
+          <div style="text-align:right">
+            <div style="font:600 15px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#eafaff">{{ clock }}</div>
+            <div style="font:500 9px/1.5 'IBM Plex Mono',monospace;letter-spacing:.2em;color:rgba(150,215,235,.45)">UTC · SECTOR 7</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid rgba(124,241,255,.25);background:rgba(124,241,255,.06)" style-hover="background:rgba(124,241,255,.14)">
+            <div style="width:5px;height:5px;border-radius:50%;background:#ffb35c;box-shadow:0 0 8px #ffb35c;animation:flick 1.6s ease-in-out infinite"></div>
+            <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#ffd9a8">{{ alertCount }} ADVISORY</div>
+          </div>
+        </div>
+      </header>
+
+      <div style="flex:1;min-height:0;padding:22px 26px 30px">
+
+        <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:18px;animation:riseIn .4s ease both">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+              <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+                <div style="position:relative;padding:16px 18px;background:linear-gradient(155deg,rgba(28,58,82,.38),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.15);backdrop-filter:blur(12px)">
+                  <div style="position:absolute;top:-1px;left:-1px;width:12px;height:12px;border-top:2px solid rgba(124,241,255,.7);border-left:2px solid rgba(124,241,255,.7)"></div>
+                  <div style="position:absolute;bottom:-1px;right:-1px;width:12px;height:12px;border-bottom:2px solid rgba(124,241,255,.4);border-right:2px solid rgba(124,241,255,.4)"></div>
+                  <div style="font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:rgba(150,215,235,.55)">{{ k.label }}</div>
+                  <div style="display:flex;align-items:flex-end;gap:8px;margin-top:10px">
+                    <div style="font:600 30px/1 'Chakra Petch',sans-serif;letter-spacing:.02em;color:#eafaff">{{ k.value }}</div>
+                    <div style="font:500 11px/1.6 'IBM Plex Mono',monospace;color:rgba(124,241,255,.75)">{{ k.unit }}</div>
+                  </div>
+                  <svg viewBox="0 0 160 34" preserveAspectRatio="none" style="width:100%;height:34px;margin-top:12px;display:block">
+                    <polyline points="{{ k.points }}" fill="none" stroke="rgba(124,241,255,.85)" stroke-width="1.4"></polyline>
+                    <polyline points="{{ k.area }}" fill="rgba(124,241,255,.12)" stroke="none"></polyline>
+                  </svg>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:16px;align-items:start">
+              <div style="position:relative;background:linear-gradient(155deg,rgba(28,58,82,.34),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.15);backdrop-filter:blur(12px)">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(124,241,255,.12)">
+                  <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(180,230,248,.8)">SERVICE FLEET</div>
+                  <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(150,215,235,.5)">{{ svcSummary }}</div>
+                </div>
+                <div style="display:grid;grid-template-columns:14px 1.4fr 90px 1fr 76px 84px;gap:12px;padding:9px 18px;font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.18em;color:rgba(150,215,235,.42);border-bottom:1px solid rgba(124,241,255,.08)">
+                  <div></div><div>SERVICE</div><div>HOST</div><div>CPU</div><div>MEM</div><div>UPTIME</div>
+                </div>
+                <sc-for list="{{ services }}" as="s" hint-placeholder-count="8">
+                  <div onClick="{{ s.open }}" style="display:grid;grid-template-columns:14px 1.4fr 90px 1fr 76px 84px;gap:12px;align-items:center;padding:11px 18px;border-bottom:1px solid rgba(124,241,255,.06);cursor:pointer;transition:background .18s" style-hover="background:rgba(124,241,255,.07)">
+                    <div style="{{ s.dot }}"></div>
+                    <div>
+                      <div style="font:600 13px/1.2 'Chakra Petch',sans-serif;letter-spacing:.04em;color:#e6f8ff">{{ s.name }}</div>
+                      <div style="font:500 9.5px/1.5 'IBM Plex Mono',monospace;color:rgba(150,215,235,.45)">{{ s.image }}</div>
+                    </div>
+                    <div style="font:500 10.5px/1 'IBM Plex Mono',monospace;color:rgba(180,225,242,.65)">{{ s.host }}</div>
+                    <div style="display:flex;align-items:center;gap:9px">
+                      <div style="flex:1;height:4px;background:rgba(124,241,255,.12)">
+                        <div style="height:100%;width:{{ s.cpu }}%;background:linear-gradient(90deg,var(--acc,#7cf1ff),var(--acc2,#9d8bff));box-shadow:0 0 8px rgba(124,241,255,.5);transition:width .8s ease"></div>
+                      </div>
+                      <div style="width:34px;font:500 10px/1 'IBM Plex Mono',monospace;color:rgba(190,235,250,.75)">{{ s.cpu }}%</div>
+                    </div>
+                    <div style="font:500 10.5px/1 'IBM Plex Mono',monospace;color:rgba(180,225,242,.65)">{{ s.mem }}</div>
+                    <div style="font:500 10.5px/1 'IBM Plex Mono',monospace;color:rgba(180,225,242,.5)">{{ s.uptime }}</div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="position:relative;padding:16px 18px;background:linear-gradient(155deg,rgba(28,58,82,.34),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.15);backdrop-filter:blur(12px)">
+                  <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(180,230,248,.8)">CORE LOAD</div>
+                  <div style="display:flex;align-items:center;gap:20px;margin-top:14px">
+                    <div style="position:relative;width:112px;height:112px;flex:none">
+                      <svg viewBox="0 0 120 120" style="width:112px;height:112px;display:block">
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(124,241,255,.12)" stroke-width="8"></circle>
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="url(#ringg)" stroke-width="8" stroke-linecap="round" stroke-dasharray="{{ ringDash }}" transform="rotate(-90 60 60)"></circle>
+                        <circle cx="60" cy="60" r="38" fill="none" stroke="rgba(124,241,255,.18)" stroke-width="1" stroke-dasharray="3 7"></circle>
+                        <defs><linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7cf1ff"></stop><stop offset="1" stop-color="#9d8bff"></stop></linearGradient></defs>
+                      </svg>
+                      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;pointer-events:none">
+                        <div style="font:600 24px/1 'Chakra Petch',sans-serif;color:#eafaff">{{ load }}%</div>
+                        <div style="font:500 8px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:rgba(150,215,235,.6)">AGGREGATE</div>
+                      </div>
+                    </div>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+                      <sc-for list="{{ cores }}" as="c" hint-placeholder-count="4">
+                        <div>
+                          <div style="display:flex;justify-content:space-between;gap:8px;white-space:nowrap;font:500 9.5px/1.4 'IBM Plex Mono',monospace;color:rgba(170,220,240,.6)"><span>{{ c.name }}</span><span>{{ c.v }}%</span></div>
+                          <div style="height:3px;background:rgba(124,241,255,.12);margin-top:3px"><div style="height:100%;width:{{ c.v }}%;background:var(--acc,#7cf1ff);transition:width .8s ease"></div></div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="position:relative;background:linear-gradient(155deg,rgba(48,34,72,.34),rgba(8,14,22,.5));border:1px solid rgba(157,139,255,.22);backdrop-filter:blur(12px)">
+                  <div style="padding:14px 18px 10px;font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(206,196,255,.85)">EVENT FEED</div>
+                  <sc-for list="{{ events }}" as="e" hint-placeholder-count="5">
+                    <div style="display:flex;gap:11px;padding:9px 18px;border-top:1px solid rgba(157,139,255,.12);animation:riseIn .3s ease both">
+                      <div style="font:500 9.5px/1.5 'IBM Plex Mono',monospace;color:rgba(180,225,242,.4);flex:none;width:44px">{{ e.t }}</div>
+                      <div style="{{ e.chip }}">{{ e.lvl }}</div>
+                      <div style="font:500 11px/1.45 'Chakra Petch',sans-serif;letter-spacing:.02em;color:rgba(224,242,252,.85)">{{ e.msg }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isService }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:16px;animation:riseIn .4s ease both">
+            <div style="position:relative;display:flex;align-items:center;gap:22px;padding:18px 22px;background:linear-gradient(120deg,rgba(28,58,82,.42),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.18);backdrop-filter:blur(12px)">
+              <div style="position:absolute;top:-1px;left:-1px;width:14px;height:14px;border-top:2px solid var(--acc,#7cf1ff);border-left:2px solid var(--acc,#7cf1ff)"></div>
+              <div style="width:44px;height:44px;border:1px solid rgba(124,241,255,.35);display:grid;place-items:center;background:rgba(124,241,255,.07)">
+                <div style="width:12px;height:12px;background:var(--acc,#7cf1ff);transform:rotate(45deg);box-shadow:0 0 14px var(--acc,#7cf1ff)"></div>
+              </div>
+              <div>
+                <div style="display:flex;align-items:baseline;gap:12px">
+                  <div style="font:700 22px/1 'Chakra Petch',sans-serif;letter-spacing:.06em;color:#eafaff">{{ sel.name }}</div>
+                  <div style="font:500 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(150,215,235,.55)">{{ sel.image }}</div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:10px">
+                  <div style="padding:4px 9px;border:1px solid rgba(95,242,180,.4);background:rgba(95,242,180,.1);font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#a5f8d4">HEALTHY</div>
+                  <div style="padding:4px 9px;border:1px solid rgba(124,241,255,.28);font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(190,235,250,.8)">{{ sel.host }}</div>
+                  <div style="padding:4px 9px;border:1px solid rgba(124,241,255,.28);font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(190,235,250,.8)">UP {{ sel.uptime }}</div>
+                </div>
+              </div>
+              <div style="margin-left:auto;display:flex;gap:10px">
+                <div style="padding:10px 16px;border:1px solid rgba(124,241,255,.3);background:rgba(124,241,255,.08);font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#cbf6ff;cursor:pointer;transition:all .18s" style-hover="background:rgba(124,241,255,.2);box-shadow:0 0 18px rgba(124,241,255,.35)">RESTART</div>
+                <div style="padding:10px 16px;border:1px solid rgba(157,139,255,.35);background:rgba(157,139,255,.1);font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#d9d2ff;cursor:pointer;transition:all .18s" style-hover="background:rgba(157,139,255,.24);box-shadow:0 0 18px rgba(157,139,255,.35)">REDEPLOY</div>
+                <div style="padding:10px 16px;border:1px solid rgba(255,120,140,.35);font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#ffb9c4;cursor:pointer;transition:all .18s" style-hover="background:rgba(255,120,140,.16)">HALT</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+              <sc-for list="{{ svcMetrics }}" as="m" hint-placeholder-count="3">
+                <div style="padding:15px 18px;background:linear-gradient(155deg,rgba(28,58,82,.32),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.14)">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline">
+                    <div style="font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:rgba(150,215,235,.55)">{{ m.label }}</div>
+                    <div style="font:600 18px/1 'Chakra Petch',sans-serif;color:#eafaff">{{ m.value }}</div>
+                  </div>
+                  <svg viewBox="0 0 200 40" preserveAspectRatio="none" style="width:100%;height:40px;margin-top:10px;display:block">
+                    <polyline points="{{ m.area }}" fill="rgba(124,241,255,.1)"></polyline>
+                    <polyline points="{{ m.points }}" fill="none" stroke="rgba(124,241,255,.85)" stroke-width="1.4"></polyline>
+                  </svg>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;align-items:start">
+              <div style="background:rgba(4,8,12,.72);border:1px solid rgba(124,241,255,.16)">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(124,241,255,.12)">
+                  <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(180,230,248,.8)">LOG STREAM</div>
+                  <div style="width:6px;height:6px;border-radius:50%;background:#5ff2b4;box-shadow:0 0 9px #5ff2b4;animation:blip 1.4s ease-in-out infinite"></div>
+                  <div style="margin-left:auto;font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(150,215,235,.45)">FOLLOW · stdout+stderr</div>
+                </div>
+                <div style="padding:12px 16px;height:296px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:3px">
+                  <sc-for list="{{ logs }}" as="l" hint-placeholder-count="12">
+                    <div style="display:flex;gap:10px;font:500 11px/1.65 'IBM Plex Mono',monospace;animation:riseIn .25s ease both">
+                      <span style="color:rgba(150,215,235,.35);flex:none">{{ l.t }}</span>
+                      <span style="{{ l.lvlStyle }}">{{ l.lvl }}</span>
+                      <span style="color:rgba(206,235,248,.82)">{{ l.msg }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <div style="padding:15px 18px;background:linear-gradient(155deg,rgba(28,58,82,.32),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.14)">
+                  <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(180,230,248,.8);margin-bottom:12px">CONTAINER</div>
+                  <sc-for list="{{ svcFacts }}" as="f" hint-placeholder-count="5">
+                    <div style="display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid rgba(124,241,255,.07);font:500 10.5px/1.6 'IBM Plex Mono',monospace">
+                      <span style="color:rgba(150,215,235,.5)">{{ f.k }}</span><span style="color:rgba(214,240,250,.85);text-align:right">{{ f.v }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="padding:15px 18px;background:linear-gradient(155deg,rgba(48,34,72,.3),rgba(8,14,22,.5));border:1px solid rgba(157,139,255,.2)">
+                  <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(206,196,255,.85);margin-bottom:12px">DEPENDENCIES</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px">
+                    <sc-for list="{{ deps }}" as="d" hint-placeholder-count="5">
+                      <div style="display:flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid rgba(157,139,255,.28);background:rgba(157,139,255,.08);font:500 10px/1 'IBM Plex Mono',monospace;color:rgba(226,220,255,.9)">
+                        <span style="width:5px;height:5px;border-radius:50%;background:#5ff2b4;box-shadow:0 0 7px #5ff2b4"></span>{{ d }}
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isHome }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:16px;animation:riseIn .4s ease both">
+            <div style="display:flex;gap:10px;align-items:center">
+              <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+                <div onClick="{{ r.go }}" style="{{ r.style }}">{{ r.name }}</div>
+              </sc-for>
+              <div style="margin-left:auto;display:flex;gap:9px">
+                <sc-for list="{{ scenes }}" as="sc" hint-placeholder-count="3">
+                  <div onClick="{{ sc.go }}" style="{{ sc.style }}">{{ sc.name }}</div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+                <sc-for list="{{ devices }}" as="d" hint-placeholder-count="6">
+                  <div style="{{ d.card }}">
+                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+                      <div>
+                        <div style="font:600 13.5px/1.2 'Chakra Petch',sans-serif;letter-spacing:.04em;color:#eafaff">{{ d.name }}</div>
+                        <div style="font:500 9.5px/1.6 'IBM Plex Mono',monospace;letter-spacing:.12em;color:rgba(150,215,235,.45)">{{ d.entity }}</div>
+                      </div>
+                      <div onClick="{{ d.toggle }}" style="{{ d.switchStyle }}"><div style="{{ d.knobStyle }}"></div></div>
+                    </div>
+                    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-top:16px">
+                      <div style="font:600 24px/1 'Chakra Petch',sans-serif;color:{{ d.readColor }}">{{ d.read }}</div>
+                      <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(150,215,235,.5)">{{ d.state }}</div>
+                    </div>
+                    <div style="height:3px;background:rgba(124,241,255,.1);margin-top:12px">
+                      <div style="height:100%;width:{{ d.level }}%;background:linear-gradient(90deg,var(--acc,#7cf1ff),var(--acc2,#9d8bff));transition:width .5s ease;box-shadow:0 0 10px rgba(124,241,255,.4)"></div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <div style="position:relative;padding:20px 18px;background:linear-gradient(155deg,rgba(28,58,82,.34),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.15);text-align:center">
+                  <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(180,230,248,.8)">CLIMATE · {{ roomName }}</div>
+                  <div style="position:relative;width:210px;height:210px;margin:8px auto 0">
+                    <svg viewBox="0 0 200 200" style="width:210px;height:210px;display:block">
+                      <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(124,241,255,.1)" stroke-width="10"></circle>
+                      <circle cx="100" cy="100" r="84" fill="none" stroke="url(#tg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="{{ tempDash }}" transform="rotate(120 100 100)"></circle>
+                      <circle cx="100" cy="100" r="68" fill="none" stroke="rgba(124,241,255,.14)" stroke-width="1" stroke-dasharray="2 8"></circle>
+                      <defs><linearGradient id="tg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#7cf1ff"></stop><stop offset="1" stop-color="#ffb35c"></stop></linearGradient></defs>
+                    </svg>
+                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none">
+                      <div style="font:600 44px/1 'Chakra Petch',sans-serif;color:#eafaff">{{ temp }}°</div>
+                      <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.24em;color:rgba(150,215,235,.6)">TARGET · HEAT</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:10px;justify-content:center;margin-top:6px">
+                    <div onClick="{{ tempDown }}" style="width:44px;height:44px;display:grid;place-items:center;border:1px solid rgba(124,241,255,.28);background:rgba(124,241,255,.06);font:600 18px/1 'Chakra Petch',sans-serif;color:#cbf6ff;cursor:pointer" style-hover="background:rgba(124,241,255,.18)">–</div>
+                    <div onClick="{{ tempUp }}" style="width:44px;height:44px;display:grid;place-items:center;border:1px solid rgba(124,241,255,.28);background:rgba(124,241,255,.06);font:600 18px/1 'Chakra Petch',sans-serif;color:#cbf6ff;cursor:pointer" style-hover="background:rgba(124,241,255,.18)">+</div>
+                  </div>
+                </div>
+                <div style="padding:15px 18px;background:linear-gradient(155deg,rgba(28,58,82,.28),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.14)">
+                  <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(180,230,248,.8);margin-bottom:10px">SENSOR ARRAY</div>
+                  <sc-for list="{{ sensors }}" as="s" hint-placeholder-count="4">
+                    <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(124,241,255,.07);font:500 10.5px/1.6 'IBM Plex Mono',monospace">
+                      <span style="color:rgba(150,215,235,.5)">{{ s.k }}</span><span style="color:rgba(214,240,250,.9)">{{ s.v }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isEndpoints }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start;animation:riseIn .4s ease both">
+            <div style="background:linear-gradient(155deg,rgba(28,58,82,.32),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.15)">
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid rgba(124,241,255,.12)">
+                <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(180,230,248,.8)">ROUTE TABLE</div>
+                <div style="margin-left:auto;padding:7px 12px;border:1px solid rgba(124,241,255,.28);background:rgba(124,241,255,.07);font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#cbf6ff;cursor:pointer" style-hover="background:rgba(124,241,255,.18)">+ NEW ROUTE</div>
+              </div>
+              <div style="display:grid;grid-template-columns:62px 1.5fr 1fr 92px 96px;gap:12px;padding:9px 18px;font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.18em;color:rgba(150,215,235,.42);border-bottom:1px solid rgba(124,241,255,.08)">
+                <div>VERB</div><div>PATH</div><div>UPSTREAM</div><div>P95</div><div>AUTH</div>
+              </div>
+              <sc-for list="{{ routes }}" as="r" hint-placeholder-count="7">
+                <div onClick="{{ r.pick }}" style="{{ r.row }}">
+                  <div style="{{ r.verbChip }}">{{ r.verb }}</div>
+                  <div style="font:500 12px/1.3 'IBM Plex Mono',monospace;color:#e2f5ff">{{ r.path }}</div>
+                  <div style="font:500 10.5px/1.3 'IBM Plex Mono',monospace;color:rgba(180,225,242,.6)">{{ r.up }}</div>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <svg viewBox="0 0 40 14" preserveAspectRatio="none" style="width:40px;height:14px"><polyline points="{{ r.spark }}" fill="none" stroke="rgba(124,241,255,.7)" stroke-width="1.2"></polyline></svg>
+                    <span style="font:500 10px/1 'IBM Plex Mono',monospace;color:rgba(190,235,250,.75)">{{ r.p95 }}</span>
+                  </div>
+                  <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:rgba(190,235,250,.6)">{{ r.auth }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="background:linear-gradient(155deg,rgba(48,34,72,.3),rgba(8,14,22,.55));border:1px solid rgba(157,139,255,.22)">
+              <div style="padding:15px 18px;border-bottom:1px solid rgba(157,139,255,.16)">
+                <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(206,196,255,.85)">INSPECTOR</div>
+                <div style="font:600 15px/1.3 'IBM Plex Mono',monospace;color:#eafaff;margin-top:9px;word-break:break-all">{{ route.path }}</div>
+              </div>
+              <div style="padding:15px 18px;display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{ routeFacts }}" as="f" hint-placeholder-count="4">
+                  <div style="display:flex;justify-content:space-between;gap:12px;font:500 10.5px/1.5 'IBM Plex Mono',monospace">
+                    <span style="color:rgba(190,180,235,.55)">{{ f.k }}</span><span style="color:rgba(226,236,252,.9);text-align:right">{{ f.v }}</span>
+                  </div>
+                </sc-for>
+                <div style="font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:rgba(190,180,235,.6);margin-top:4px">LAST RESPONSE</div>
+                <pre style="margin:0;padding:12px;background:rgba(4,8,12,.8);border:1px solid rgba(157,139,255,.18);font:500 10.5px/1.7 'IBM Plex Mono',monospace;color:rgba(180,240,220,.9);overflow:auto">{{ routeBody }}</pre>
+                <div style="display:flex;gap:9px;margin-top:4px">
+                  <div style="flex:1;text-align:center;padding:11px;border:1px solid rgba(124,241,255,.3);background:rgba(124,241,255,.09);font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#cbf6ff;cursor:pointer" style-hover="background:rgba(124,241,255,.2);box-shadow:0 0 16px rgba(124,241,255,.3)">SEND TEST</div>
+                  <div style="flex:1;text-align:center;padding:11px;border:1px solid rgba(157,139,255,.3);font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#d9d2ff;cursor:pointer" style-hover="background:rgba(157,139,255,.18)">ROTATE KEY</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isAutomations }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:16px;animation:riseIn .4s ease both">
+            <div style="padding:16px 20px;background:linear-gradient(155deg,rgba(28,58,82,.3),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.15)">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(180,230,248,.8)">24H FLIGHT PLAN</div>
+                <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(150,215,235,.5)">{{ clock }} · NOW</div>
+              </div>
+              <div style="position:relative;margin-top:16px;height:66px;border-left:1px solid rgba(124,241,255,.14);border-bottom:1px solid rgba(124,241,255,.14)">
+                <sc-for list="{{ timeline }}" as="b" hint-placeholder-count="6">
+                  <div style="{{ b.style }}" title="{{ b.name }}"></div>
+                </sc-for>
+                <div style="{{ nowStyle }}"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:8px;font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(150,215,235,.4)">
+                <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+              </div>
+            </div>
+
+            <sc-for list="{{ automations }}" as="a" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:16px;padding:16px 20px;background:linear-gradient(120deg,rgba(28,58,82,.3),rgba(8,14,22,.45));border:1px solid rgba(124,241,255,.13);transition:border-color .2s" style-hover="border-color:rgba(124,241,255,.36)">
+                <div onClick="{{ a.toggle }}" style="{{ a.switchStyle }}"><div style="{{ a.knobStyle }}"></div></div>
+                <div style="width:190px;flex:none">
+                  <div style="font:600 14px/1.2 'Chakra Petch',sans-serif;letter-spacing:.04em;color:#eafaff">{{ a.name }}</div>
+                  <div style="font:500 9.5px/1.7 'IBM Plex Mono',monospace;color:rgba(150,215,235,.45)">LAST RUN {{ a.last }}</div>
+                </div>
+                <div style="flex:1;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <div style="padding:7px 11px;border:1px solid rgba(255,179,92,.35);background:rgba(255,179,92,.08);font:500 10.5px/1 'IBM Plex Mono',monospace;color:#ffd9a8">{{ a.trigger }}</div>
+                  <div style="font:500 12px/1 'IBM Plex Mono',monospace;color:rgba(124,241,255,.5)">→</div>
+                  <div style="padding:7px 11px;border:1px solid rgba(124,241,255,.3);background:rgba(124,241,255,.06);font:500 10.5px/1 'IBM Plex Mono',monospace;color:#cbf6ff">{{ a.cond }}</div>
+                  <div style="font:500 12px/1 'IBM Plex Mono',monospace;color:rgba(124,241,255,.5)">→</div>
+                  <div style="padding:7px 11px;border:1px solid rgba(157,139,255,.35);background:rgba(157,139,255,.1);font:500 10.5px/1 'IBM Plex Mono',monospace;color:#ddd6ff">{{ a.action }}</div>
+                </div>
+                <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:{{ a.stateColor }}">{{ a.state }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isTopology }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start;animation:riseIn .4s ease both">
+            <div style="position:relative;background:radial-gradient(700px 400px at 50% 40%,rgba(28,70,100,.35),rgba(6,10,16,.6));border:1px solid rgba(124,241,255,.15);overflow:hidden">
+              <div style="display:flex;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(124,241,255,.12)">
+                <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(180,230,248,.8)">MESH TOPOLOGY</div>
+                <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(150,215,235,.5)">14 NODES · 2 SUBNETS</div>
+              </div>
+              <div style="position:relative;width:100%;aspect-ratio:760 / 460">
+              <svg viewBox="0 0 760 460" style="position:absolute;inset:0;width:100%;height:100%;display:block">
+                <g stroke="rgba(124,241,255,.3)" stroke-width="1.1" fill="none" stroke-dasharray="5 6" style="animation:dash 9s linear infinite">
+                  <path d="M380 90 L380 200"></path><path d="M380 200 L160 320"></path><path d="M380 200 L300 330"></path>
+                  <path d="M380 200 L460 330"></path><path d="M380 200 L600 320"></path><path d="M160 320 L120 410"></path>
+                  <path d="M600 320 L650 410"></path><path d="M300 330 L240 415"></path><path d="M460 330 L520 415"></path>
+                </g>
+                <g fill="rgba(124,241,255,.9)">
+                  <circle r="3.4" style="offset-path:path('M380 200 L160 320');animation:packet 3.4s linear infinite"></circle>
+                  <circle r="3.4" style="offset-path:path('M380 200 L600 320');animation:packet 4.2s linear infinite .6s"></circle>
+                  <circle r="3.4" fill="rgba(157,139,255,.9)" style="offset-path:path('M380 90 L380 200');animation:packet 2.6s linear infinite .3s"></circle>
+                  <circle r="3.4" style="offset-path:path('M300 330 L240 415');animation:packet 3s linear infinite 1.1s"></circle>
+                </g>
+                <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="9">
+                  <g transform="translate({{ n.x }},{{ n.y }})">
+                    <circle r="{{ n.halo }}" fill="none" stroke="{{ n.stroke }}" stroke-width="1" opacity=".35" style="animation:blip 3s ease-in-out infinite"></circle>
+                    <rect x="{{ n.rx }}" y="{{ n.rx }}" width="{{ n.size }}" height="{{ n.size }}" transform="rotate(45)" fill="{{ n.fill }}" stroke="{{ n.stroke }}" stroke-width="1.3"></rect>
+                  </g>
+                </sc-for>
+              </svg>
+              <div style="position:absolute;inset:0;pointer-events:none">
+                <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="9">
+                  <div style="{{ n.labelStyle }}">
+                    <div style="font:600 11px/1.3 'Chakra Petch',sans-serif;letter-spacing:.06em;color:#dff3fb;white-space:nowrap">{{ n.name }}</div>
+                    <div style="font:500 8.5px/1.4 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(150,215,235,.55);white-space:nowrap">{{ n.ip }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="padding:15px 18px;background:linear-gradient(155deg,rgba(28,58,82,.3),rgba(8,14,22,.5));border:1px solid rgba(124,241,255,.14)">
+                <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(180,230,248,.8);margin-bottom:12px">THROUGHPUT</div>
+                <sc-for list="{{ links }}" as="l" hint-placeholder-count="4">
+                  <div style="margin-bottom:11px">
+                    <div style="display:flex;justify-content:space-between;font:500 10px/1.5 'IBM Plex Mono',monospace;color:rgba(180,225,242,.7)"><span>{{ l.name }}</span><span>{{ l.rate }}</span></div>
+                    <div style="height:3px;background:rgba(124,241,255,.12);margin-top:4px"><div style="height:100%;width:{{ l.pct }}%;background:linear-gradient(90deg,var(--acc,#7cf1ff),var(--acc2,#9d8bff));transition:width .8s ease"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="padding:15px 18px;background:linear-gradient(155deg,rgba(48,34,72,.3),rgba(8,14,22,.5));border:1px solid rgba(157,139,255,.2)">
+                <div style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:rgba(206,196,255,.85);margin-bottom:12px">LEGEND</div>
+                <sc-for list="{{ legend }}" as="g" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font:500 10.5px/1.6 'IBM Plex Mono',monospace;color:rgba(214,232,250,.8)">
+                    <span style="{{ g.swatch }}"></span>{{ g.name }}
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#7cf1ff&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#7cf1ff&quot;,&quot;#5ff2b4&quot;,&quot;#ffb35c&quot;,&quot;#ff7d9c&quot;],&quot;section&quot;:&quot;Theme&quot;},&quot;accent2&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#9d8bff&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#9d8bff&quot;,&quot;#7cf1ff&quot;,&quot;#ff8fd0&quot;,&quot;#5ff2b4&quot;],&quot;section&quot;:&quot;Theme&quot;},&quot;callsign&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;ATLAS-01&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Identity&quot;}}">
+const BOOT = [
+  { t: "mounting control bus", s: "OK" },
+  { t: "handshake · home-assistant", s: "OK" },
+  { t: "enumerating 14 nodes", s: "OK" },
+  { t: "telemetry uplink", s: "LIVE" },
+];
+const SERVICES = [
+  { name: "home-assistant", image: "ghcr.io/hass:2026.8", host: "atlas-01", mem: "612 MB", uptime: "41d 06h", cpu: 12, ok: true },
+  { name: "mosquitto", image: "eclipse-mosquitto:2", host: "atlas-01", mem: "38 MB", uptime: "41d 06h", cpu: 3, ok: true },
+  { name: "postgres-16", image: "postgres:16-alpine", host: "vega-02", mem: "1.4 GB", uptime: "28d 11h", cpu: 22, ok: true },
+  { name: "caddy-edge", image: "caddy:2-alpine", host: "vega-02", mem: "94 MB", uptime: "28d 11h", cpu: 7, ok: true },
+  { name: "jellyfin", image: "jellyfin:10.10", host: "orion-03", mem: "2.1 GB", uptime: "9d 02h", cpu: 48, ok: true },
+  { name: "wg-gateway", image: "wireguard:latest", host: "atlas-01", mem: "22 MB", uptime: "41d 06h", cpu: 2, ok: true },
+  { name: "syncthing", image: "syncthing:1.29", host: "orion-03", mem: "180 MB", uptime: "3d 19h", cpu: 9, ok: false },
+  { name: "prometheus", image: "prom/prometheus:2.5", host: "vega-02", mem: "740 MB", uptime: "28d 11h", cpu: 15, ok: true },
+];
+const LOGLINES = [
+  ["INFO", "state machine tick · 214 entities polled"],
+  ["INFO", "mqtt bridge: 3 topics republished"],
+  ["WARN", "zwave node 12 slow ack (312ms)"],
+  ["INFO", "automation 'dusk_protocol' fired"],
+  ["INFO", "recorder purge complete · 1.2 GB reclaimed"],
+  ["ERR ", "integration 'shelly' retry 2/5"],
+  ["INFO", "websocket client connected · 10.20.1.44"],
+  ["INFO", "scene 'night_watch' applied to 6 entities"],
+];
+const EVENTS = [
+  ["04:12", "OK", "postgres-16 nightly vacuum complete"],
+  ["03:58", "WARN", "syncthing peer orion-03 unreachable"],
+  ["03:40", "OK", "caddy-edge cert renewed · 89d left"],
+  ["02:15", "INFO", "dusk_protocol dimmed 6 fixtures"],
+  ["01:03", "OK", "snapshot atlas-01 pushed to cold store"],
+];
+const ROUTES = [
+  { verb: "GET", path: "/api/v1/telemetry", up: "prometheus:9090", p95: "18ms", auth: "TOKEN" },
+  { verb: "POST", path: "/hooks/deploy", up: "runner:8080", p95: "740ms", auth: "HMAC" },
+  { verb: "GET", path: "/api/v1/entities", up: "home-assistant:8123", p95: "31ms", auth: "TOKEN" },
+  { verb: "POST", path: "/api/v1/scene/apply", up: "home-assistant:8123", p95: "96ms", auth: "TOKEN" },
+  { verb: "GET", path: "/media/library", up: "jellyfin:8096", p95: "112ms", auth: "SESSION" },
+  { verb: "PUT", path: "/api/v1/thermostat", up: "home-assistant:8123", p95: "64ms", auth: "TOKEN" },
+  { verb: "GET", path: "/health", up: "caddy-edge:80", p95: "4ms", auth: "PUBLIC" },
+];
+const ROOMS = ["Living Room", "Studio", "Rack Room", "Exterior"];
+const DEVICES = {
+  "Living Room": [
+    { name: "Ceiling Array", entity: "light.living_ceiling", read: "72%", state: "DIMMED", level: 72, on: true },
+    { name: "Media Wall", entity: "light.media_strip", read: "40%", state: "AMBIENT", level: 40, on: true },
+    { name: "Air Handler", entity: "fan.living_ahu", read: "SPD 2", state: "AUTO", level: 55, on: true },
+    { name: "Blinds", entity: "cover.living_blinds", read: "0%", state: "CLOSED", level: 0, on: false },
+    { name: "Floor Lamp", entity: "light.corner_lamp", read: "OFF", state: "IDLE", level: 0, on: false },
+    { name: "Speaker Mesh", entity: "media.living_mesh", read: "31%", state: "PLAYING", level: 31, on: true },
+  ],
+  "Studio": [
+    { name: "Key Light", entity: "light.studio_key", read: "88%", state: "5600K", level: 88, on: true },
+    { name: "Desk Strip", entity: "light.desk_strip", read: "55%", state: "WARM", level: 55, on: true },
+    { name: "Rack Fan", entity: "fan.studio_rack", read: "SPD 3", state: "MANUAL", level: 80, on: true },
+    { name: "Monitor Arm", entity: "switch.arm_power", read: "ON", state: "ARMED", level: 100, on: true },
+    { name: "Humidifier", entity: "switch.humid", read: "OFF", state: "IDLE", level: 0, on: false },
+    { name: "Door Sensor", entity: "binary.studio_door", read: "SHUT", state: "SECURE", level: 12, on: true },
+  ],
+  "Rack Room": [
+    { name: "Rack Exhaust", entity: "fan.rack_exhaust", read: "SPD 4", state: "THERMAL", level: 92, on: true },
+    { name: "UPS Bank", entity: "sensor.ups_main", read: "100%", state: "ONLINE", level: 100, on: true },
+    { name: "Service Light", entity: "light.rack_service", read: "OFF", state: "IDLE", level: 0, on: false },
+    { name: "Door Lock", entity: "lock.rack_door", read: "LOCKED", state: "SECURE", level: 100, on: true },
+    { name: "Leak Probe", entity: "binary.leak_floor", read: "DRY", state: "NOMINAL", level: 8, on: true },
+    { name: "Smart PDU", entity: "switch.pdu_b2", read: "418 W", state: "DRAWING", level: 46, on: true },
+  ],
+  "Exterior": [
+    { name: "Path Lights", entity: "light.path_run", read: "60%", state: "DUSK", level: 60, on: true },
+    { name: "Garage Door", entity: "cover.garage", read: "SHUT", state: "SECURE", level: 0, on: false },
+    { name: "Perimeter Cam", entity: "camera.perimeter", read: "REC", state: "MOTION 0", level: 100, on: true },
+    { name: "Irrigation", entity: "switch.irrigation", read: "OFF", state: "SCHEDULED", level: 0, on: false },
+    { name: "Gate Relay", entity: "switch.gate", read: "LOCKED", state: "SECURE", level: 100, on: true },
+    { name: "Weather Mast", entity: "sensor.mast", read: "14 km/h", state: "NW WIND", level: 24, on: true },
+  ],
+};
+const AUTOS = [
+  { name: "Dusk Protocol", trigger: "SUN · ELEVATION < -4°", cond: "SOMEONE HOME", action: "SCENE night_watch", last: "18:42", on: true },
+  { name: "Thermal Guard", trigger: "SENSOR rack_temp > 32°C", cond: "UPS ONLINE", action: "FAN rack_exhaust → 100%", last: "13:07", on: true },
+  { name: "Nightly Snapshot", trigger: "CRON 0 3 * * *", cond: "IDLE LOAD < 20%", action: "POST /hooks/backup", last: "03:00", on: true },
+  { name: "Away Lockdown", trigger: "ZONE all_away", cond: "—", action: "LOCK + ARM + LIGHTS OFF", last: "09:14", on: false },
+  { name: "Cert Watch", trigger: "CERT expires < 14d", cond: "—", action: "NOTIFY + caddy reload", last: "—", on: true },
+];
+const NODES = [
+  { name: "UPLINK", ip: "wan/1", y: 90, x: 380, kind: "edge" },
+  { name: "atlas-01", ip: "10.20.1.10", y: 200, x: 380, kind: "core" },
+  { name: "vega-02", ip: "10.20.1.11", y: 320, x: 160, kind: "core" },
+  { name: "orion-03", ip: "10.20.1.12", y: 330, x: 300, kind: "core" },
+  { name: "hass-hub", ip: "10.20.2.20", y: 330, x: 460, kind: "iot" },
+  { name: "switch-a", ip: "10.20.1.2", y: 320, x: 600, kind: "core" },
+  { name: "nas-vault", ip: "10.20.1.30", y: 410, x: 120, kind: "core" },
+  { name: "zwave-mesh", ip: "10.20.2.31", y: 415, x: 240, kind: "iot" },
+  { name: "cam-array", ip: "10.20.2.32", y: 415, x: 520, kind: "iot" },
+  { name: "ap-loft", ip: "10.20.1.40", y: 410, x: 650, kind: "core" },
+];
+const NAV = [
+  ["overview", "OVW", "Overview", "Fleet Overview", "ALL SYSTEMS NOMINAL"],
+  ["service", "SVC", "Service", "home-assistant", "SERVICE DETAIL · atlas-01"],
+  ["home", "HOM", "Habitat", "Habitat Control", "HOME AUTOMATION GRID"],
+  ["endpoints", "EPT", "Endpoints", "Endpoint Registry", "REVERSE PROXY · CADDY-EDGE"],
+  ["automations", "AUT", "Protocols", "Automation Protocols", "5 RULES · 4 ARMED"],
+  ["topology", "TOP", "Topology", "Network Topology", "MESH SCAN · LIVE"],
+];
+
+class Component extends DCLogic {
+  state = {
+    screen: "overview", booting: true, bootN: 0, tick: 0,
+    room: "Living Room", scene: "Balanced", temp: 21,
+    devOn: {}, autoOn: {}, routeIdx: 0, clock: "", logN: 6,
+    series: {}, cores: [38, 62, 24, 51], ping: 6,
+  };
+
+  componentDidMount() {
+    const seed = (n, base, amp) => Array.from({ length: n }, (_, i) => base + Math.sin(i * 0.7) * amp + Math.random() * amp * 0.6);
+    this.setState({ series: { a: seed(24, 40, 14), b: seed(24, 62, 10), c: seed(24, 28, 18), d: seed(24, 50, 12) } });
+    this.boot = setInterval(() => {
+      this.setState(s => {
+        if (s.bootN >= BOOT.length) { clearInterval(this.boot); setTimeout(() => this.setState({ booting: false }), 420); return s; }
+        return { bootN: s.bootN + 1 };
+      });
+    }, 380);
+    this.iv = setInterval(() => {
+      this.setState(s => {
+        const bump = arr => { const a = arr.slice(1); a.push(Math.max(4, Math.min(96, arr[arr.length - 1] + (Math.random() - 0.5) * 22))); return a; };
+        const ser = {}; Object.keys(s.series).forEach(k => ser[k] = bump(s.series[k]));
+        return {
+          tick: s.tick + 1, series: ser, ping: 4 + Math.round(Math.random() * 7),
+          cores: s.cores.map(v => Math.max(6, Math.min(97, v + (Math.random() - 0.5) * 16))),
+          logN: Math.min(14, s.logN + 1),
+        };
+      });
+    }, 1100);
+    this.ck = setInterval(() => {
+      const d = new Date();
+      this.setState({ clock: [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()].map(n => String(n).padStart(2, "0")).join(":") });
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.iv); clearInterval(this.ck); clearInterval(this.boot); }
+
+  pts(arr, w, h, close) {
+    const n = arr.length, max = 100;
+    const p = arr.map((v, i) => [(i / (n - 1)) * w, h - (v / max) * (h - 2) - 1].map(x => Math.round(x * 10) / 10).join(","));
+    return close ? `0,${h} ` + p.join(" ") + ` ${w},${h}` : p.join(" ");
+  }
+
+  renderVals() {
+    const s = this.state, acc = this.props.accent ?? "#7cf1ff", acc2 = this.props.accent2 ?? "#9d8bff";
+    const meta = NAV.find(n => n[0] === s.screen) || NAV[0];
+    const ser = s.series.a ? s.series : { a: [40], b: [50], c: [30], d: [45] };
+
+    const nav = NAV.map(([id, code, name]) => {
+      const on = id === s.screen;
+      return {
+        code, name, go: () => this.setState({ screen: id }),
+        style: `position:relative;padding:11px 16px 11px 18px;cursor:pointer;display:flex;flex-direction:column;gap:5px;transition:background .18s;background:${on ? "linear-gradient(90deg,rgba(124,241,255,.14),transparent)" : "transparent"};color:${on ? "#eafaff" : "rgba(190,225,240,.55)"}`,
+        barStyle: `position:absolute;left:0;top:0;bottom:0;width:2px;background:${on ? acc : "transparent"};box-shadow:${on ? "0 0 12px " + acc : "none"}`,
+      };
+    });
+
+    const services = SERVICES.map((sv, i) => ({
+      ...sv,
+      cpu: Math.round(sv.cpu + Math.sin(s.tick / 3 + i) * 5 + 5),
+      open: () => this.setState({ screen: "service", selIdx: i }),
+      dot: `width:8px;height:8px;border-radius:50%;background:${sv.ok ? "#5ff2b4" : "#ffb35c"};box-shadow:0 0 10px ${sv.ok ? "#5ff2b4" : "#ffb35c"};animation:blip ${sv.ok ? 2.6 : 1.2}s ease-in-out infinite`,
+    }));
+
+    const kpiDefs = [
+      ["FLEET UPTIME", "99.98", "%", ser.b], ["AGGREGATE LOAD", String(Math.round(ser.a[ser.a.length - 1])), "%", ser.a],
+      ["CONTAINERS", "24", "RUNNING", ser.d], ["INGRESS", String(Math.round(ser.c[ser.c.length - 1] * 1.4)), "req/s", ser.c],
+    ];
+    const kpis = kpiDefs.map(([label, value, unit, arr]) => ({ label, value, unit, points: this.pts(arr, 160, 34), area: this.pts(arr, 160, 34, true) }));
+
+    const sel = SERVICES[s.selIdx ?? 0];
+    const logs = LOGLINES.concat(LOGLINES).slice(0, s.logN).map((l, i) => ({
+      t: `+${String(i).padStart(2, "0")}.${String((i * 37) % 100).padStart(2, "0")}`, lvl: l[0], msg: l[1],
+      lvlStyle: `flex:none;color:${l[0] === "ERR " ? "#ff9aa8" : l[0] === "WARN" ? "#ffce8f" : "rgba(124,241,255,.8)"}`,
+    }));
+
+    const dev = (DEVICES[s.room] || []).map((d, i) => {
+      const key = s.room + i, on = s.devOn[key] ?? d.on;
+      return {
+        ...d, level: on ? d.level : 0, read: on ? d.read : "OFF", state: on ? d.state : "IDLE",
+        readColor: on ? "#eafaff" : "rgba(190,225,240,.35)",
+        card: `position:relative;padding:16px 18px;background:linear-gradient(155deg,${on ? "rgba(34,72,100,.42)" : "rgba(16,26,38,.4)"},rgba(8,14,22,.5));border:1px solid ${on ? "rgba(124,241,255,.28)" : "rgba(124,241,255,.1)"};backdrop-filter:blur(12px);transition:all .25s;box-shadow:${on ? "0 0 34px -14px rgba(124,241,255,.6)" : "none"}`,
+        toggle: () => this.setState(st => ({ devOn: { ...st.devOn, [key]: !on } })),
+        switchStyle: `flex:none;width:42px;height:22px;border:1px solid ${on ? "rgba(124,241,255,.5)" : "rgba(124,241,255,.18)"};background:${on ? "rgba(124,241,255,.18)" : "rgba(255,255,255,.03)"};display:flex;align-items:center;padding:2px;cursor:pointer;transition:all .22s`,
+        knobStyle: `width:16px;height:16px;background:${on ? acc : "rgba(190,225,240,.35)"};box-shadow:${on ? "0 0 12px " + acc : "none"};transform:translateX(${on ? 20 : 0}px);transition:transform .22s cubic-bezier(.4,1.5,.5,1)`,
+      };
+    });
+
+    const routeIdx = s.routeIdx, route = ROUTES[routeIdx];
+    const verbColor = v => v === "GET" ? "#7cf1ff" : v === "POST" ? "#9d8bff" : "#ffb35c";
+    const routes = ROUTES.map((r, i) => ({
+      ...r, pick: () => this.setState({ routeIdx: i }),
+      row: `display:grid;grid-template-columns:62px 1.5fr 1fr 92px 96px;gap:12px;align-items:center;padding:12px 18px;border-bottom:1px solid rgba(124,241,255,.06);cursor:pointer;transition:background .18s;background:${i === routeIdx ? "rgba(124,241,255,.09)" : "transparent"}`,
+      verbChip: `padding:4px 0;text-align:center;border:1px solid ${verbColor(r.verb)}55;color:${verbColor(r.verb)};font:600 9.5px/1.4 'IBM Plex Mono',monospace;letter-spacing:.1em`,
+      spark: this.pts(Array.from({ length: 8 }, (_, k) => 30 + Math.sin(k * 1.3 + i + s.tick / 4) * 26 + 30), 40, 14),
+    }));
+
+    const timeline = [
+      ["Nightly Snapshot", 3, 1.2, acc2], ["Dusk Protocol", 18.7, 2.4, "#ffb35c"], ["Thermal Guard", 13, 0.8, acc],
+      ["Irrigation", 6, 0.6, "#5ff2b4"], ["Cert Watch", 9.4, 0.4, acc], ["Away Lockdown", 9.2, 3.6, "rgba(157,139,255,.6)"],
+    ].map(([name, start, dur, color], i) => ({
+      name, style: `position:absolute;left:${(start / 24) * 100}%;width:${(dur / 24) * 100}%;top:${6 + i * 10}px;height:7px;background:${color};box-shadow:0 0 12px ${color};opacity:.85`,
+    }));
+    const nowPct = (parseInt(s.clock.slice(0, 2) || "0", 10) + parseInt(s.clock.slice(3, 5) || "0", 10) / 60) / 24 * 100;
+
+    const kindStyle = { core: [acc, "rgba(124,241,255,.16)"], iot: [acc2, "rgba(157,139,255,.18)"], edge: ["#ffb35c", "rgba(255,179,92,.18)"] };
+    const nodes = NODES.map(n => {
+      const [stroke, fill] = kindStyle[n.kind];
+      const size = n.kind === "core" ? 22 : 18;
+      return {
+        ...n, stroke, fill, size, rx: -size / 2, halo: size + 12,
+        labelStyle: `position:absolute;left:${(n.x / 760) * 100}%;top:${((n.y + size / 2 + 10) / 460) * 100}%;transform:translateX(-50%);text-align:center`,
+      };
+    });
+
+    return {
+      acc, acc2, callsign: this.props.callsign ?? "ATLAS-01",
+      booting: s.booting, bootShown: BOOT.slice(0, s.bootN), bootPct: Math.round((s.bootN / BOOT.length) * 100),
+      title: meta[3], subtitle: meta[4], clock: s.clock || "--:--:--", ping: s.ping, alertCount: 2,
+      tickerA: "CPU 41% · MEM 58% · NET ↓142 Mb/s ↑38 Mb/s · 24 CONTAINERS · 214 ENTITIES · ZWAVE MESH 31 NODES · CERT caddy-edge 89d · BACKUP 03:00 OK · ",
+      nav, isOverview: s.screen === "overview", isService: s.screen === "service", isHome: s.screen === "home",
+      isEndpoints: s.screen === "endpoints", isAutomations: s.screen === "automations", isTopology: s.screen === "topology",
+      kpis, services, svcSummary: "7 HEALTHY · 1 DEGRADED",
+      load: Math.round(ser.a[ser.a.length - 1]), ringDash: `${Math.round(ser.a[ser.a.length - 1] * 3.14)} 314`,
+      cores: ["core 0", "core 1", "core 2", "core 3"].map((name, i) => ({ name, v: Math.round(s.cores[i]) })),
+      events: EVENTS.map(([t, lvl, msg]) => ({
+        t, lvl, msg,
+        chip: `flex:none;padding:2px 6px;font:600 8.5px/1.6 'IBM Plex Mono',monospace;letter-spacing:.1em;border:1px solid ${lvl === "WARN" ? "rgba(255,179,92,.45)" : lvl === "OK" ? "rgba(95,242,180,.4)" : "rgba(124,241,255,.35)"};color:${lvl === "WARN" ? "#ffd9a8" : lvl === "OK" ? "#a5f8d4" : "#bfeaff"}`,
+      })),
+      sel, logs,
+      svcMetrics: [["CPU", Math.round(ser.a[ser.a.length - 1]) + "%", ser.a], ["MEMORY", "612 MB", ser.b], ["EVENT BUS", Math.round(ser.c[ser.c.length - 1] * 4) + "/s", ser.c]]
+        .map(([label, value, arr]) => ({ label, value, points: this.pts(arr, 200, 40), area: this.pts(arr, 200, 40, true) })),
+      svcFacts: [
+        { k: "IMAGE", v: sel.image }, { k: "HOST", v: sel.host }, { k: "RESTART POLICY", v: "unless-stopped" },
+        { k: "PORTS", v: "8123→8123/tcp" }, { k: "VOLUMES", v: "3 mounted" }, { k: "LAST DEPLOY", v: "2026-08-24 04:12" },
+      ],
+      deps: ["mosquitto", "postgres-16", "zwave-js", "caddy-edge", "prometheus"],
+      rooms: ROOMS.map(name => ({
+        name, go: () => this.setState({ room: name }),
+        style: `padding:9px 15px;border:1px solid ${name === s.room ? "rgba(124,241,255,.5)" : "rgba(124,241,255,.15)"};background:${name === s.room ? "rgba(124,241,255,.14)" : "rgba(255,255,255,.02)"};font:600 11px/1 'Chakra Petch',sans-serif;letter-spacing:.1em;color:${name === s.room ? "#eafaff" : "rgba(190,225,240,.6)"};cursor:pointer;transition:all .2s`,
+      })),
+      scenes: ["Focus", "Balanced", "Night Watch"].map(name => ({
+        name, go: () => this.setState({ scene: name }),
+        style: `padding:9px 14px;border:1px solid ${name === s.scene ? "rgba(157,139,255,.55)" : "rgba(157,139,255,.18)"};background:${name === s.scene ? "rgba(157,139,255,.16)" : "transparent"};font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:${name === s.scene ? "#e4dfff" : "rgba(200,192,240,.55)"};cursor:pointer;transition:all .2s`,
+      })),
+      devices: dev, roomName: s.room.toUpperCase(), temp: s.temp,
+      tempDash: `${Math.round((s.temp - 12) / 18 * 396)} 528`,
+      tempUp: () => this.setState(st => ({ temp: Math.min(29, st.temp + 1) })),
+      tempDown: () => this.setState(st => ({ temp: Math.max(13, st.temp - 1) })),
+      sensors: [
+        { k: "TEMPERATURE", v: (s.temp - 0.6).toFixed(1) + " °C" }, { k: "HUMIDITY", v: "43 %" },
+        { k: "CO₂", v: "612 ppm" }, { k: "PRESENCE", v: "2 DETECTED" }, { k: "LUX", v: "184" },
+      ],
+      routes, route,
+      routeFacts: [
+        { k: "UPSTREAM", v: route.up }, { k: "AUTH", v: route.auth }, { k: "P95", v: route.p95 },
+        { k: "RATE LIMIT", v: "120 / min" }, { k: "CALLS 24H", v: "18,402" }, { k: "ERROR RATE", v: "0.04 %" },
+      ],
+      routeBody: '{\n  "status": "ok",\n  "node": "atlas-01",\n  "entities": 214,\n  "latency_ms": 18\n}',
+      timeline, nowStyle: `position:absolute;top:0;bottom:0;left:${nowPct}%;width:1px;background:#ffb35c;box-shadow:0 0 12px #ffb35c;animation:glowline 2.4s ease-in-out infinite`,
+      automations: AUTOS.map((a, i) => {
+        const on = s.autoOn[i] ?? a.on;
+        return {
+          ...a, state: on ? "ARMED" : "STANDBY", stateColor: on ? "#a5f8d4" : "rgba(190,225,240,.4)",
+          toggle: () => this.setState(st => ({ autoOn: { ...st.autoOn, [i]: !on } })),
+          switchStyle: `flex:none;width:42px;height:22px;border:1px solid ${on ? "rgba(95,242,180,.5)" : "rgba(124,241,255,.16)"};background:${on ? "rgba(95,242,180,.14)" : "rgba(255,255,255,.03)"};display:flex;align-items:center;padding:2px;cursor:pointer;transition:all .22s`,
+          knobStyle: `width:16px;height:16px;background:${on ? "#5ff2b4" : "rgba(190,225,240,.35)"};box-shadow:${on ? "0 0 12px #5ff2b4" : "none"};transform:translateX(${on ? 20 : 0}px);transition:transform .22s cubic-bezier(.4,1.5,.5,1)`,
+        };
+      }),
+      nodes,
+      links: [
+        { name: "uplink → atlas-01", rate: "142 Mb/s", pct: 62 }, { name: "atlas-01 → vega-02", rate: "88 Mb/s", pct: 41 },
+        { name: "atlas-01 → orion-03", rate: "310 Mb/s", pct: 84 }, { name: "hass-hub → zwave", rate: "1.2 Mb/s", pct: 12 },
+      ],
+      legend: [
+        { name: "COMPUTE NODE", swatch: `width:9px;height:9px;background:rgba(124,241,255,.2);border:1px solid ${acc};transform:rotate(45deg);display:inline-block` },
+        { name: "IOT / AUTOMATION", swatch: `width:9px;height:9px;background:rgba(157,139,255,.2);border:1px solid ${acc2};transform:rotate(45deg);display:inline-block` },
+        { name: "EDGE / WAN", swatch: "width:9px;height:9px;background:rgba(255,179,92,.2);border:1px solid #ffb35c;transform:rotate(45deg);display:inline-block" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
