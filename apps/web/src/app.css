@@ -1,6 +1,8 @@
 /* Design tokens — see /docs/design-handoff.md#design-tokens for the source spec. */
 :root {
   --bg-root: #050706;
+  --bg-console: linear-gradient(180deg, rgba(10, 18, 16, 0.96), rgba(6, 10, 9, 0.98));
+  --bg-page-glow: radial-gradient(900px 620px at 50% 40%, #0b1210, #050706 70%);
   --bg-panel-solid: #080e0d;
   --bg-inset: rgba(4, 8, 7, 0.7);
 
@@ -37,4 +39,69 @@ body {
 
 #app {
   min-height: 100vh;
+}
+
+/* Shared keyframes — reused across shell/screen components, defined once per
+   /docs/design-handoff.md#spacing-borders-motion. */
+@keyframes orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes packet-travel {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes blink-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes scan-sweep {
+  0% {
+    transform: translateY(-20%);
+  }
+  100% {
+    transform: translateY(120%);
+  }
 }
