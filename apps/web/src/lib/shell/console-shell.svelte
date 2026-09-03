@@ -45,6 +45,9 @@
     background: var(--bg-console);
     box-shadow: 0 40px 120px -50px rgba(0, 0, 0, 1), inset 0 0 120px rgba(0, 0, 0, 0.6);
     overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
 
   .scanlines {
