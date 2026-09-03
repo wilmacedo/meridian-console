@@ -1,8 +1,14 @@
 import Fastify from 'fastify'
+import websocket from '@fastify/websocket'
+import { registerAqwIdlePacketStream } from './aqw-idle-packets.js'
 
 const app = Fastify({ logger: true })
 
+await app.register(websocket)
+
 app.get('/health', async () => ({ status: 'ok' }))
+
+registerAqwIdlePacketStream(app)
 
 const port = Number(process.env.PORT ?? 4000)
 
