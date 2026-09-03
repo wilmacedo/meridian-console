@@ -29,15 +29,18 @@
 
 <style>
   .page {
-    min-height: 100vh;
+    height: 100vh;
     padding: 26px;
     background: var(--bg-page-glow);
-    overflow-x: auto;
+    overflow: hidden;
   }
 
   .shell {
     position: relative;
-    min-width: 1420px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
     border: 1px solid rgba(79, 214, 184, 0.16);
     background: var(--bg-console);
     box-shadow: 0 40px 120px -50px rgba(0, 0, 0, 1), inset 0 0 120px rgba(0, 0, 0, 0.6);
@@ -94,14 +97,17 @@
   .body {
     position: relative;
     z-index: 6;
+    flex: 1;
+    min-height: 0;
     display: grid;
     grid-template-columns: 212px 1fr 236px;
-    min-height: 660px;
   }
 
   .content {
     position: relative;
     min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
     border-left: 1px solid rgba(79, 214, 184, 0.1);
     border-right: 1px solid rgba(79, 214, 184, 0.1);
     padding-top: 14px;

@@ -82,6 +82,8 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .analysis-badge {
