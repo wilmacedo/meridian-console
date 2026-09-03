@@ -1,27 +1,32 @@
-<main>
-  <h1>Meridian Console</h1>
-  <p>Scaffolding in place — screens land in upcoming commits.</p>
-</main>
+<script lang="ts">
+  import { onMount } from 'svelte'
+  import ConsoleShell from './lib/shell/console-shell.svelte'
+  import OverviewScreen from './lib/overview/overview-screen.svelte'
+  import { appState, startAppClocks, stopAppClocks } from './lib/state/app-state.svelte'
+
+  onMount(() => {
+    startAppClocks()
+    return () => stopAppClocks()
+  })
+</script>
+
+<ConsoleShell>
+  {#if appState.screen === 'overview'}
+    <OverviewScreen />
+  {:else}
+    <div class="placeholder">Screen not wired up yet</div>
+  {/if}
+</ConsoleShell>
 
 <style>
-  main {
+  .placeholder {
     display: grid;
     place-items: center;
-    height: 100vh;
-    gap: 8px;
-    text-align: center;
-  }
-
-  h1 {
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
+    height: 100%;
+    min-height: 600px;
+    font: 500 10px/1 var(--font-mono);
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--text-primary);
-  }
-
-  p {
-    font-size: 10px;
     color: var(--text-muted);
   }
 </style>
