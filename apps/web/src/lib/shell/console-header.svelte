@@ -1,5 +1,6 @@
 <script lang="ts">
   import { appState, type Screen } from '../state/app-state.svelte'
+  import ServicesDropdown from './services-dropdown.svelte'
 
   const navItems: { id: Screen; label: string }[] = [
     { id: 'overview', label: 'System Overview' },
@@ -29,6 +30,9 @@
         {item.label}{item.id === 'service' ? '  ▾' : ''}
       </button>
     {/each}
+    {#if appState.navOpen}
+      <ServicesDropdown />
+    {/if}
   </nav>
   <div class="spacer"></div>
   <div class="clock">{appState.clock} UTC</div>
@@ -57,6 +61,7 @@
   }
 
   nav {
+    position: relative;
     display: flex;
     gap: 22px;
     align-items: center;
