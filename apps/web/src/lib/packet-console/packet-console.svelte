@@ -19,7 +19,14 @@
   const kept = $derived(filterFeed(consoleState.feed, consoleState.lvlOff, consoleState.chanOff, consoleState.q))
   const shown = $derived(kept.slice(-60))
   const selectedPacket = $derived(findSelected(consoleState.feed, shown, consoleState.packetSel))
-  const feedRate = $derived((0.9 + Math.abs(Math.sin(appState.tick / 4)) * 0.7).toFixed(1))
+  // Real rolling rate over the trailing 5s — re-derives on appState.tick so it decays back to
+  // 0.0 once traffic stops, rather than freezing at the last packet's rate.
+  const feedRate = $derived.by(() => {
+    void appState.tick
+    const cutoff = Date.now() - 5_000
+    const recent = consoleState.feed.filter((entry) => entry.epochMs >= cutoff).length
+    return (recent / 5).toFixed(1)
+  })
 
   const levelChips = $derived(
     levelDefs.map((lvl) => ({
@@ -73,7 +80,9 @@
       </div>
       <div class="title-row">
         <div class="title">{selected.name}</div>
-        <div class="socket-chip">SOCKET OPEN</div>
+        <div class="socket-chip" class:down={!consoleState.connected}>
+          {consoleState.connected ? 'SOCKET OPEN' : 'SOCKET CLOSED'}
+        </div>
       </div>
       <div class="subtitle">console stream · smartfox packet bus · {feedRate} msg/s · {consoleState.feed.length} buffered</div>
     </div>
@@ -201,6 +210,11 @@
     font: 600 7.5px/1.6 var(--font-mono);
     letter-spacing: 0.16em;
     color: #8fe8d4;
+  }
+
+  .socket-chip.down {
+    border-color: color-mix(in srgb, var(--state-err) 47%, transparent);
+    color: var(--state-err);
   }
 
   .subtitle {
