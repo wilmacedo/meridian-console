@@ -89,6 +89,8 @@
     left: 50%;
     top: -84px;
     transform: translateX(-6px);
+    padding: 2px 6px;
+    background: rgba(7, 12, 11, 0.85);
     font: 600 11px/1.5 var(--font-mono);
     color: var(--accent-amber);
     white-space: nowrap;
@@ -118,6 +120,8 @@
     position: absolute;
     left: 50%;
     top: -30px;
+    padding: 3px 6px;
+    background: rgba(7, 12, 11, 0.85);
     font: 500 8px/1.5 var(--font-mono);
     color: var(--text-muted);
     white-space: pre;
