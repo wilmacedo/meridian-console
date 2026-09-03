@@ -77,6 +77,7 @@
 
   .cursor-line {
     position: absolute;
+    z-index: 1;
     left: 50%;
     top: -56px;
     bottom: 0;
