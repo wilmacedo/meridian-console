@@ -1,6 +1,7 @@
 <script lang="ts">
   import { appState } from '../state/app-state.svelte'
-  import { polylinePoints, waveSeries } from './wave'
+  import { polylinePoints } from '../shared/polyline'
+  import { waveSeries } from './wave'
 
   const spikeDefs = [
     { left: 26, base: 62 },
