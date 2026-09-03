@@ -56,6 +56,7 @@
 <style>
   .wave-panel {
     position: relative;
+    flex: none;
     height: 150px;
     margin-top: -6px;
   }

@@ -27,10 +27,14 @@
 
 <style>
   .overview {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
     animation: rise 0.4s ease both;
   }
 
   .ranges {
+    flex: none;
     display: flex;
     justify-content: center;
     margin-bottom: 2px;
@@ -54,6 +58,7 @@
   }
 
   .axis {
+    flex: none;
     display: flex;
     justify-content: space-between;
     padding: 14px 22px 16px;
