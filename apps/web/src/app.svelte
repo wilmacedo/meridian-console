@@ -3,6 +3,7 @@
   import ConsoleShell from './lib/shell/console-shell.svelte'
   import OverviewScreen from './lib/overview/overview-screen.svelte'
   import ServicePanel from './lib/service/service-panel.svelte'
+  import PacketConsole from './lib/packet-console/packet-console.svelte'
   import { services } from './lib/data/services'
   import { appState, startAppClocks, stopAppClocks } from './lib/state/app-state.svelte'
 
@@ -17,7 +18,9 @@
 <ConsoleShell>
   {#if appState.screen === 'overview'}
     <OverviewScreen />
-  {:else if appState.screen === 'service' && selectedKind !== 'packet'}
+  {:else if appState.screen === 'service' && selectedKind === 'packet'}
+    <PacketConsole />
+  {:else if appState.screen === 'service'}
     <ServicePanel />
   {:else}
     <div class="placeholder">Screen not wired up yet</div>
