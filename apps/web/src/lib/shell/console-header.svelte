@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { appState, type Screen } from '../state/app-state.svelte'
   import ServicesDropdown from './services-dropdown.svelte'
 
@@ -10,6 +11,8 @@
     { id: 'automations', label: 'Protocols' },
   ]
 
+  let navEl: HTMLElement
+
   function selectNav(id: Screen) {
     // The Services nav item only toggles the dropdown — it must never navigate on its own,
     // see docs/design-handoff.md#known-pitfalls-already-hit-in-this-design.
@@ -20,11 +23,23 @@
     appState.screen = id
     appState.navOpen = false
   }
+
+  // Close on any press outside the nav item + dropdown, matching standard menu/select behaviour.
+  onMount(() => {
+    const handleOutsidePointer = (e: PointerEvent) => {
+      if (!appState.navOpen) return
+      if (navEl && !navEl.contains(e.target as Node)) {
+        appState.navOpen = false
+      }
+    }
+    document.addEventListener('pointerdown', handleOutsidePointer)
+    return () => document.removeEventListener('pointerdown', handleOutsidePointer)
+  })
 </script>
 
 <header>
   <div class="wordmark">MERIDIAN</div>
-  <nav>
+  <nav bind:this={navEl}>
     {#each navItems as item (item.id)}
       <button type="button" class:active={appState.screen === item.id} onclick={() => selectNav(item.id)}>
         {item.label}{item.id === 'service' ? '  ▾' : ''}
