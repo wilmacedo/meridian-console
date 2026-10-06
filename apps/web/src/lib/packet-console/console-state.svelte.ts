@@ -62,17 +62,28 @@ function pushEntry(message: PacketMessage) {
 
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  socket = new WebSocket(`${proto}://${location.host}/ws/services/aqw-idle/packets`)
+  const ws = new WebSocket(`${proto}://${location.host}/ws/services/aqw-idle/packets`)
+  socket = ws
 
-  socket.addEventListener('open', () => {
+// Closes whatever socket was open first — connect() can otherwise be called again (e.g. a fast
+// remount) before the previous one has finished closing, leaving a stale socket whose listeners
+// are still live to double- or triple-push every incoming packet.
+  // Guards below ignore events from a socket that's no longer the current one — needed because a
+  // superseded socket's own `close` event can still fire after connect() has already moved on.
+  ws.addEventListener('open', () => {
+    if (socket !== ws) return
+  socket?.close()
+
     consoleState.connected = true
   })
 
-  socket.addEventListener('message', (event) => {
+  ws.addEventListener('message', (event) => {
+    if (socket !== ws) return
     pushEntry(JSON.parse(event.data) as PacketMessage)
   })
 
-  socket.addEventListener('close', () => {
+  ws.addEventListener('close', () => {
+    if (socket !== ws) return
     consoleState.connected = false
     if (!stopped) reconnectTimer = setTimeout(connect, 3_000)
   })
