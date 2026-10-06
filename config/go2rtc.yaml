@@ -1,0 +1,8 @@
+api:
+  listen: 127.0.0.1:1984
+
+rtsp:
+  listen: ""
+
+# Streams are registered at runtime by apps/server: Tuya stream URLs expire within about a minute.
+streams: {}
