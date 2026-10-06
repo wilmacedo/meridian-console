@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { decodeRaw } from './scanner'
   import { buildFields } from './derived'
+  import { humanDecode, parseChatMessage } from './chat'
   import type { LogEntry } from './console-state.svelte'
 
   interface Props {
@@ -9,8 +9,23 @@
 
   const { packet }: Props = $props()
 
-  const decoded = $derived(decodeRaw(packet.raw))
-  const fields = $derived(buildFields(packet.raw))
+  const chat = $derived(parseChatMessage(packet.raw))
+  const decoded = $derived(humanDecode(packet.raw))
+  const fields = $derived(
+    chat
+      ? chat.kind === 'whisper'
+        ? [
+            { label: 'from', value: chat.from },
+            { label: 'to', value: chat.to ?? '' },
+            { label: 'message', value: chat.message },
+          ]
+        : [
+            { label: 'channel', value: chat.channel },
+            { label: 'username', value: chat.from },
+            { label: 'message', value: chat.message },
+          ]
+      : buildFields(packet.raw),
+  )
 
   const facts = $derived([
     { key: 'SEQ', value: `#${packet.id}` },

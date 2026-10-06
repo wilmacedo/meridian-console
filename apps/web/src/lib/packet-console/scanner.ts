@@ -43,3 +43,20 @@ export function decodeRaw(raw: string): string {
     .map((t) => (t.kind === 'esc' ? (t.dec === '␣' ? ' ' : (t.dec ?? '')) : t.text))
     .join('')
 }
+
+// Escape-aware field split on `%` separators — shared by derived.ts's buildFields and chat.ts's
+// parseChatMessage so both agree on how a payload breaks into args.
+export function splitFields(raw: string): string[] {
+  const args: string[] = []
+  let current = ''
+  for (const token of scan(raw)) {
+    if (token.kind === 'sep') {
+      if (current.length) args.push(current)
+      current = ''
+      continue
+    }
+    current += token.kind === 'esc' ? (token.dec === '␣' ? ' ' : (token.dec ?? '')) : token.text
+  }
+  if (current.length) args.push(current)
+  return args
+}

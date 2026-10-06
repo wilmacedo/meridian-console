@@ -1,5 +1,6 @@
 <script lang="ts">
   import { scan } from './scanner'
+  import { parseChatMessage } from './chat'
   import type { LogEntry } from './console-state.svelte'
 
   interface Props {
@@ -41,19 +42,33 @@
 
   <div class="body">
     {#each rows as row, i (row.id)}
+      {@const chat = parseChatMessage(row.raw)}
       <button type="button" class="row" class:selected={row.id === selectedId} class:tinted={i % 2 === 1} onclick={() => onPick(row.id)}>
         <span class="seq">{row.id}</span>
         <span class="time">{row.t}</span>
         <span class="lvl-chip {levelClass(row.lvl)}">{row.lvl}</span>
         <span class="dir {dirClass(row.dir)}">{row.dir}</span>
         <span class="payload">
-          {#each scan(row.raw) as token, ti (ti)}
-            {#if token.kind === 'esc'}
-              <span class="tok-esc" class:decoded={decode}>{decode ? token.dec : token.text}</span>
-            {:else}
-              <span class="tok-{token.kind}">{token.text}</span>
-            {/if}
-          {/each}
+          {#if chat}
+            <span class="chat-line" class:whisper={chat.kind === 'whisper'}>
+              <span class="chat-chan">[{chat.channel}]</span>
+              <span class="chat-user">{chat.from}</span>
+              {#if chat.kind === 'whisper'}
+                <span class="chat-arrow">→</span>
+                <span class="chat-user">{chat.to}</span>
+              {/if}
+              <span class="chat-colon">:</span>
+              <span class="chat-msg">{chat.message}</span>
+            </span>
+          {:else}
+            {#each scan(row.raw) as token, ti (ti)}
+              {#if token.kind === 'esc'}
+                <span class="tok-esc" class:decoded={decode}>{decode ? token.dec : token.text}</span>
+              {:else}
+                <span class="tok-{token.kind}">{token.text}</span>
+              {/if}
+            {/each}
+          {/if}
         </span>
       </button>
     {/each}
@@ -238,6 +253,48 @@
     background: transparent;
     border-bottom: 1px dashed rgba(224, 123, 40, 0.55);
     font-size: 10px;
+  }
+
+  .chat-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .chat-chan {
+    flex: none;
+    margin-right: 6px;
+    color: rgba(160, 196, 187, 0.55);
+  }
+
+  .chat-user {
+    flex: none;
+    font-weight: 600;
+    color: var(--accent-teal);
+  }
+
+  .chat-arrow {
+    flex: none;
+    margin: 0 5px;
+    color: rgba(160, 196, 187, 0.4);
+  }
+
+  .chat-colon {
+    flex: none;
+    margin-right: 5px;
+    color: rgba(160, 196, 187, 0.4);
+  }
+
+  .chat-msg {
+    color: #dff0eb;
+  }
+
+  .chat-line.whisper .chat-user {
+    color: #c7a0f2;
+  }
+
+  .chat-line.whisper .chat-msg {
+    color: #e4d4fb;
   }
 
   .legend {
