@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { getToken, tuya } from './tuya/tuya-client.js'
+import { getToken, tuya } from './tuya-client.js'
 
 const GO2RTC_API_URL = process.env.GO2RTC_API_URL ?? 'http://127.0.0.1:1984'
 const STREAM_NAME = 'feeder'

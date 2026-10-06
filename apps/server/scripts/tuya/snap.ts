@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { rmSync, statSync } from 'node:fs'
-import { getToken, tuya } from '../../src/tuya/tuya-client.js'
+import { getToken, tuya } from '../../src/integrations/tuya/tuya-client.js'
 import { requireArg } from './script-args.js'
 
 const CAPTURE_SECONDS = 8

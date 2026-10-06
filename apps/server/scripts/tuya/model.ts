@@ -1,4 +1,4 @@
-import { getToken, tuya } from '../../src/tuya/tuya-client.js'
+import { getToken, tuya } from '../../src/integrations/tuya/tuya-client.js'
 import { requireArg } from './script-args.js'
 
 interface ModelProperty {

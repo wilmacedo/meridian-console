@@ -34,7 +34,7 @@ All in `apps/server/scripts/tuya/`.
 | `stream.ts <id> [type]` | Allocates a camera stream (`RTSP` works; `HLS` only yields a spinner; `FLV`/`RTMP` untested). Prints only whether a URL came back; `SHOW_URL=1` prints it |
 | `snap.ts <id> [file]` | Captures a frame from the RTSP stream with `ffmpeg` (see "Camera" below) |
 
-The API client itself is `apps/server/src/tuya/tuya-client.ts`: HMAC-SHA256 signing and a cached token.
+The API client itself is `apps/server/src/integrations/tuya/tuya-client.ts`: HMAC-SHA256 signing and a cached token.
 
 ## Feeder — findings
 
@@ -112,7 +112,7 @@ the URL, so every connection gets a fresh Tuya URL and no secret sits in the con
 #### Camera relay in the repo
 
 `compose.yaml` runs go2rtc (`alexxit/go2rtc:1.9.14`, `network_mode: host`, config mounted read-only
-from `config/go2rtc.yaml`). `apps/server/src/feeder-camera.ts` exposes
+from `config/go2rtc.yaml`). `apps/server/src/integrations/tuya/feeder-camera.ts` exposes
 `POST /api/feeder/camera/session`: it allocates a fresh Tuya RTSP URL and registers it in go2rtc as
 stream `feeder`. Requires `TUYA_FEEDER_DEVICE_ID` in `.env`.
 
@@ -130,7 +130,7 @@ stream `feeder`. Requires `TUYA_FEEDER_DEVICE_ID` in `.env`.
 
 #### Feeder control in the repo
 
-`apps/server/src/feeder.ts` exposes `GET /api/feeder/status` and `POST /api/feeder/feed`
+`apps/server/src/integrations/tuya/feeder.ts` exposes `GET /api/feeder/status` and `POST /api/feeder/feed`
 (`{ "portions": 1..99 }`, rejected with 400 otherwise, 429 within 10s of the previous feeding). The Habitat
 screen shows it in `feeder-panel.svelte`: status rows, a 1-5 portion stepper (the UI caps it lower than the
 API on purpose) and a two-step **FEED NOW → CONFIRM** button that cancels itself after 5s. After a feeding

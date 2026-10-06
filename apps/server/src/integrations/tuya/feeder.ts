@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { getToken, tuya } from './tuya/tuya-client.js'
+import { getToken, tuya } from './tuya-client.js'
 
 const MIN_PORTIONS = 1
 const MAX_PORTIONS = 99
