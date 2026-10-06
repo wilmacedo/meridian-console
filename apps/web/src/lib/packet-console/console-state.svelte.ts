@@ -22,8 +22,9 @@ export const consoleState = $state({
   seq: 0,
   packetSel: 0,
   q: '',
-  lvlOff: {} as Record<string, boolean>,
-  chanOff: {} as Record<string, boolean>,
+  // Default view is chat/whisper only — gameplay noise (zone/server/runtime) starts hidden.
+  lvlOff: { INFO: true, WARN: true, ERR: true, DROP: true } as Record<string, boolean>,
+  chanOff: { zm: true, srv: true, sys: true } as Record<string, boolean>,
   decode: true,
   follow: true,
   connected: false,
@@ -33,9 +34,12 @@ let socket: WebSocket | undefined
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined
 let stopped = true
 
-// Bucketed by prefix, not told by the source — `zm` is zone/gameplay commands, `server`-prefixed
-// traffic is `srv`, everything else (login/policy/verChk XML, and anything not yet seen) is `sys`.
+// Bucketed by prefix, not told by the source — `chatm` broadcasts and `whisper` private messages
+// share the `chat` bucket (so all player chat can be isolated from gameplay noise), `zm` is
+// zone/gameplay commands, `server`-prefixed traffic is `srv`, everything else (login/policy/verChk
+// XML, and anything not yet seen) is `sys`.
 function channelFor(raw: string): string {
+  if (raw.startsWith('%xt%chatm%') || raw.startsWith('%xt%whisper%')) return 'chat'
   if (raw.startsWith('%xt%zm%')) return 'zm'
   if (raw.startsWith('%xt%server%')) return 'srv'
   return 'sys'
@@ -57,23 +61,23 @@ function pushEntry(message: PacketMessage) {
     epochMs: message.t,
   }
   consoleState.seq += 1
-  consoleState.feed = [...consoleState.feed, entry].slice(-160)
+  consoleState.feed = [...consoleState.feed, entry]
 }
-
-function connect() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  const ws = new WebSocket(`${proto}://${location.host}/ws/services/aqw-idle/packets`)
-  socket = ws
 
 // Closes whatever socket was open first — connect() can otherwise be called again (e.g. a fast
 // remount) before the previous one has finished closing, leaving a stale socket whose listeners
 // are still live to double- or triple-push every incoming packet.
+function connect() {
+  socket?.close()
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+  const ws = new WebSocket(`${proto}://${location.host}/ws/services/aqw-idle/packets`)
+  socket = ws
+
   // Guards below ignore events from a socket that's no longer the current one — needed because a
   // superseded socket's own `close` event can still fire after connect() has already moved on.
   ws.addEventListener('open', () => {
     if (socket !== ws) return
-  socket?.close()
-
     consoleState.connected = true
   })
 

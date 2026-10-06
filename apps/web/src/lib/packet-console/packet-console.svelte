@@ -4,20 +4,24 @@
   import { services } from '../data/services'
   import { consoleState, startPacketFeed, stopPacketFeed, clearFeed } from './console-state.svelte'
   import { filterFeed, findSelected } from './derived'
+  import { readFiltersFromUrl, writeFiltersToUrl } from './url-filters'
   import PacketLogTable from './packet-log-table.svelte'
   import PacketInspector from './packet-inspector.svelte'
+
+  readFiltersFromUrl()
+  $effect(() => writeFiltersToUrl())
 
   const selected = $derived(services.find((s) => s.id === appState.svcId) ?? services[0])
 
   const levelDefs = ['PKT', 'INFO', 'WARN', 'ERR', 'DROP'] as const
   const channelDefs: [string, string][] = [
+    ['chat', 'chat'],
     ['zm', 'zone'],
     ['srv', 'server'],
     ['sys', 'runtime'],
   ]
 
-  const kept = $derived(filterFeed(consoleState.feed, consoleState.lvlOff, consoleState.chanOff, consoleState.q))
-  const shown = $derived(kept.slice(-60))
+  const shown = $derived(filterFeed(consoleState.feed, consoleState.lvlOff, consoleState.chanOff, consoleState.q))
   const selectedPacket = $derived(findSelected(consoleState.feed, shown, consoleState.packetSel))
   // Real rolling rate over the trailing 5s — re-derives on appState.tick so it decays back to
   // 0.0 once traffic stops, rather than freezing at the last packet's rate.
@@ -105,7 +109,7 @@
         value={consoleState.q}
         oninput={(e) => setQuery(e.currentTarget.value)}
       />
-      <span class="match-count">{kept.length} MATCH</span>
+      <span class="match-count">{shown.length} MATCH</span>
     </div>
 
     {#each levelChips as chip (chip.lvl)}
