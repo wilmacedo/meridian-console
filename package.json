@@ -10,6 +10,7 @@
     "dev:web": "pnpm --filter @meridian/web dev",
     "dev:server": "pnpm --filter @meridian/server dev",
     "build": "pnpm --filter @meridian/web build && pnpm --filter @meridian/server build",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "tuya": "pnpm --filter @meridian/server tuya"
   }
 }
