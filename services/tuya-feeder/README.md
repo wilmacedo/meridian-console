@@ -1,10 +1,11 @@
-# Tuya integration
+# tuya-feeder service
 
-Notes on the home automation side of the project: Tuya/SmartLife devices, starting with an automatic
-pet feeder with a camera. Goal: control them from our own backend and from the console UI.
+A Meridian service for Tuya/SmartLife devices, starting with an automatic pet feeder with a camera: it
+exposes the feeder through the server (`server/`), contributes its widgets to the Habitat screen (`web/`)
+and ships the notes below. See `docs/services.md` for the service contract.
 
 Anything specific to one installation (device IDs and names, observed readings, schedules) does not
-belong here: keep it in `docs/local/`, which is git-ignored.
+belong here: keep it in `docs/local/` at the repo root, which is git-ignored.
 
 ## Context
 
@@ -17,11 +18,11 @@ belong here: keep it in `docs/local/`, which is git-ignored.
   options are listed in `.env.example`). **Never paste secret values into a reply, commit or log.** A
   device's `local_key` is a secret too.
 - Node 20.6+ (`--env-file` and native `fetch`). Scripts are TypeScript run through `tsx`; from the repo
-  root: `pnpm tuya scripts/tuya/<script>.ts [args]`.
+  root: `pnpm tuya scripts/<script>.ts [args]`.
 
 ## Scripts
 
-All in `apps/server/scripts/tuya/`.
+All in `services/tuya-feeder/scripts/`.
 
 | Script | Purpose |
 |---|---|
@@ -34,7 +35,7 @@ All in `apps/server/scripts/tuya/`.
 | `stream.ts <id> [type]` | Allocates a camera stream (`RTSP` works; `HLS` only yields a spinner; `FLV`/`RTMP` untested). Prints only whether a URL came back; `SHOW_URL=1` prints it |
 | `snap.ts <id> [file]` | Captures a frame from the RTSP stream with `ffmpeg` (see "Camera" below) |
 
-The API client itself is `apps/server/src/integrations/tuya/tuya-client.ts`: HMAC-SHA256 signing and a cached token.
+The API client itself is `services/tuya-feeder/server/tuya-client.ts`: HMAC-SHA256 signing and a cached token.
 
 ## Feeder — findings
 
@@ -112,17 +113,17 @@ the URL, so every connection gets a fresh Tuya URL and no secret sits in the con
 #### Camera relay in the repo
 
 `compose.yaml` runs go2rtc (`alexxit/go2rtc:1.9.14`, `network_mode: host`, config mounted read-only
-from `config/go2rtc.yaml`). `apps/server/src/integrations/tuya/feeder-camera.ts` exposes
-`POST /api/feeder/camera/session`: it allocates a fresh Tuya RTSP URL and registers it in go2rtc as
+from `config/go2rtc.yaml`); start it with `docker compose -f services/tuya-feeder/compose.yaml up -d`.
+`server/camera.ts` exposes `POST /api/services/tuya-feeder/camera/session`: it allocates a fresh Tuya RTSP URL and registers it in go2rtc as
 stream `feeder`. Requires `TUYA_FEEDER_DEVICE_ID` in `.env`.
 
 - Register with `PATCH /api/streams`, **not `PUT`**: PUT persists the stream (and the secret URL) into
   go2rtc's config file. The read-only mount is a second guard.
 - Verified: two consecutive sessions replace the URL, the stream plays (H.264 640x360), and a viewer
   kept connected for 77s kept receiving data past the URL's ~1 minute lifetime.
-- `POST /api/feeder/camera/webrtc` proxies the SDP offer/answer to go2rtc, so only go2rtc's WebRTC media
-  port (8555) needs to be reachable by clients. The UI side is `apps/web/src/lib/habitat/`: the Habitat
-  screen renders `feeder-camera.svelte`, which opens the connection on mount and closes it on unmount
+- `POST /api/services/tuya-feeder/camera/webrtc` proxies the SDP offer/answer to go2rtc, so only go2rtc's WebRTC media
+  port (8555) needs to be reachable by clients. The UI side is `web/`: the service lists `feeder-camera.svelte`
+  as a Habitat widget, and it opens the connection on mount and closes it on unmount
   (verified: leaving the screen drops go2rtc to 0 consumers). Audio arrives (G.711) and the panel has a
   SOUND toggle; the video starts muted because browsers only autoplay muted video.
 - Gotcha: Fastify rejects a request that has `Content-Type: application/json` with an empty body, so the
@@ -130,9 +131,9 @@ stream `feeder`. Requires `TUYA_FEEDER_DEVICE_ID` in `.env`.
 
 #### Feeder control in the repo
 
-`apps/server/src/integrations/tuya/feeder.ts` exposes `GET /api/feeder/status` and `POST /api/feeder/feed`
+`server/feeder.ts` exposes `GET /api/services/tuya-feeder/status` and `POST /api/services/tuya-feeder/feed`
 (`{ "portions": 1..99 }`, rejected with 400 otherwise, 429 within 10s of the previous feeding). The Habitat
-screen shows it in `feeder-panel.svelte`: status rows, a 1-5 portion stepper (the UI caps it lower than the
+screen shows it through the `feeder-panel.svelte` widget: status rows, a 1-5 portion stepper (the UI caps it lower than the
 API on purpose) and a two-step **FEED NOW → CONFIRM** button that cancels itself after 5s. After a feeding
 it polls until `feed_report`'s timestamp changes and shows `SERVED n` or `FEEDING FAILED`.
 

@@ -28,28 +28,39 @@ handoff's State section — a router would be unused weight.
 
 ```
 apps/
-├── web/       Svelte + Vite + TypeScript frontend. Built to static assets, served by the server
-│               in production (or by Vite's dev server locally).
-└── server/    Fastify + TypeScript backend. Bridges Docker/Podman, Prometheus, Home Assistant
-                (REST + WS), and the Caddy admin API; exposes REST + WS/SSE endpoints; serves the
-                built frontend in production.
+├── web/       Svelte + Vite + TypeScript frontend: the shell, the overview, and the generic panel.
+│               Built to static assets, served by the server in production (or by Vite locally).
+└── server/    Fastify + TypeScript backend: discovers services, mounts their routes and serves
+                GET /api/services. Serves the built frontend in production.
+packages/
+└── service-sdk/   The contract between the core and a service (types + defineServerService /
+                   defineWebService).
+services/
+└── <id>/      One folder per service: server routes and status, optional web UI, scripts, docs.
 ```
 
-Package manager: pnpm workspaces (`pnpm-workspace.yaml`), so `apps/web` and `apps/server` share
-tooling without needing a separate monorepo tool.
+The core is generic: it never mentions a specific service. Each service is self-contained and
+auto-discovered, so adding one is adding a folder. The contract and how to write a service are in
+[`services.md`](services.md).
 
-## Data flow (target state)
+Package manager: pnpm workspaces (`pnpm-workspace.yaml`: `apps/*`, `packages/*`, `services/*`), so
+everything shares tooling without needing a separate monorepo tool.
 
-| Source | Integration | Consumed by |
+## Data flow
+
+A service's server code is the only thing that talks to its backend (Tuya cloud, a game's packet source,
+Docker, ...). The frontend never does: it reads `GET /api/services` for the list and each service's own
+routes under `/api/services/<id>/...`. The Fastify server is the single trust boundary running on the
+homelab box.
+
+Services that exist today:
+
+| Service | Backend it bridges | UI |
 | --- | --- | --- |
-| Docker/Podman | server, via socket (e.g. `dockerode`) | service registry, System Overview graph |
-| Prometheus | server, HTTP query API | metric cards, sparklines |
-| Home Assistant | server, REST + WebSocket | Habitat screen |
-| Caddy admin API | server, HTTP | Endpoints screen |
-| Service log/packet stream | server, tails the source, re-emits over WS/SSE | packet console |
+| `aqw-idle` | a packet source's SSE stream, relayed over WebSocket | packet console panel |
+| `tuya-feeder` | Tuya Cloud OpenAPI, plus go2rtc for the camera | Habitat widgets (camera, feeder control) |
 
-The frontend never talks to these systems directly — it only talks to the Fastify backend, which
-is the single trust boundary running on the homelab box.
+Sources named in the design handoff (Docker/Podman, Prometheus, Home Assistant, Caddy) are future services.
 
 ## Conventions
 

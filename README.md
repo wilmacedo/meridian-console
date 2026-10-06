@@ -8,17 +8,20 @@ including a permanently-mounted touch panel.
 ## Stack
 
 - `apps/web` — Svelte + Vite + TypeScript frontend.
-- `apps/server` — Fastify + TypeScript backend (bridges Docker, Prometheus, Home Assistant, Caddy;
-  serves the WebSocket/SSE streams).
+- `apps/server` — Fastify + TypeScript backend: discovers services and mounts their routes.
+- `packages/service-sdk` — the contract between the core and a service.
+- `services/*` — the services themselves.
 
 See [`docs/architecture.md`](docs/architecture.md) for the why, and
 [`docs/design-handoff.md`](docs/design-handoff.md) for the full visual/behavioural spec.
 
-## Home automation
+## Services
 
-Tuya/SmartLife devices (starting with the automatic pet feeder) are reached through the Tuya Cloud
-OpenAPI. Notes in [`docs/tuya-feeder.md`](docs/tuya-feeder.md), scripts in
-[`apps/server/scripts/tuya/`](apps/server/scripts/tuya/README.md). Credentials go in `.env` (see `.env.example`).
+Everything the dashboard shows is a **service**: a folder under `services/` that is discovered
+automatically, with its own server routes, status and optional UI. Today: `aqw-idle` (a packet
+console) and `tuya-feeder` (a Tuya pet feeder with a camera, on the Habitat screen). See
+[`docs/services.md`](docs/services.md) to write one. Credentials and per-installation values go in
+`.env` (see `.env.example`).
 
 ## Getting started
 
