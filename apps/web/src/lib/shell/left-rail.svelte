@@ -1,6 +1,6 @@
 <script lang="ts">
   import { appState } from '../state/app-state.svelte'
-  import { services } from '../data/services'
+  import { selectedService } from '../services/selection'
 
   const hexRows = ['112 - 9453 - 2592 - DE', '3857 - 3452 - 2397 - 5342', '0093 - 4828 - 8425 - 2084']
 
@@ -8,16 +8,22 @@
     return values[values.length - 1]
   }
 
-  const selected = $derived(services.find((s) => s.id === appState.svcId) ?? services[0])
+  const selected = $derived(selectedService())
   const analysisId = $derived(` / ${20 + (appState.tick % 9)} · 45`)
 
-  const containerInfo = $derived([
-    { label: 'Service:', value: selected.name, amber: false },
-    { label: 'Image:', value: selected.image.split(':')[0].slice(-16), amber: false },
-    { label: 'Status:', value: selected.state === 'ok' ? 'UP' : 'DEGRADED', amber: selected.state !== 'ok' },
-    { label: 'Host:', value: selected.host, amber: false },
-    { label: 'Uptime:', value: selected.uptime, amber: false },
-  ])
+  const stateLabel = { ok: 'UP', warn: 'WARN', err: 'DOWN' } as const
+
+  const containerInfo = $derived(
+    selected
+      ? [
+          { label: 'Service:', value: selected.name, amber: false },
+          { label: 'Kind:', value: selected.kind, amber: false },
+          { label: 'Status:', value: stateLabel[selected.status.state], amber: selected.status.state !== 'ok' },
+          { label: 'Host:', value: selected.host, amber: false },
+          ...(selected.status.facts ?? []).slice(0, 2).map((fact) => ({ label: `${fact.label}:`, value: fact.value, amber: false })),
+        ]
+      : [],
+  )
 
   const hostBars = $derived([
     { label: 'Memory:', pct: Math.round(lastOf(appState.series.b)) },
@@ -38,7 +44,7 @@
   </div>
 
   <div class="panel">
-    <div class="panel-title">Container Info</div>
+    <div class="panel-title">Service Info</div>
     <div class="rule"></div>
     {#each containerInfo as row}
       <div class="kv-row">
@@ -139,10 +145,15 @@
   }
 
   .kv-key {
+    flex: none;
     color: var(--text-muted);
   }
 
   .kv-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: rgba(214, 236, 229, 0.9);
   }
 

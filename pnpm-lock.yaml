@@ -13,6 +13,9 @@ importers:
       '@fastify/websocket':
         specifier: ^11.3.0
         version: 11.3.0
+      '@meridian/service-sdk':
+        specifier: workspace:*
+        version: link:../../packages/service-sdk
       fastify:
         specifier: ^5.12.1
         version: 5.12.1
@@ -28,6 +31,10 @@ importers:
         version: 6.0.3
 
   apps/web:
+    dependencies:
+      '@meridian/service-sdk':
+        specifier: workspace:*
+        version: link:../../packages/service-sdk
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.3.0
@@ -50,6 +57,65 @@ importers:
       vite:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(tsx@4.23.13)
+
+  packages/service-sdk:
+    devDependencies:
+      '@fastify/websocket':
+        specifier: ^11.3.0
+        version: 11.3.0
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+      fastify:
+        specifier: ^5.12.1
+        version: 5.12.1
+      svelte:
+        specifier: ^5.56.10
+        version: 5.57.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  services/aqw-idle:
+    dependencies:
+      '@meridian/service-sdk':
+        specifier: workspace:*
+        version: link:../../packages/service-sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+      svelte:
+        specifier: ^5.56.10
+        version: 5.57.0
+      svelte-check:
+        specifier: ^4.7.6
+        version: 4.7.6(picomatch@4.0.7)(svelte@5.57.0)(typescript@6.0.3)
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+
+  services/tuya-feeder:
+    dependencies:
+      '@meridian/service-sdk':
+        specifier: workspace:*
+        version: link:../../packages/service-sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+      svelte:
+        specifier: ^5.56.10
+        version: 5.57.0
+      svelte-check:
+        specifier: ^4.7.6
+        version: 4.7.6(picomatch@4.0.7)(svelte@5.57.0)(typescript@6.0.3)
+      tsx:
+        specifier: ^4.23.13
+        version: 4.23.13
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
 
 packages:
 

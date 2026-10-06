@@ -1,9 +1,11 @@
 <script lang="ts">
   import { appState } from '../state/app-state.svelte'
-  import { services } from '../data/services'
+  import { registry } from '../services/registry.svelte'
+  import { selectedService } from '../services/selection'
   import { filterServiceGroups } from './services-dropdown'
 
-  const groups = $derived(filterServiceGroups(appState.svcQ))
+  const groups = $derived(filterServiceGroups(registry.services, appState.svcQ))
+  const selectedId = $derived(selectedService()?.id)
 
   function selectService(id: string) {
     appState.screen = 'service'
@@ -20,7 +22,7 @@
 
 <div class="dropdown">
   <div class="dropdown-head">
-    <span class="eyebrow">{services.length} SERVICES</span>
+    <span class="eyebrow">{registry.services.length} SERVICES</span>
     <input
       class="filter"
       placeholder="filter…"
@@ -35,11 +37,11 @@
       <div>
         <div class="group-head">{group.host}</div>
         {#each group.items as sv (sv.id)}
-          <button type="button" class="row" class:selected={sv.id === appState.svcId} onclick={() => selectService(sv.id)}>
-            <span class="dot {stateClass(sv.state)}"></span>
-            <span class="name" class:selected={sv.id === appState.svcId}>{sv.name}</span>
-            <span class="tag {stateClass(sv.state)}">{sv.tag}</span>
-            <span class="cpu">{sv.cpu}%</span>
+          <button type="button" class="row" class:selected={sv.id === selectedId} onclick={() => selectService(sv.id)}>
+            <span class="dot {stateClass(sv.status.state)}"></span>
+            <span class="name" class:selected={sv.id === selectedId}>{sv.name}</span>
+            <span class="tag {stateClass(sv.status.state)}">{sv.tag}</span>
+            <span class="cpu">{sv.status.state.toUpperCase()}</span>
           </button>
         {/each}
       </div>

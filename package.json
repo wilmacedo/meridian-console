@@ -10,8 +10,8 @@
   "scripts": {
     "dev:web": "pnpm --filter @meridian/web dev",
     "dev:server": "pnpm --filter @meridian/server dev",
-    "build": "pnpm --filter @meridian/web build && pnpm --filter @meridian/server build",
+    "build": "pnpm --filter @meridian/web build",
     "typecheck": "pnpm -r typecheck",
-    "tuya": "pnpm --filter @meridian/server tuya"
+    "tuya": "pnpm --filter @meridian/service-tuya-feeder tuya"
   }
 }

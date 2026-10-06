@@ -1,21 +1,19 @@
-import { infraNodes } from '../data/infra'
-import { services, type Service } from '../data/services'
+import type { ServiceSummary } from '@meridian/service-sdk'
 
 export interface ServiceGroup {
   host: string
-  items: Service[]
+  items: ServiceSummary[]
 }
 
-// Grouped by the same core infra hosts the System Overview graph uses, filtered on name + kind +
-// tag + host — see docs/design-handoff.md#screen-2--services-dropdown-overlay-not-a-route.
-export function filterServiceGroups(query: string): ServiceGroup[] {
+// Grouped by the host each service declares, filtered on name + kind + tag + host — see
+// docs/design-handoff.md#screen-2--services-dropdown-overlay-not-a-route.
+export function filterServiceGroups(services: ServiceSummary[], query: string): ServiceGroup[] {
   const q = query.trim().toLowerCase()
-  return infraNodes
-    .filter((node) => node.kind === 'core' && services.some((sv) => sv.host === node.id))
-    .map((node) => ({
-      host: node.name,
+  return [...new Set(services.map((sv) => sv.host))]
+    .map((host) => ({
+      host,
       items: services.filter(
-        (sv) => sv.host === node.id && (!q || `${sv.name}${sv.kind}${sv.tag}${sv.host}`.toLowerCase().includes(q)),
+        (sv) => sv.host === host && (!q || `${sv.name}${sv.kind}${sv.tag}${sv.host}`.toLowerCase().includes(q)),
       ),
     }))
     .filter((group) => group.items.length > 0)

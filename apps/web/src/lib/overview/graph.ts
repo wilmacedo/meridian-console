@@ -1,5 +1,6 @@
-import { hub, infraLinks, infraNodes, type InfraGlyph } from '../data/infra'
-import { services, type ServiceState } from '../data/services'
+import type { ServiceState, ServiceSummary } from '@meridian/service-sdk'
+
+type InfraGlyph = 'server' | 'disk' | 'globe'
 
 const GRAPH_WIDTH = 820
 const GRAPH_HEIGHT = 420
@@ -32,7 +33,6 @@ export interface GraphNode {
   clickable: boolean
   glyph?: InfraGlyph
   isEdge?: boolean
-  isPacketKind?: boolean
 }
 
 export interface TravellingPacket {
@@ -54,7 +54,33 @@ function serviceLayout(index: number): Point {
   return { x: hub.x + Math.cos(angle) * r * 0.92, y: hub.y + Math.sin(angle) * r }
 }
 
-const servicePositions = new Map(services.map((sv, i) => [sv.id, serviceLayout(i)]))
+const hub = { x: 500, y: 210 }
+const wan = { id: 'wan', name: 'wan-uplink', x: 150, y: 72 }
+const HOST_COLUMN_X = 250
+const HOST_TOP = 130
+const HOST_BOTTOM = 340
+
+interface HostNode {
+  id: string
+  name: string
+  x: number
+  y: number
+  hosted: number
+}
+
+// Hosts come from the services' manifests, stacked in a column in order of first appearance.
+function hostNodes(services: ServiceSummary[]): HostNode[] {
+  const hosts = [...new Set(services.map((sv) => sv.host))]
+  return hosts.map((host, i) => ({
+    id: host,
+    name: host,
+    x: HOST_COLUMN_X,
+    y: hosts.length === 1 ? hub.y : HOST_TOP + (i * (HOST_BOTTOM - HOST_TOP)) / (hosts.length - 1),
+    hosted: services.filter((sv) => sv.host === host).length,
+  }))
+}
+
+const servicePositions = (services: ServiceSummary[]) => new Map(services.map((sv, i) => [sv.id, serviceLayout(i)]))
 
 function toPercent(point: Point) {
   return { leftPct: (point.x / GRAPH_WIDTH) * 100, topPct: (point.y / GRAPH_HEIGHT) * 100 }
@@ -66,54 +92,67 @@ export function stateColor(state: ServiceState, teal: string, amber: string): st
   return teal
 }
 
-export function buildGraphNodes(selectedServiceId: string, teal: string, amber: string): GraphNode[] {
-  const infra: GraphNode[] = infraNodes.map((node) => {
-    const hostedCount = services.filter((sv) => sv.host === node.id).length
-    return {
-      id: node.id,
-      kind: 'infra',
-      name: node.name,
-      tip: hostedCount ? `${node.name} · ${hostedCount} services` : node.name,
-      ...toPercent(node),
-      size: node.kind === 'core' ? 40 : 34,
-      color: node.kind === 'edge' ? amber : teal,
-      selected: false,
-      clickable: hostedCount > 0,
-      glyph: node.glyph,
-      isEdge: node.kind === 'edge',
-    }
-  })
+export function buildGraphNodes(services: ServiceSummary[], selectedServiceId: string, teal: string, amber: string): GraphNode[] {
+  const wanNode: GraphNode = {
+    id: wan.id,
+    kind: 'infra',
+    name: wan.name,
+    tip: wan.name,
+    ...toPercent(wan),
+    size: 34,
+    color: amber,
+    selected: false,
+    clickable: false,
+    glyph: 'globe',
+    isEdge: true,
+  }
 
+  const hosts: GraphNode[] = hostNodes(services).map((node) => ({
+    id: node.id,
+    kind: 'infra',
+    name: node.name,
+    tip: `${node.name} · ${node.hosted} ${node.hosted === 1 ? 'service' : 'services'}`,
+    ...toPercent(node),
+    size: 40,
+    color: teal,
+    selected: false,
+    clickable: true,
+    glyph: 'server',
+  }))
+
+  const positions = servicePositions(services)
   const svc: GraphNode[] = services.map((sv) => ({
     id: sv.id,
     kind: 'service',
     name: sv.name,
     tip: `${sv.name} · ${sv.host}`,
-    ...toPercent(servicePositions.get(sv.id)!),
+    ...toPercent(positions.get(sv.id)!),
     size: 30,
-    color: stateColor(sv.state, teal, amber),
+    color: stateColor(sv.status.state, teal, amber),
     selected: sv.id === selectedServiceId,
     clickable: true,
-    isPacketKind: sv.kind === 'packet',
   }))
 
-  return [...infra, ...svc]
+  return [wanNode, ...hosts, ...svc]
 }
 
-export function buildLinks(teal: string, amber: string): GraphLink[] {
-  const placed = new Map<string, Point>(infraNodes.map((n) => [n.id, { x: n.x, y: n.y }]))
-  placed.set('hub', hub)
+export function buildLinks(services: ServiceSummary[], teal: string, amber: string): GraphLink[] {
+  const hosts = hostNodes(services)
+  const infra: GraphLink[] = []
+  const link = (from: Point, to: Point, color: string, dim: boolean) =>
+    infra.push({ x1: from.x, y1: from.y, x2: to.x, y2: to.y, color, width: dim ? 1 : 1.1, opacity: dim ? 0.35 : 0.6 })
 
-  const infra = infraLinks.map(([a, b]) => {
-    const from = placed.get(a)!
-    const to = placed.get(b)!
-    const dim = b === 'hub'
-    return { x1: from.x, y1: from.y, x2: to.x, y2: to.y, color: a === 'wan' ? amber : teal, width: dim ? 1 : 1.1, opacity: dim ? 0.35 : 0.6 }
+  if (hosts[0]) link(wan, hosts[0], amber, false)
+  hosts.forEach((host, i) => {
+    const next = hosts[i + 1]
+    if (next) link(host, next, teal, false)
   })
+  hosts.forEach((host) => link(host, hub, teal, true))
 
+  const positions = servicePositions(services)
   const svc = services.map((sv) => {
-    const to = servicePositions.get(sv.id)!
-    return { x1: hub.x, y1: hub.y, x2: to.x, y2: to.y, color: stateColor(sv.state, teal, amber), width: 1, opacity: 0.35 }
+    const to = positions.get(sv.id)!
+    return { x1: hub.x, y1: hub.y, x2: to.x, y2: to.y, color: stateColor(sv.status.state, teal, amber), width: 1, opacity: 0.35 }
   })
 
   return [...infra, ...svc]

@@ -22,7 +22,7 @@ function bump(values: number[]): number[] {
 
 export const appState = $state({
   screen: 'overview' as Screen,
-  svcId: 'aqw-idle',
+  svcId: '',
   navOpen: false,
   svcQ: '',
   range: '3D' as Range,

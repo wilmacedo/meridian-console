@@ -1,13 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { appState } from '../state/app-state.svelte'
+  import { registry } from '../services/registry.svelte'
+  import { selectedService } from '../services/selection'
   import { buildGraphNodes, buildLinks, buildTravellingPackets } from './graph'
 
   const teal = '#4fd6b8'
   const amber = '#e07b28'
 
-  const nodes = $derived(buildGraphNodes(appState.svcId, teal, amber))
-  const links = $derived(buildLinks(teal, amber))
+  const nodes = $derived(buildGraphNodes(registry.services, selectedService()?.id ?? '', teal, amber))
+  const links = $derived(buildLinks(registry.services, teal, amber))
   const packets = $derived(buildTravellingPackets(links))
 
   const lastLoad = $derived(Math.round(appState.series.a[appState.series.a.length - 1]))
@@ -268,7 +270,7 @@
             title={node.tip}
             onclick={() => selectService(node.id)}
           >
-            <div class="service-glyph" class:round={node.isPacketKind}></div>
+            <div class="service-glyph"></div>
             <span class="node-label service-label" class:selected={node.selected} style:top={`${node.size + 2}px`}>{node.name}</span>
           </button>
         {/if}
@@ -439,10 +441,6 @@
     height: 9px;
     background: var(--node-color);
     box-shadow: 0 0 9px var(--node-color);
-  }
-
-  .service-glyph.round {
-    border-radius: 50%;
   }
 
   .node-label {

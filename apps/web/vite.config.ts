@@ -6,10 +6,9 @@ export default defineConfig({
   plugins: [svelte()],
   server: {
     // Backend serves the built frontend in production (same origin), so this proxy only matters
-    // for `pnpm dev:web` — lets console-state.svelte.ts always use a same-origin WS URL.
+    // for `pnpm dev:web` — it lets the app always use same-origin /api and WebSocket URLs.
     proxy: {
-      '/api': 'http://localhost:4000',
-      '/ws': {
+      '/api': {
         target: 'http://localhost:4000',
         ws: true,
       },

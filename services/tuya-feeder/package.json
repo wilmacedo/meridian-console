@@ -1,0 +1,21 @@
+{
+  "name": "@meridian/service-tuya-feeder",
+  "private": true,
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "tuya": "tsx --env-file=../../.env",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "@meridian/service-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "svelte": "^5.56.10",
+    "svelte-check": "^4.7.6",
+    "tsx": "^4.23.13",
+    "typescript": "~6.0.2"
+  }
+}
