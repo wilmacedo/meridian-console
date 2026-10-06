@@ -11,3 +11,4 @@ build/
 
 .playwright-mcp/
 docs/local/
+design/

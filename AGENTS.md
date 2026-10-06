@@ -29,4 +29,5 @@ Read [`docs/conventions.md`](docs/conventions.md) for the full detail behind the
 - `apps/web` — frontend. `pnpm dev:web` from the repo root.
 - `apps/server` — backend. `pnpm dev:server` from the repo root.
 - The design files under `design/` are reference-only prototypes (see design-handoff.md) — never
-  port their inline-style/runtime scaffolding directly.
+  port their inline-style/runtime scaffolding directly. The folder is git-ignored and exists only on the
+  author's machine, so the handoff doc is the spec to follow.
