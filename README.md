@@ -32,3 +32,7 @@ pnpm dev:server   # http://localhost:4000
 
 Read [`AGENTS.md`](AGENTS.md) first — it links to the language, naming, and commit conventions
 that apply to every change in this repo.
+
+## License
+
+[Apache License 2.0](LICENSE).
