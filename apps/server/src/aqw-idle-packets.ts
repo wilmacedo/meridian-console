@@ -6,10 +6,34 @@ import type { WebSocket } from '@fastify/websocket'
 // the same pattern.
 const SOURCE_URL = process.env.AQW_IDLE_PRESENCE_URL ?? 'http://localhost:8787'
 
+// A client that drops without a clean WS close (tab killed, laptop sleeps, network drops) leaves
+// the TCP socket looking `ESTABLISHED` on our end with no 'close' event ever firing — its upstream
+// SSE relay then runs forever, so every future packet gets forwarded once per zombie on top of the
+// real client, which is why the same message could be seen arriving multiple times. Standard `ws`
+// ping/pong heartbeat: terminate() any socket that hasn't ponged since the last check.
+const HEARTBEAT_MS = 30_000
+
 export function registerAqwIdlePacketStream(app: FastifyInstance): void {
   app.get('/ws/services/aqw-idle/packets', { websocket: true }, (socket) => {
     const controller = new AbortController()
-    socket.on('close', () => controller.abort())
+
+    let alive = true
+    socket.on('pong', () => {
+      alive = true
+    })
+    const heartbeat = setInterval(() => {
+      if (!alive) {
+        socket.terminate()
+        return
+      }
+      alive = false
+      socket.ping()
+    }, HEARTBEAT_MS)
+
+    socket.on('close', () => {
+      clearInterval(heartbeat)
+      controller.abort()
+    })
 
     relayPackets(socket, controller.signal).catch((err) => {
       if (controller.signal.aborted) return
