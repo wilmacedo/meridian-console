@@ -1,11 +1,13 @@
 <script lang="ts">
   import FeederCamera from './feeder-camera.svelte'
+  import FeederPanel from './feeder-panel.svelte'
 </script>
 
 <div class="habitat">
   <div class="title">HABITAT</div>
   <div class="grid">
     <FeederCamera />
+    <FeederPanel />
   </div>
 </div>
 
