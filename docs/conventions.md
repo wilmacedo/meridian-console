@@ -8,6 +8,9 @@ Everything is written in English: code, comments, commit messages, pull request 
 descriptions, issue text, and documentation. No exceptions, regardless of the language used in
 chat/discussion while working on the task.
 
+The one exception is user-facing system labels in the UI (button text, status names, headings),
+which may be in Portuguese. Identifiers, comments and docs stay in English.
+
 ## File naming
 
 All file names use `kebab-case` (e.g. `service-panel.svelte`, `packet-console.ts`,

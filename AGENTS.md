@@ -15,7 +15,7 @@ Svelte + Vite + TypeScript, backend in Fastify + TypeScript, pnpm workspaces. Fu
 
 ## Non-negotiables (summary)
 
-- English only: code, comments, commits, PRs, docs.
+- English only: code, comments, commits, PRs, docs. The one exception is user-facing UI labels, which may be Portuguese.
 - File names in `kebab-case`.
 - Commits are Conventional Commits, one responsibility per commit.
 - No comments explaining *what* code does; only *why*, when non-obvious.
