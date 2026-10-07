@@ -1,6 +1,7 @@
 import { agent, kick } from '../agent/agent-state.svelte'
 import { workspaceId } from '../workspace/workspace-sync.svelte'
 import { live, screenId, sendToServer } from '../live/stream.svelte'
+import { play } from '../sound/sfx.svelte'
 import { audioContext, interruptPlayback } from './voice-player.svelte'
 
 export const mic = $state({ phase: 'idle' as 'idle' | 'recording' | 'sending' })
@@ -80,6 +81,7 @@ function finish(send: boolean, heardSpeech: boolean): void {
   recorder = undefined
   release()
   if (!r || r.state === 'inactive') return idle()
+  play(send && heardSpeech ? 'speech-end' : 'mic-off')
   const chunks: Blob[] = []
   r.ondataavailable = (e) => chunks.push(e.data)
   r.onstop = () => (send && heardSpeech && chunks.length ? void ask(new Blob(chunks, { type: r.mimeType })) : idle())
@@ -107,6 +109,7 @@ async function begin(): Promise<void> {
 
   agent.mode = 'listening'
   kick(1)
+  play('mic-on')
   recorder.start()
 
   const startedAt = performance.now()

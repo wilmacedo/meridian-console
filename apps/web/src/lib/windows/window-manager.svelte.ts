@@ -1,4 +1,5 @@
 import { kick } from '../agent/agent-state.svelte'
+import { play } from '../sound/sfx.svelte'
 import type { ModuleId } from '../modules'
 import { cascade, clampRect, snapMove, snapResize, tile, toFrac, toRect, type Frac, type Guide, type Rect, type ResizeMode, type Size } from './window-layout'
 
@@ -72,6 +73,7 @@ export function open(id: WindowId): void {
   const current = live()
   if (current.some((w) => w.id === id)) return focus(id)
   kick(1)
+  play('window-open')
   let ids = current.map((w) => w.id)
   if (current.length >= MAX_WINDOWS) {
     const oldest = current.reduce((a, b) => (a.z < b.z ? a : b))
@@ -99,6 +101,7 @@ export function close(id: WindowId): void {
   const w = find(id)
   if (!w || w.closing) return
   w.closing = true
+  play('window-close')
   setTimeout(() => {
     wm.wins = wm.wins.filter((x) => !(x.id === id && x.closing))
     const rest = live()

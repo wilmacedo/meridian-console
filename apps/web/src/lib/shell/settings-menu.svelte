@@ -1,5 +1,6 @@
 <script lang="ts">
   import { orbQuality, setOrbQuality, type OrbQuality } from '../core/orb-quality.svelte'
+  import { setSound, sound } from '../sound/sfx.svelte'
   import { MODE_LABELS, PALETTE_LABELS, type PaletteId, type ThemeMode } from '../theme/palettes'
   import { live } from '../live/stream.svelte'
   import { hasLightVariant, theme } from '../theme/theme.svelte'
@@ -64,6 +65,12 @@
             <i class="dot"></i>{q.label}
           </button>
         {/each}
+      </div>
+      <div class="group">
+        <span class="title">SOUND</span>
+        <button role="menuitemcheckbox" aria-checked={sound.on} class:on={sound.on} onclick={() => setSound(!sound.on)}>
+          <i class="dot"></i>Effects
+        </button>
       </div>
       <div class="group">
         <span class="title">DOCK</span>

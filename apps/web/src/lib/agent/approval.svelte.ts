@@ -1,4 +1,5 @@
 import { sendToServer } from '../live/stream.svelte'
+import { play } from '../sound/sfx.svelte'
 
 export interface Approval {
   id: string
@@ -11,6 +12,7 @@ export const approvals = $state({ pending: [] as Approval[] })
 
 export function showApproval(a: Approval): void {
   approvals.pending.push(a)
+  play('approval')
 }
 
 export function hideApproval(id: string): void {
