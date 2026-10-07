@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import { join } from 'node:path'
@@ -121,6 +121,30 @@ export function buildArgs(c: NoxConfig): string[] {
 // Where NOX lives: its notes, and the working directory of its processes.
 export const noxHome = (override?: string): string => override ?? process.env.NOX_HOME ?? join(homedir(), '.meridian', 'nox')
 
+// Which conversation NOX continues. A conversation outlives a restart, but not a change in what NOX is:
+// it would keep believing its own old answers ("my Bash only reaches the Mac") over a new prompt that says
+// otherwise. So the fingerprint of the persona, tools and settings is stored with the session, and a
+// different one starts a fresh conversation.
+export function fingerprintOf(c: Omit<NoxConfig, 'sessionId' | 'resume'>): string {
+  return createHash('sha256').update(JSON.stringify(buildArgs({ ...c, sessionId: '-', resume: false }))).digest('hex').slice(0, 16)
+}
+
+export function chooseSession(home: string, fingerprint: string): { sessionId: string; resume: boolean } {
+  const read = (name: string): string | undefined => {
+    try {
+      return readFileSync(join(home, name), 'utf8').trim() || undefined
+    } catch {
+      return undefined
+    }
+  }
+  const stored = read('session-id')
+  if (stored && read('prompt-hash') === fingerprint) return { sessionId: stored, resume: true }
+  const sessionId = randomUUID()
+  writeFileSync(join(home, 'session-id'), sessionId)
+  writeFileSync(join(home, 'prompt-hash'), fingerprint)
+  return { sessionId, resume: false }
+}
+
 // The owner's notes for NOX: machines, house rules. Empty when there are none.
 export function readNotes(home: string): string {
   try {
@@ -158,18 +182,15 @@ export class Nox {
 
   private config(): NoxConfig {
     mkdirSync(this.home, { recursive: true })
-    const sessionFile = join(this.home, 'session-id')
-    let sessionId: string | undefined
-    try {
-      sessionId = readFileSync(sessionFile, 'utf8').trim() || undefined
-    } catch {
-      // First start: no session yet.
+    const base = {
+      home: this.home,
+      facts: machineFacts(this.home),
+      model: this.options.model ?? process.env.NOX_MODEL ?? 'sonnet',
+      mcpUrl: `http://127.0.0.1:${this.options.port}/mcp`,
+      gateUrl: `http://127.0.0.1:${this.options.port}/mcp/gate`,
+      notes: readNotes(this.home),
     }
-    const resume = sessionId !== undefined
-    sessionId ??= randomUUID()
-    if (!resume) writeFileSync(sessionFile, sessionId)
-    const notes = readNotes(this.home)
-    return { home: this.home, facts: machineFacts(this.home), model: this.options.model ?? process.env.NOX_MODEL ?? 'sonnet', mcpUrl: `http://127.0.0.1:${this.options.port}/mcp`, gateUrl: `http://127.0.0.1:${this.options.port}/mcp/gate`, notes, sessionId, resume }
+    return { ...base, ...chooseSession(this.home, fingerprintOf(base)) }
   }
 
   private spawnProcess(): ChildProcessWithoutNullStreams {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { hostname, homedir } from 'node:os'
-import { buildArgs, interpret, machineFacts, SSH_HOSTS, type NoxConfig } from './process.js'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { hostname, homedir, tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { buildArgs, chooseSession, fingerprintOf, interpret, machineFacts, SSH_HOSTS, type NoxConfig } from './process.js'
 
 const config: NoxConfig = { home: '/tmp/nox', model: 'sonnet', mcpUrl: 'http://127.0.0.1:4000/mcp', gateUrl: 'http://127.0.0.1:4000/mcp/gate', notes: '', sessionId: '11111111-1111-1111-1111-111111111111', resume: false }
 const after = (args: string[], flag: string): string => args[args.indexOf(flag) + 1]
@@ -104,5 +106,36 @@ describe('interpret', () => {
     expect(interpret(line({ type: 'system', subtype: 'init' }))).toBeUndefined()
     expect(interpret(line({ type: 'stream_event', event: { type: 'message_start' } }))).toBeUndefined()
     expect(interpret('not json')).toBeUndefined()
+  })
+})
+
+describe('chooseSession', () => {
+  const home = () => mkdtempSync(join(tmpdir(), 'nox-session-'))
+
+  it('starts a conversation, and carries on with it while NOX is unchanged', () => {
+    const dir = home()
+    const first = chooseSession(dir, 'aaa')
+    expect(first.resume).toBe(false)
+    expect(chooseSession(dir, 'aaa')).toEqual({ sessionId: first.sessionId, resume: true })
+  })
+
+  it('starts a new conversation when what NOX is has changed, and when it has no fingerprint yet', () => {
+    const dir = home()
+    const first = chooseSession(dir, 'aaa')
+    const changed = chooseSession(dir, 'bbb')
+    expect(changed.resume).toBe(false)
+    expect(changed.sessionId).not.toBe(first.sessionId)
+    expect(chooseSession(dir, 'bbb')).toEqual({ sessionId: changed.sessionId, resume: true })
+    // A session left by an older version has no fingerprint: it cannot be trusted to match.
+    const old = home()
+    writeFileSync(join(old, 'session-id'), '22222222-2222-2222-2222-222222222222')
+    expect(chooseSession(old, 'aaa').resume).toBe(false)
+  })
+
+  it('has a fingerprint that moves with the persona and the tools but not with the session', () => {
+    const base = { home: '/tmp/nox', model: 'sonnet', mcpUrl: 'u', gateUrl: 'g', notes: '' }
+    expect(fingerprintOf(base)).toBe(fingerprintOf({ ...base }))
+    expect(fingerprintOf({ ...base, persona: 'other' })).not.toBe(fingerprintOf(base))
+    expect(fingerprintOf({ ...base, notes: 'new note' })).not.toBe(fingerprintOf(base))
   })
 })
