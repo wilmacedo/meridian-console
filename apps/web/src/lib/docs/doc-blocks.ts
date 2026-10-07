@@ -1,23 +1,6 @@
-export type Tone = 'ok' | 'warn' | 'bad' | 'accent' | 'fg' | 'dim'
+import type { Tone } from '@meridian/service-sdk'
 
-export type DocBlock =
-  | { t: 'h'; level?: 1 | 2; text: string; eyebrow?: string }
-  | { t: 'p'; text: string }
-  | { t: 'stats'; items: { label: string; value: string | number; unit?: string; note?: string; tone?: Tone }[] }
-  | { t: 'progress'; items: { label: string; value: number; detail?: string; tone?: Tone }[] }
-  | { t: 'table'; cols: { label: string; align?: 'left' | 'right'; w?: string }[]; rows: (string | { v: string; tone?: Tone })[][] }
-  | { t: 'list'; items: { text: string; meta?: string; state?: 'done' | 'active' | 'todo' }[] }
-  | { t: 'callout'; tone?: Tone; title?: string; text: string }
-  | { t: 'kv'; items: { k: string; v: string; tone?: Tone }[] }
-  | { t: 'code'; lang?: string; text: string }
-  | { t: 'tags'; items: { label: string; tone?: Tone }[] }
-  | { t: 'divider' }
-
-export interface DocSpec {
-  title: string
-  kicker: string
-  blocks: DocBlock[]
-}
+export type { DocBlock, DocSpec, Tone } from '@meridian/service-sdk'
 
 const TONES: Record<Tone, string> = {
   ok: '#3fd68b',

@@ -1,5 +1,6 @@
-export type PaletteId = 'mono' | 'blue' | 'meridian'
-export type ThemeMode = 'auto' | 'light' | 'dark'
+import type { PaletteId, ThemeMode } from '@meridian/service-sdk'
+
+export type { PaletteId, ThemeMode }
 
 // Colours are "r,g,b" triples so CSS can compose them with any alpha: rgb(var(--nx-ac)) / rgba(var(--nx-ac), .5).
 export interface PaletteVariant {

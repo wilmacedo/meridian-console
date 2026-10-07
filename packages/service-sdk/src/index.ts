@@ -89,6 +89,8 @@ export type StreamMessage =
   | { type: 'event'; event: MeridianEvent }
   | { type: 'services'; services: ServiceSummary[] }
   | { type: 'telemetry'; sample: TelemetrySample; containers: ContainerInfo[] }
+  | { type: 'agent'; mode: AgentMode }
+  | { type: 'command'; command: ScreenCommand }
   // Sent for the workspace the client asked to watch, on connect and on every change.
   | { type: 'workspace'; id: string; version: number; state: unknown }
 
@@ -106,3 +108,42 @@ export interface WorkspaceSummary {
 export interface Workspace extends WorkspaceSummary {
   state: unknown
 }
+
+export type AgentMode = 'boot' | 'idle' | 'listening' | 'thinking' | 'speaking'
+export type ThemeMode = 'auto' | 'light' | 'dark'
+export type PaletteId = 'mono' | 'blue' | 'meridian'
+
+export type Tone = 'ok' | 'warn' | 'bad' | 'accent' | 'fg' | 'dim'
+
+// The design's block language: NOX answers with a document made of these.
+export type DocBlock =
+  | { t: 'h'; level?: 1 | 2; text: string; eyebrow?: string }
+  | { t: 'p'; text: string }
+  | { t: 'stats'; items: { label: string; value: string | number; unit?: string; note?: string; tone?: Tone }[] }
+  | { t: 'progress'; items: { label: string; value: number; detail?: string; tone?: Tone }[] }
+  | { t: 'table'; cols: { label: string; align?: 'left' | 'right'; w?: string }[]; rows: (string | { v: string; tone?: Tone })[][] }
+  | { t: 'list'; items: { text: string; meta?: string; state?: 'done' | 'active' | 'todo' }[] }
+  | { t: 'callout'; tone?: Tone; title?: string; text: string }
+  | { t: 'kv'; items: { k: string; v: string; tone?: Tone }[] }
+  | { t: 'code'; lang?: string; text: string }
+  | { t: 'tags'; items: { label: string; tone?: Tone }[] }
+  | { t: 'divider' }
+
+export interface DocSpec {
+  title: string
+  kicker: string
+  blocks: DocBlock[]
+}
+
+// What the server asks a screen to do. The screen runs its own window manager and dock, and the
+// resulting layout reaches every other screen through the workspace.
+export type ScreenCommand =
+  | { name: 'open_window'; window: string }
+  | { name: 'close_window'; window: string }
+  | { name: 'close_all' }
+  | { name: 'arrange' }
+  // Shows the pin card for the widget a window would dock (the user drops it on a rail).
+  | { name: 'pin_widget'; window: string }
+  | { name: 'clear_agent_widgets' }
+  | { name: 'set_theme'; mode?: ThemeMode; palette?: PaletteId }
+  | { name: 'compose_doc'; doc: DocSpec }

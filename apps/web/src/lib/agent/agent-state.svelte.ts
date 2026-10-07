@@ -1,4 +1,6 @@
-export type AgentMode = 'boot' | 'idle' | 'listening' | 'thinking' | 'speaking'
+import type { AgentMode } from '@meridian/service-sdk'
+
+export type { AgentMode }
 
 // The orb and the header read this; voice and the NOX bridge will write it.
 export const agent = $state({
