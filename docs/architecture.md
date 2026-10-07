@@ -364,6 +364,16 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   anything gets a short canned acknowledgement (`nox/acknowledge.ts`). Quick tools (windows, theme, local
   reads) get none. Turn numbers start from the clock, so a screen left open across a server restart does
   not mistake new speech for old and drop it.
+- **Operating the owner's browser:** the `browser-harness` service (`services/browser-harness`) drives a Chrome the
+  owner is already signed in to, for sites with no API (App Store Connect). NOX gets generic primitives
+  (`snapshot`, `click`, `type`, `press`, `scroll`, `wait`, `back`, `tabs`, `open`, `read`) as ordinary `service_*`
+  tools, and the policy sits in the gateway around them, not in the model: an allowlist of domains checked before
+  and after every step, a risk classifier that makes the owner confirm on screen anything that could send, publish,
+  delete, buy, accept or change something (through `gated` actions and `ctx.confirm`, see `services.md`), a seal
+  only the server can make so the agent cannot confirm for itself, and an audit log. Cookies, storage, headers,
+  passwords and typed text never come back or get logged. NOX is told, in its persona and to the auto mode
+  classifier, never to reach that browser any other way; that is a guard-rail, not a boundary, since the debug port
+  is open on loopback to any local process. Details and setup in the service's README.
 - **Managing services:** NOX can add, edit and remove *managed* services (data, stored in SQLite, live
   without a restart) with `add_service` / `edit_service` / `remove_service`, find containers with
   `list_containers`, and run any action with `call_service_action`; see `services.md`. The registry mounts
