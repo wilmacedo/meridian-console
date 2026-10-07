@@ -100,3 +100,21 @@ describe('CalendarStore sources', () => {
     expect(store.updateSource(id, { hue: -20 })?.hue).toBe(340)
   })
 })
+
+describe('CalendarStore revision', () => {
+  it('moves on every change a screen could care about', () => {
+    const { store } = make()
+    const seen = [store.revision]
+    const account = store.saveAccount('me@x.com', 't')
+    seen.push(store.revision)
+    store.syncSources(account.id, mine)
+    seen.push(store.revision)
+    store.updateSource(store.sources()[0]!.id, { visible: false })
+    seen.push(store.revision)
+    store.setStatus(account.id, 'pending')
+    seen.push(store.revision)
+    store.removeAccount(account.id)
+    seen.push(store.revision)
+    expect(new Set(seen).size).toBe(seen.length)
+  })
+})

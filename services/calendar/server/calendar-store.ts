@@ -58,6 +58,9 @@ const toSource = (r: Row): Source => ({
 })
 
 export class CalendarStore {
+  // Counts every change, so a screen can poll one number instead of refetching everything.
+  revision = 0
+
   constructor(
     private readonly db: DatabaseSync,
     private readonly key: Buffer,
@@ -82,6 +85,10 @@ export class CalendarStore {
     )`)
   }
 
+  bump(): void {
+    this.revision += 1
+  }
+
   accounts(): Account[] {
     return (this.db.prepare('SELECT * FROM calendar_accounts ORDER BY added_at, rowid').all() as Row[]).map(toAccount)
   }
@@ -96,6 +103,7 @@ export class CalendarStore {
     const clean = email.trim().toLowerCase()
     const sealed = encrypt(this.key, refreshToken)
     const existing = this.db.prepare('SELECT * FROM calendar_accounts WHERE email = ?').get(clean) as Row | undefined
+    this.bump()
     if (existing) {
       this.db.prepare("UPDATE calendar_accounts SET refresh_token_enc = ?, status = 'ok' WHERE id = ?").run(sealed, String(existing.id))
       return { ...toAccount(existing), status: 'ok' }
@@ -111,10 +119,12 @@ export class CalendarStore {
   }
 
   setStatus(accountId: string, status: AccountStatus): void {
+    this.bump()
     this.db.prepare('UPDATE calendar_accounts SET status = ? WHERE id = ?').run(status, accountId)
   }
 
   removeAccount(accountId: string): void {
+    this.bump()
     this.db.prepare('DELETE FROM calendar_sources WHERE account_id = ?').run(accountId)
     this.db.prepare('DELETE FROM calendar_accounts WHERE id = ?').run(accountId)
     this.ensureDefault()
@@ -133,6 +143,7 @@ export class CalendarStore {
   // New calendars start visible only when the owner can write to them: shared holiday and birthday calendars
   // would otherwise bury their own events.
   syncSources(accountId: string, remote: RemoteCalendar[]): void {
+    this.bump()
     const known = new Map(this.sources().filter((s) => s.accountId === accountId).map((s) => [s.googleId, s]))
     const seen = new Set<string>()
     let total = this.sources().length
@@ -158,6 +169,7 @@ export class CalendarStore {
 
   updateSource(id: string, patch: SourcePatch): Source | undefined {
     if (!this.source(id)) return undefined
+    this.bump()
     if (patch.visible !== undefined) this.db.prepare('UPDATE calendar_sources SET visible = ? WHERE id = ?').run(patch.visible ? 1 : 0, id)
     if (patch.hue !== undefined) this.db.prepare('UPDATE calendar_sources SET hue = ? WHERE id = ?').run(Math.round(((patch.hue % 360) + 360) % 360), id)
     if (patch.isDefault) {

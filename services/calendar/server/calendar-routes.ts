@@ -64,12 +64,13 @@ export const calendarRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/sources', async () => {
     const problem = missingConfig()
-    if (problem) return { configured: false, message: problem, accounts: [], sources: [] }
+    if (problem) return { configured: false, message: problem, rev: 0, accounts: [], sources: [] }
     const { store } = getRuntime()
     const accounts = store.accounts()
     const status = new Map(accounts.map((a) => [a.id, a]))
     return {
       configured: true,
+      rev: store.revision,
       accounts: accounts.map(({ id, email, status: s }) => ({ id, email, status: s })),
       sources: store.sources().map((s) => ({
         id: s.id,

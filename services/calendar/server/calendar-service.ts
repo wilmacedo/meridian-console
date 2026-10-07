@@ -163,6 +163,7 @@ export class CalendarService {
       return await this.withToken(account, run)
     } finally {
       this.cache.clear()
+      this.store.bump()
     }
   }
 
