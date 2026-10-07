@@ -75,7 +75,7 @@
       </div>
     </div>
   {:else}
-    <div class="empty">{live.connected ? 'NO SERVICES REGISTERED' : 'SERVER UNREACHABLE'}</div>
+    <div class="empty">{live.link !== 'offline' ? 'NO SERVICES REGISTERED' : 'SERVER UNREACHABLE'}</div>
   {/each}
 </div>
 <div class="note">Services are discovered from the services folder</div>

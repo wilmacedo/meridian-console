@@ -18,6 +18,10 @@
   <span>{live.host.name.toUpperCase()}</span>
   <span class="sep"></span>
   <span>SVC {online}/{visibleServices().length}</span>
+  {#if live.link === 'offline'}
+    <span class="sep"></span>
+    <span class="offline"><i></i>RECONNECTING</span>
+  {/if}
   {#if tasks > 0}
     <span class="sep"></span>
     <button class="tasks" onclick={openTask} title={live.tasks.map((t) => t.title).join(' · ')}><i></i>{tasks} {tasks === 1 ? 'TASK' : 'TASKS'}</button>
@@ -81,6 +85,25 @@
     border-radius: 50%;
     background: rgb(255, 205, 80);
     box-shadow: 0 0 6px rgb(255, 205, 80);
+    animation: nx-flash 1.1s ease-in-out infinite;
+  }
+  .offline {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 9px;
+    border: 1px solid rgba(255, 107, 138, 0.5);
+    border-radius: 999px;
+    color: #ff6b8a;
+    letter-spacing: 0.14em;
+    animation: nx-sub 0.4s ease both;
+  }
+  .offline i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #ff6b8a;
+    box-shadow: 0 0 6px #ff6b8a;
     animation: nx-flash 1.1s ease-in-out infinite;
   }
   .clock {

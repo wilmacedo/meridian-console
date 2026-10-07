@@ -1,5 +1,6 @@
 <script lang="ts">
   import { agent } from '../agent/agent-state.svelte'
+  import { live } from '../live/stream.svelte'
   import { micAvailable, toggleListening } from '../voice/microphone.svelte'
   import { MODULES } from '../modules'
   import { isOpen, openModule } from '../windows/window-manager.svelte'
@@ -26,7 +27,7 @@
   </div>
   <div class="mic-group">
     <div class="spacer"></div>
-    <button class="mic" class:thinking style:--state={stateColor} title={micAvailable() ? 'Talk (space)' : 'The microphone needs HTTPS (see docs/https.md)'} class:unavailable={!micAvailable()} onclick={toggleListening}>
+    <button class="mic" class:thinking style:--state={stateColor} title={live.link === 'offline' ? 'Offline: NOX cannot hear you right now' : micAvailable() ? 'Talk (space)' : 'The microphone needs HTTPS (see docs/https.md)'} class:unavailable={!micAvailable() || live.link === 'offline'} onclick={toggleListening}>
       {#if agent.mode === 'listening'}
         <span class="ping"></span>
         <span class="ping late"></span>

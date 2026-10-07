@@ -1,5 +1,6 @@
 <script lang="ts">
   import { agent, type AgentMode } from '../agent/agent-state.svelte'
+  import { live } from '../live/stream.svelte'
 
   const LABELS: Record<AgentMode, string> = { boot: 'BOOTING', idle: 'STANDBY', listening: 'LISTENING', thinking: 'THINKING', speaking: 'SPEAKING' }
   const TICKS = 24
@@ -10,8 +11,9 @@
     return () => clearInterval(timer)
   })
 
-  const color = $derived(agent.mode === 'thinking' ? 'rgb(var(--nx-fg))' : 'rgb(var(--nx-ac))')
-  const active = $derived(agent.mode !== 'idle' && agent.mode !== 'boot')
+  const offline = $derived(live.link === 'offline')
+  const color = $derived(offline ? '#ff6b8a' : agent.mode === 'thinking' ? 'rgb(var(--nx-fg))' : 'rgb(var(--nx-ac))')
+  const active = $derived(!offline && agent.mode !== 'idle' && agent.mode !== 'boot')
   const ticks = $derived(
     Array.from({ length: TICKS }, (_, i) => {
       const wide = i % 6 === 0
@@ -22,7 +24,7 @@
 </script>
 
 <div class="state" style:color style:--glow={color}>
-  <div class="label">{LABELS[agent.mode]}</div>
+  <div class="label">{offline ? 'OFFLINE' : LABELS[agent.mode]}</div>
   <div class="ticks">
     {#each ticks as tick}
       <span class:wide={tick.wide} class:lit={tick.lit}></span>

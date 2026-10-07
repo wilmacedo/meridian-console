@@ -8,10 +8,15 @@ const EVENT_BUFFER = 120
 const SAMPLE_BUFFER = 48
 const RECONNECT_MIN_MS = 1000
 const RECONNECT_MAX_MS = 10_000
+// The server writes a telemetry sample every second; a connection that says nothing for this long is
+// dead even if the browser hasn't noticed (a sleeping laptop, a Wi-Fi drop).
+const SILENCE_LIMIT_MS = 10_000
+const WATCHDOG_MS = 2000
 
 // Everything the server pushes. The UI renders only this: there is no fake data anywhere.
 export const live = $state({
-  connected: false,
+  // 'connecting' until the first attempt settles, so a page that is just loading doesn't flash as offline.
+  link: 'connecting' as 'connecting' | 'online' | 'offline',
   host: { name: '', memTotalGb: 0 } as HostInfo,
   services: [] as ServiceSummary[],
   // Newest first.
@@ -74,17 +79,20 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
   let timer: ReturnType<typeof setTimeout> | undefined
   let delay = RECONNECT_MIN_MS
   let stopped = false
+  let lastHeard = Date.now()
 
   function connect(): void {
+    lastHeard = Date.now()
     const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/stream`
     socket = new WebSocket(url)
     current = socket
     socket.onopen = () => {
-      live.connected = true
+      live.link = 'online'
       delay = RECONNECT_MIN_MS
       socket?.send(JSON.stringify({ type: 'watch', workspace: workspaceId } satisfies ClientMessage))
     }
     socket.onmessage = (e) => {
+      lastHeard = Date.now()
       const message = JSON.parse(e.data as string) as StreamMessage
       if (message.type === 'workspace') onWorkspace(message.version, message.state)
       else if (message.type === 'command') onCommand(message.command)
@@ -94,20 +102,49 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
       else if (message.type === 'approval_end') hideApproval(message.id)
       else apply(message)
     }
+    const mine = socket
     socket.onclose = () => {
-      live.connected = false
-      // A card nobody answers is denied by the server after a minute.
-      clearApprovals()
-      if (stopped) return
-      timer = setTimeout(connect, delay)
-      delay = Math.min(delay * 2, RECONNECT_MAX_MS)
+      if (socket === mine) lost()
     }
   }
+
+  // The connection is gone, however we found out: show it and try again, backing off.
+  function lost(): void {
+    live.link = 'offline'
+    // A card nobody answers is denied by the server after a minute.
+    clearApprovals()
+    if (stopped) return
+    clearTimeout(timer)
+    timer = setTimeout(connect, delay)
+    delay = Math.min(delay * 2, RECONNECT_MAX_MS)
+  }
+
+  // Coming back online or to the tab, there is no reason to wait out the backoff.
+  function retryNow(): void {
+    if (stopped || document.hidden || socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) return
+    clearTimeout(timer)
+    delay = RECONNECT_MIN_MS
+    connect()
+  }
+  const watchdog = setInterval(() => {
+    if (socket?.readyState !== WebSocket.OPEN || Date.now() - lastHeard <= SILENCE_LIMIT_MS) return
+    // Closing a dead connection waits for a handshake that never comes, so it is let go of, not waited on.
+    const dead = socket
+    dead.onclose = null
+    dead.onmessage = null
+    dead.close()
+    lost()
+  }, WATCHDOG_MS)
+  window.addEventListener('online', retryNow)
+  document.addEventListener('visibilitychange', retryNow)
 
   connect()
   return () => {
     stopped = true
     clearTimeout(timer)
+    clearInterval(watchdog)
+    window.removeEventListener('online', retryNow)
+    document.removeEventListener('visibilitychange', retryNow)
     socket?.close()
   }
 }
