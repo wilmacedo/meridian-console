@@ -181,7 +181,9 @@ after a reload instead of freezing.
   Unchanged state is never sent.
 - Which workspace a device opens is a per-device preference (local storage, set with
   `?workspace=<id>` on the URL), not workspace state; an unknown id falls back to `default`.
-- SQLite is `better-sqlite3`, pinned to 12.x: 13 needs Node 22, and the project supports Node 20.
+- SQLite is Node's built-in `node:sqlite` (Node 24, `.nvmrc`), so there is no native dependency to
+  build. It is still marked experimental and prints a warning at start; only `database.ts` and
+  `workspace-store.ts` touch it, so a change in its API stays contained there.
 - NOX knows every workspace and which screens show each. By default it acts on the workspace of the
   screen that spoke to it, and can target another by name.
 - Conversation history is **not** workspace state.

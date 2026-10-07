@@ -25,8 +25,8 @@ Today: `aqw-idle` (a packet console) and `tuya-feeder` (a Tuya pet feeder with a
 
 ## Getting started
 
-`better-sqlite3` is a native module: `pnpm install` compiles it (a C++ toolchain and Python are needed
-when no prebuilt binary matches your Node).
+Node 24 (see `.nvmrc`; `nvm use`) and pnpm. There is no native module to compile: workspaces are stored
+with Node's built-in `node:sqlite`, which still prints an `ExperimentalWarning` when the server starts.
 
 ```sh
 pnpm install
