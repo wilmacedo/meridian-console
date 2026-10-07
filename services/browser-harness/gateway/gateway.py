@@ -463,6 +463,17 @@ def op_tabs(req):
     raise Refused("action is list, switch or close")
 
 
+def op_quit(req):
+    """Closes Chrome itself (the server asks the owner first). Internal: it is for `stop`, not a browsing primitive."""
+    h = harness()
+    audit("quit", "", "closing")
+    try:
+        h.cdp("Browser.close")
+    except Exception:
+        pass  # Chrome drops the connection as it exits
+    return {"ok": True, "text": "Chrome was asked to close."}
+
+
 def op_screenshot(req):
     h = harness()
     info = guard(h, "screenshot")
@@ -479,7 +490,7 @@ def op_screenshot(req):
 
 OPS = {
     "open": op_open, "snapshot": op_snapshot, "read": op_read, "links": op_links, "click": op_click, "type": op_type,
-    "press": op_press, "scroll": op_scroll, "wait": op_wait, "back": op_history, "forward": op_history, "tabs": op_tabs, "screenshot": op_screenshot,
+    "press": op_press, "scroll": op_scroll, "wait": op_wait, "back": op_history, "forward": op_history, "tabs": op_tabs, "screenshot": op_screenshot, "quit": op_quit,
 }
 
 

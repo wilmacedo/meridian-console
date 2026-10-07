@@ -1,9 +1,13 @@
 import { defineServerService, type ServerService, type ServiceStatus } from '@meridian/service-sdk/server'
 import { CDP_URL, browserStatus, callGateway } from './gateway.js'
+import { SSH_HOST, broker } from './launch.js'
 
+// Polled every few seconds, so it only looks: it never starts Chrome. With on-demand start configured, a closed
+// Chrome is the normal resting state, not a fault.
 async function status(): Promise<ServiceStatus> {
   const s = await browserStatus()
-  return s.reachable ? { state: 'online' } : { state: 'offline', message: 'Chrome debug port unreachable (tunnel or browser down)' }
+  if (s.reachable) return { state: 'online' }
+  return SSH_HOST ? { state: 'online', message: 'standing by: Chrome opens when it is needed' } : { state: 'offline', message: 'Chrome debug port unreachable (tunnel or browser down)' }
 }
 
 // What a click, a key or a typed field can name. One of ref, text, selector or x and y; ref comes from a snapshot.
@@ -22,8 +26,12 @@ const pick = (input: Record<string, unknown> | undefined, keys: readonly string[
 const TARGET_KEYS = Object.keys(targetProperties)
 
 type Run = (input: never, ctx: { confirm: (detail: string) => Promise<boolean> }) => Promise<unknown>
+// Every browser action first makes sure Chrome is up: opening the tunnel and the window if they are not.
 const act = (op: string, keys: readonly string[]): Run =>
-  (async (input: Record<string, unknown> | undefined, ctx: { confirm: (detail: string) => Promise<boolean> }) => callGateway(op, pick(input, keys), ctx.confirm)) as unknown as Run
+  (async (input: Record<string, unknown> | undefined, ctx: { confirm: (detail: string) => Promise<boolean> }) => {
+    await broker.ensure()
+    return callGateway(op, pick(input, keys), ctx.confirm)
+  }) as unknown as Run
 
 const actions: NonNullable<ServerService['actions']> = [
   {
@@ -31,9 +39,43 @@ const actions: NonNullable<ServerService['actions']> = [
     method: 'GET',
     path: '/status',
     title: 'Browser status',
-    description: "Whether the owner's Chrome answers on its debug port, its version and the hosts of its open tabs. Use it first when something fails.",
+    description: "Whether the owner's Chrome is up and answering, its version and the hosts of its open tabs. It only looks; it never opens anything. Use it when something fails.",
     mutating: false,
-    run: async () => browserStatus(),
+    run: async () => ({ ...(await browserStatus()), startsOnDemand: SSH_HOST !== undefined, tunnel: broker.tunnel() }),
+  },
+  {
+    id: 'start',
+    method: 'POST',
+    path: '/start',
+    title: 'Open the browser',
+    description:
+      "Brings up the owner's Chrome: opens the connection to the owner's machine and a Chrome window there if it is not already running. The other browser actions do this by themselves the first time, so you rarely need it; use it when you want the owner to know the window is coming before you act. It can take up to half a minute.",
+    mutating: false,
+    run: (async () => {
+      await broker.ensure()
+      const s = await browserStatus()
+      return `The browser is ready: ${s.browser ?? 'Chrome'}, ${s.tabs?.length ?? 0} tab(s) open.`
+    }) as unknown as Run,
+  },
+  {
+    id: 'stop',
+    method: 'POST',
+    path: '/stop',
+    title: 'Let go of the browser',
+    description:
+      'Closes the connection to the owner\'s machine. It does that by itself after a quiet while, so call it only when you are done and want it gone now. With closeBrowser it also closes the Chrome window, which can sign the owner out of sites; they are asked first.',
+    mutating: false,
+    gated: true,
+    input: { type: 'object', additionalProperties: false, properties: { closeBrowser: { type: 'boolean', description: 'Also close the Chrome window. Asks the owner.' } } },
+    run: (async (input: { closeBrowser?: boolean } | undefined, ctx: { confirm: (detail: string) => Promise<boolean> }) => {
+      if (input?.closeBrowser) {
+        if (!(await ctx.confirm('Browser: close the Chrome window (the owner may have to sign in again to the sites)'))) throw new Error('The owner did not confirm this, so it was not done.')
+        await broker.ensure()
+        await callGateway('quit', {}, ctx.confirm).catch(() => undefined)
+      }
+      broker.stop()
+      return input?.closeBrowser ? 'Closed the Chrome window and the connection.' : 'Let go of the connection; the Chrome window stays open.'
+    }) as unknown as Run,
   },
   {
     id: 'open',

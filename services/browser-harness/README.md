@@ -25,7 +25,8 @@ Ordinary `service_browser-harness_<action>` tools, so there is no script to writ
 | `press {key}` | Enter, Tab, Escape, Space, arrows, PageUp/Down, Home, End, Backspace, Delete. No shortcuts |
 | `scroll {direction? amount? \| ref \| text}` | Scroll, or bring a control into view |
 | `wait {text \| selector, gone?, seconds?}` | Wait for something to appear (or go), up to 15 s |
-| `back`, `forward`, `tabs {action, id}`, `screenshot`, `status` | Navigation, tabs on allowed domains, a PNG saved on this machine, and whether Chrome answers |
+| `back`, `forward`, `tabs {action, id}`, `screenshot` | Navigation, tabs on allowed domains, a PNG saved on this machine |
+| `start`, `stop {closeBrowser?}`, `status` | Bring the browser up, let go of it (and optionally close the window, with the owner's confirmation), and look at whether it is up without opening anything |
 
 Results are short text, not JSON, so they read well in a turn. For long text the persona tells NOX to say the gist
 and put the rest on screen with `compose_doc`.
@@ -64,20 +65,32 @@ statement of what NOX may read; page text is told to NOX as untrusted data.
 Not handled yet: native `alert`/`confirm` dialogs, file upload and download, native `<select>` menus, signing in
 (left to the owner; a password manager integration can come later), iframes in other origins.
 
-## Setup
+## Setup: on demand
 
-1. **Python side** (once): `services/browser-harness/scripts/setup.sh` makes `.venv` with the pinned harness.
-2. **Chrome side** (Windows): copy `scripts/start-chrome-debug.bat` to the machine and run it from the desktop (an
-   SSH session is not the desktop, so Chrome started from there would be invisible). It opens a **separate
-   profile** with the debug port on loopback only. Since Chrome 136, `--remote-debugging-port` is ignored on the
-   default profile ([Chrome's note](https://developer.chrome.com/blog/remote-debugging-port)), so the owner signs
-   in to the sites once in that window, 2FA included; do not sign in to Chrome with a Google account there. The
-   session stays in the profile. macOS is the same with `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`
-   and a `--user-data-dir` under `~/Library/Application Support/Meridian/`.
-3. **Tunnel**: `MERIDIAN_BROWSER_SSH_HOST=<ssh host> services/browser-harness/scripts/tunnel.sh`, left running. It
-   forwards the port to `127.0.0.1:9222` here.
-4. Restart the server. `browser-harness` shows up in the Services window, online while the port answers. NOX's
-   tools for it appear at its next start (its persona changed, so it starts a fresh conversation).
+Nothing runs by itself. When an action needs the browser, the server opens an SSH tunnel to the machine that runs
+Chrome and starts a Chrome window there (`server/broker.ts`); after a quiet spell (15 minutes) it drops the tunnel.
+The Chrome window is left open, since closing it can sign the owner out of sites: `stop` with `closeBrowser` closes it,
+after the owner confirms.
+
+1. **Python side** (once): `scripts/setup.sh` makes `.venv` with the pinned harness.
+2. **Chrome machine, Windows** (once): run `scripts/windows-chrome-task.ps1` there (over ssh is fine). It registers
+   a scheduled task, `MeridianChrome`, **with no trigger**: it starts only when Meridian runs
+   `schtasks /run /tn MeridianChrome`, and starts Chrome in the owner's logged-in session. That is the reason for a
+   task: an ssh session is not the desktop, so Chrome started from it would be invisible and the owner could not sign
+   in. The Chrome it opens has a **profile of its own** with the debug port on loopback only; since Chrome 136 the
+   debug port is ignored on the default profile
+   ([Chrome's note](https://developer.chrome.com/blog/remote-debugging-port)). Remove it with `-Action remove`.
+   macOS: set `MERIDIAN_BROWSER_LAUNCH_COMMAND` to `open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=...`.
+3. **Sign in once**, in that Chrome window, to the sites NOX should use (2FA included). Do not sign in to Chrome with a
+   Google account there. The session stays in the profile until the site expires it, and then NOX says so.
+4. **Config** (`.env`): `MERIDIAN_BROWSER_SSH_HOST=<ssh host of that machine>`. Restart the server.
+
+The Services window shows the service as online and "standing by" while Chrome is closed; the first browser action of
+a conversation takes up to about half a minute while the tunnel and the window come up.
+
+**By hand instead**: leave `MERIDIAN_BROWSER_SSH_HOST` empty, run `scripts/start-chrome-debug.bat` on the Chrome
+machine from its desktop and `MERIDIAN_BROWSER_SSH_HOST=<host> scripts/tunnel.sh` here. The service then only uses
+what is there, and says what is missing when it is not.
 
 Configuration is in `.env.example` (`MERIDIAN_BROWSER_*`).
 
@@ -85,6 +98,8 @@ Configuration is in `.env.example` (`MERIDIAN_BROWSER_*`).
 
 - `python -m unittest` in `gateway/` (with the service's `.venv`): the policy: allowlist, risk classification in
   both languages, keys, typing, the seal.
+- `node --experimental-strip-types --test gateway/e2e/broker.test.mts` (Node 22+): the on-demand logic (tunnel then
+  Chrome in order, a hand-made tunnel kept, one start for concurrent calls, failures with their reason, idle drop).
 - `gateway/e2e/run_e2e.sh`: starts a local HTTPS test site with every trap (risky buttons, an outside link, a popup,
   POST and search forms, a password field, a dialog, a switch, a collapsed thread) and a headless Chrome, then
   drives the gateway the way the server does, plus the server's half (`run_ts.mts`, Node 22+) to prove the seal the
