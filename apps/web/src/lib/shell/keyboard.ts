@@ -1,4 +1,4 @@
-import { startListening } from '../agent/agent-state.svelte'
+import { toggleListening } from '../voice/microphone.svelte'
 import { MODULES } from '../modules'
 import { closeActive, openModule } from '../windows/window-manager.svelte'
 
@@ -6,7 +6,7 @@ import { closeActive, openModule } from '../windows/window-manager.svelte'
 export function handleShortcut(e: KeyboardEvent, closeOverlay: () => boolean): void {
   if (e.key === ' ') {
     e.preventDefault()
-    startListening()
+    void toggleListening()
   } else if (e.key === 'Escape') {
     if (!closeOverlay()) closeActive()
   } else if (/^[1-9]$/.test(e.key)) {

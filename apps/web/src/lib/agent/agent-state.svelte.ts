@@ -22,11 +22,6 @@ export function onKick(listener: (strength: number) => void): () => void {
   return () => kickListeners.delete(listener)
 }
 
-export function startListening(): void {
-  if (agent.mode === 'listening') return
-  agent.mode = 'listening'
-}
-
 // The orb rises over ~2.6s on load; leave BOOTING once it has.
 export function finishBoot(): void {
   setTimeout(() => {

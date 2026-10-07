@@ -50,6 +50,9 @@ export function deviceWorkspaceId(): string {
 }
 
 let id = DEFAULT_ID
+
+// The workspace this screen shows.
+export const workspaceId = (): string => id
 let version = 0
 // The serialised state the server is known to hold (or is about to), so unchanged state is never sent.
 let known = ''

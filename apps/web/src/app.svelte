@@ -14,6 +14,7 @@
   import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
   import { sendToServer, startStream } from './lib/live/stream.svelte'
+  import { cancelListening } from './lib/voice/microphone.svelte'
   import { retryPlayback, setPlaybackFinished, unlockAudio } from './lib/voice/voice-player.svelte'
   import { runCommand } from './lib/workspace/commands'
   import { deviceWorkspaceId, loadWorkspace, receiveWorkspace, startWorkspaceSync } from './lib/workspace/workspace-sync.svelte'
@@ -26,7 +27,7 @@
       settingsOpen = false
       return true
     }
-    return cancelPending()
+    return cancelListening() || cancelPending()
   }
 
   $effect(() => applyTheme(document.documentElement, activeVariant(), darkVariant()))

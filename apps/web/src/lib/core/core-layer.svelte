@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { agent, kick, onKick, startListening } from '../agent/agent-state.svelte'
+  import { agent, kick, onKick } from '../agent/agent-state.svelte'
+  import { toggleListening } from '../voice/microphone.svelte'
   import { wm } from '../windows/window-manager.svelte'
   import { activeVariant, isLight } from '../theme/theme.svelte'
   import { CoreOrb } from './core-orb'
@@ -37,8 +38,7 @@
 
   function onClick(e: MouseEvent): void {
     if (dimmed || !orb?.hits(e.clientX, e.clientY)) return
-    kick(1)
-    startListening()
+    void toggleListening()
   }
 </script>
 

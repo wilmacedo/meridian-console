@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { agent, startListening } from '../agent/agent-state.svelte'
+  import { agent } from '../agent/agent-state.svelte'
+  import { micAvailable, toggleListening } from '../voice/microphone.svelte'
   import { MODULES } from '../modules'
   import { isOpen, openModule } from '../windows/window-manager.svelte'
 
@@ -25,7 +26,7 @@
   </div>
   <div class="mic-group">
     <div class="spacer"></div>
-    <button class="mic" class:thinking style:--state={stateColor} title="Talk (space)" onclick={startListening}>
+    <button class="mic" class:thinking style:--state={stateColor} title={micAvailable() ? 'Talk (space)' : 'The microphone needs HTTPS (see docs/https.md)'} class:unavailable={!micAvailable()} onclick={toggleListening}>
       {#if agent.mode === 'listening'}
         <span class="ping"></span>
         <span class="ping late"></span>
@@ -122,6 +123,10 @@
     transition:
       box-shadow 0.4s,
       border-color 0.4s;
+  }
+  .mic.unavailable {
+    opacity: 0.5;
+    cursor: default;
   }
   .mic.thinking {
     --core: rgba(255, 205, 80, 0.35);

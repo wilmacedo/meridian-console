@@ -15,6 +15,8 @@ let ended = false
 let playing = false
 let source: AudioBufferSourceNode | undefined
 let raf = 0
+// Speech from turns up to this one is dropped: the owner talked over it.
+let interrupted = -1
 let onFinished: ((turn: number) => void) | undefined
 
 export const setPlaybackFinished = (fn: (turn: number) => void): void => void (onFinished = fn)
@@ -87,7 +89,22 @@ function startTurn(next: number): void {
   ended = false
 }
 
+export const audioContext = (): AudioContext => {
+  unlockAudio()
+  return ctx!
+}
+
+// The owner starts talking while NOX is still speaking: cut it off, and let the server know it can stop waiting.
+export function interruptPlayback(): void {
+  if (turn < 0 || turn === interrupted) return
+  interrupted = turn
+  stop()
+  ready = new Map()
+  onFinished?.(turn)
+}
+
 export async function enqueueSpeech(speechTurn: number, seq: number, base64: string): Promise<void> {
+  if (speechTurn <= interrupted) return
   unlockAudio()
   if (speechTurn > turn) startTurn(speechTurn)
   else if (speechTurn < turn) return
