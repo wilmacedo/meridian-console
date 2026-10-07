@@ -557,6 +557,12 @@ pulsing with `nxFlash 1.1s`. It is clickable (the header is otherwise pointer-ev
 newest task's document; it leaves when no task runs. Bound dock widgets (`LIVE`) dim to .55 opacity with
 `SOURCE NOT ANSWERING · SHOWING THE LAST READING` when their source fails.
 
+### As built: offline state
+
+Not in the prototype. When the link to the server is down the state label reads `OFFLINE` in `#ff6b8a`
+with its ticks unlit, the header shows a pill `● RECONNECTING` (1px border `#ff6b8a/.5`, the dot pulsing
+with `nxFlash 1.1s`), and the mic is dimmed like the unavailable state. It clears by itself on reconnect.
+
 ## Doc blocks
 
 Every block enters with `nxSub .5s cubic-bezier(.2,.7,.2,1) both`. Blocks arrive one every **260ms**
