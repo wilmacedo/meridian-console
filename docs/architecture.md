@@ -304,6 +304,10 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   unlocks the audio context; speech that arrives earlier waits for it.
 - **Cost:** TTS bills per character; every spoken turn logs `voice: N of LIMIT characters used this period`
   to the event stream under `nox`. The free plan's 10,000 characters is only a few dozen answers.
+- **Voices:** a voice from ElevenLabs' Voice Library (the native pt-BR ones) must first be added to the
+  account's own library, and the API refuses it on the free plan (HTTP 402, "Free users cannot use
+  library voices via the API"). On the free plan only the premade voices work, which speak Portuguese
+  with an English accent.
 - **Configuration:** `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` turn voice on; `ELEVENLABS_MODEL` and
   `ELEVENLABS_STT_MODEL` override the models. Without them the server runs text-only.
 - **Measured:** from the end of a spoken request to the first sound, roughly 7 s with two tool calls
