@@ -90,12 +90,18 @@ export type StreamMessage =
   | { type: 'services'; services: ServiceSummary[] }
   | { type: 'telemetry'; sample: TelemetrySample; containers: ContainerInfo[] }
   | { type: 'agent'; mode: AgentMode }
+  // One spoken sentence of a NOX answer, as base64 mp3; `seq` orders them within a turn.
+  | { type: 'speech'; turn: number; seq: number; mime: 'audio/mpeg'; audio: string }
+  | { type: 'speech_end'; turn: number }
   | { type: 'command'; command: ScreenCommand }
   // Sent for the workspace the client asked to watch, on connect and on every change.
   | { type: 'workspace'; id: string; version: number; state: unknown }
 
 // Messages a client sends on the same socket.
-export type ClientMessage = { type: 'watch'; workspace: string }
+export type ClientMessage =
+  | { type: 'watch'; workspace: string }
+  // The screen finished playing a turn's speech.
+  | { type: 'speech_done'; turn: number }
 
 export interface WorkspaceSummary {
   id: string

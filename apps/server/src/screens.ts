@@ -38,11 +38,16 @@ export class ScreenRegistry {
     return counts
   }
 
-  // Runs the command on the newest screen of the workspace. Returns false when none is showing it.
-  dispatch(workspace: string, command: ScreenCommand): boolean {
+  // Sends to the newest screen of the workspace (the one that spoke, in practice). Returns false when
+  // none is showing it.
+  sendTo(workspace: string, message: StreamMessage): boolean {
     const target = [...this.screens.values()].filter((s) => s.workspace === workspace).sort((a, b) => b.since - a.since)[0]
-    target?.send({ type: 'command', command })
+    target?.send(message)
     return target !== undefined
+  }
+
+  dispatch(workspace: string, command: ScreenCommand): boolean {
+    return this.sendTo(workspace, { type: 'command', command })
   }
 
   setAgentMode(mode: AgentMode): void {

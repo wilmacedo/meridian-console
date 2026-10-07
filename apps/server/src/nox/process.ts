@@ -4,7 +4,6 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import type { AgentMode } from '@meridian/service-sdk'
 import { PERSONA } from './persona.js'
 
 export type NoxEvent = { type: 'text'; text: string } | { type: 'tool'; name: string } | { type: 'done' } | { type: 'error'; message: string }
@@ -69,7 +68,6 @@ export function buildArgs(c: NoxConfig): string[] {
 const TURN_TIMEOUT_MS = 120_000
 
 interface Hooks {
-  setMode: (mode: AgentMode) => void
   // Called with the workspace a turn is for, so tools default to it.
   setWorkspace: (id: string) => void
   log: (message: string) => void
@@ -139,7 +137,6 @@ export class Nox {
     await previous
     try {
       this.hooks.setWorkspace(workspace)
-      this.hooks.setMode('thinking')
       const child = (this.child ??= this.spawnProcess())
 
       const pending: NoxEvent[] = []
@@ -159,7 +156,6 @@ export class Nox {
         for (;;) {
           while (pending.length === 0) await new Promise<void>((resolve) => (wake = resolve))
           const event = pending.shift()!
-          if (event.type === 'text') this.hooks.setMode('speaking')
           yield event
           if (event.type === 'done' || event.type === 'error') return
         }
@@ -168,7 +164,6 @@ export class Nox {
         this.listener = undefined
       }
     } finally {
-      this.hooks.setMode('idle')
       release()
     }
   }

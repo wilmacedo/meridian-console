@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify'
 import type { ClientMessage, HostInfo, StreamMessage } from '@meridian/service-sdk'
 import type { EventBus } from './event-bus.js'
 import type { ScreenRegistry } from './screens.js'
+import { playbackDone } from './voice/playback.js'
 import type { Registry } from './service-registry.js'
 import type { HostTelemetry } from './telemetry.js'
 import type { WorkspaceStore } from './workspace-store.js'
@@ -47,6 +48,8 @@ export function registerStream(app: FastifyInstance, { bus, registry, telemetry,
           watching = message.workspace
           screens.watch(screenKey, watching)
           sendWorkspace(watching)
+        } else if (message.type === 'speech_done') {
+          playbackDone(message.turn)
         }
       } catch {
         // Not a message we know; ignore it.

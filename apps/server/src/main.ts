@@ -38,9 +38,9 @@ let turnWorkspace = 'default'
 registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, hostName, currentWorkspace: () => turnWorkspace })))
 const nox = new Nox(
   { port },
-  { setMode: (mode) => screens.setAgentMode(mode), setWorkspace: (id) => (turnWorkspace = id), log: (message) => app.log.info(message) },
+  { setWorkspace: (id) => (turnWorkspace = id), log: (message) => app.log.info(message) },
 )
-registerNox(app, nox, bus)
+registerNox(app, nox, bus, screens)
 app.addHook('onClose', async () => nox.stop())
 
 app.listen({ port, host: '0.0.0.0' }).catch((err) => {
