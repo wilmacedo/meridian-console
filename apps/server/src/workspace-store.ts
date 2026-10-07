@@ -16,6 +16,9 @@ export class WorkspaceNotFoundError extends Error {}
 // A workspace needs a name of its own: the same name, or one that makes the same id, is refused.
 export class WorkspaceNameTakenError extends Error {}
 
+// The default workspace is the one every address falls back to; it cannot be deleted.
+export class WorkspaceProtectedError extends Error {}
+
 // What a workspace made after the default starts with: the default's theme, so a new one looks like the rest.
 const FALLBACK_THEME = { mode: 'auto', palette: 'meridian' }
 
@@ -49,9 +52,16 @@ export class WorkspaceStore {
     if (!this.get(DEFAULT_WORKSPACE)) this.insert(DEFAULT_WORKSPACE, 'Default')
   }
 
+  // In the order they were made, which is the order of the switcher and of its Alt+number shortcuts.
   list(): WorkspaceSummary[] {
-    const rows = this.db.prepare('SELECT id, name, version, updated_at FROM workspaces ORDER BY updated_at DESC').all() as unknown as Row[]
+    const rows = this.db.prepare('SELECT id, name, version, updated_at FROM workspaces ORDER BY rowid').all() as unknown as Row[]
     return rows.map((r) => ({ id: r.id, name: r.name, version: r.version, updatedAt: r.updated_at }))
+  }
+
+  // The same list with each workspace's state, for the switcher's thumbnails.
+  listFull(): Workspace[] {
+    const rows = this.db.prepare('SELECT * FROM workspaces ORDER BY rowid').all() as unknown as Row[]
+    return rows.map(toWorkspace)
   }
 
   get(id: string): Workspace | undefined {
@@ -64,10 +74,38 @@ export class WorkspaceStore {
   create(name: string, wantedId?: string): Workspace {
     if (wantedId !== undefined) return this.get(wantedId) ?? this.insert(wantedId, name)
     const trimmed = name.trim()
-    const id = slug(trimmed)
-    const taken = this.list().some((w) => w.id === id || w.name.toLowerCase() === trimmed.toLowerCase())
-    if (!trimmed || taken) throw new WorkspaceNameTakenError(trimmed)
-    return this.insert(id, trimmed)
+    this.assertFree(trimmed)
+    return this.insert(slug(trimmed), trimmed)
+  }
+
+  // Changes the name shown; the id, which addresses and tabs hold on to, stays.
+  rename(id: string, name: string): Workspace {
+    const current = this.get(id)
+    if (!current) throw new WorkspaceNotFoundError(id)
+    const trimmed = name.trim()
+    this.assertFree(trimmed, id)
+    const updatedAt = new Date().toISOString()
+    this.db.prepare('UPDATE workspaces SET name = ?, updated_at = ? WHERE id = ?').run(trimmed, updatedAt, id)
+    return { ...current, name: trimmed, updatedAt }
+  }
+
+  // A new workspace with the same layout, widgets and settings. Without a name it is "<name> copy".
+  duplicate(id: string, name?: string): Workspace {
+    const source = this.get(id)
+    if (!source) throw new WorkspaceNotFoundError(id)
+    const wanted = name?.trim() || `${source.name} copy`
+    const taken = (n: string): boolean => this.nameTaken(n)
+    let candidate = wanted
+    for (let i = 2; taken(candidate); i++) candidate = `${wanted} ${i}`
+    const copy = this.insert(slug(candidate), candidate)
+    this.db.prepare('UPDATE workspaces SET state = ? WHERE id = ?').run(JSON.stringify(source.state), copy.id)
+    return { ...copy, state: source.state }
+  }
+
+  remove(id: string): void {
+    if (id === DEFAULT_WORKSPACE) throw new WorkspaceProtectedError(id)
+    if (!this.get(id)) throw new WorkspaceNotFoundError(id)
+    this.db.prepare('DELETE FROM workspaces WHERE id = ?').run(id)
   }
 
   // `baseVersion` is the version the caller's state was derived from.
@@ -84,6 +122,16 @@ export class WorkspaceStore {
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
+  }
+
+  // A name is taken when another workspace has it, or has the id it would make.
+  private nameTaken(name: string, except?: string): boolean {
+    const id = slug(name)
+    return this.list().some((w) => w.id !== except && (w.id === id || w.name.toLowerCase() === name.toLowerCase()))
+  }
+
+  private assertFree(name: string, except?: string): void {
+    if (!name || this.nameTaken(name, except)) throw new WorkspaceNameTakenError(name)
   }
 
   private insert(id: string, name: string): Workspace {

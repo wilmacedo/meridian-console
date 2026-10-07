@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_WORKSPACE, StaleVersionError, WorkspaceNameTakenError, WorkspaceNotFoundError, WorkspaceStore } from './workspace-store.js'
+import { DEFAULT_WORKSPACE, StaleVersionError, WorkspaceNameTakenError, WorkspaceNotFoundError, WorkspaceProtectedError, WorkspaceStore } from './workspace-store.js'
 
 const store = (): WorkspaceStore => new WorkspaceStore(new DatabaseSync(':memory:'))
 
@@ -79,5 +79,46 @@ describe('WorkspaceStore', () => {
     stop()
     s.update(DEFAULT_WORKSPACE, 3, {})
     expect(seen).toEqual([2, 3])
+  })
+
+  it('lists workspaces in the order they were made, whatever changed since', () => {
+    const s = store()
+    s.create('Kitchen')
+    s.create('Garage')
+    s.update('garage', 1, { a: 1 })
+    expect(s.list().map((w) => w.id)).toEqual([DEFAULT_WORKSPACE, 'kitchen', 'garage'])
+    expect(s.listFull().find((w) => w.id === 'garage')?.state).toEqual({ a: 1 })
+  })
+
+  it('renames a workspace without changing its id or version, and keeps names unique', () => {
+    const s = store()
+    s.create('Kitchen')
+    s.create('Garage')
+    expect(s.rename('kitchen', 'Cooking')).toMatchObject({ id: 'kitchen', name: 'Cooking' })
+    expect(s.get('kitchen')).toMatchObject({ name: 'Cooking', version: 1 })
+    expect(() => s.rename('kitchen', 'garage')).toThrow(WorkspaceNameTakenError)
+    expect(() => s.rename('kitchen', '  ')).toThrow(WorkspaceNameTakenError)
+    expect(s.rename('kitchen', 'COOKING').name).toBe('COOKING')
+    expect(() => s.rename('nope', 'x')).toThrow(WorkspaceNotFoundError)
+  })
+
+  it('duplicates a workspace with its state under a free name', () => {
+    const s = store()
+    s.create('Kitchen')
+    s.update('kitchen', 1, { windows: { list: [] } })
+    const copy = s.duplicate('kitchen')
+    expect(copy).toMatchObject({ name: 'Kitchen copy', id: 'kitchen-copy', version: 1, state: { windows: { list: [] } } })
+    expect(s.get('kitchen-copy')?.state).toEqual({ windows: { list: [] } })
+    expect(s.duplicate('kitchen').name).toBe('Kitchen copy 2')
+    expect(s.duplicate('kitchen', 'Spare').id).toBe('spare')
+  })
+
+  it('deletes a workspace but never the default one', () => {
+    const s = store()
+    s.create('Kitchen')
+    s.remove('kitchen')
+    expect(s.get('kitchen')).toBeUndefined()
+    expect(() => s.remove(DEFAULT_WORKSPACE)).toThrow(WorkspaceProtectedError)
+    expect(() => s.remove('kitchen')).toThrow(WorkspaceNotFoundError)
   })
 })

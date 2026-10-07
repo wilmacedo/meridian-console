@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify'
-import { StaleVersionError, WorkspaceNameTakenError, WorkspaceNotFoundError, type WorkspaceStore } from './workspace-store.js'
+import { StaleVersionError, WorkspaceNameTakenError, WorkspaceNotFoundError, WorkspaceProtectedError, type WorkspaceStore } from './workspace-store.js'
 
 export function registerWorkspaces(app: FastifyInstance, store: WorkspaceStore): void {
-  app.get('/api/workspaces', async () => store.list())
+  app.get<{ Querystring: { state?: string } }>('/api/workspaces', async (request) => (request.query.state ? store.listFull() : store.list()))
 
   app.get<{ Params: { id: string } }>('/api/workspaces/:id', async (request, reply) => store.get(request.params.id) ?? reply.code(404).send({ error: 'no such workspace' }))
 
@@ -18,6 +18,45 @@ export function registerWorkspaces(app: FastifyInstance, store: WorkspaceStore):
       }
     },
   )
+
+  app.patch<{ Params: { id: string }; Body: { name: string } }>(
+    '/api/workspaces/:id',
+    { schema: { body: { type: 'object', required: ['name'], properties: { name: { type: 'string', minLength: 1, maxLength: 60 } } } } },
+    async (request, reply) => {
+      try {
+        const { id, name } = store.rename(request.params.id, request.body.name)
+        return { id, name }
+      } catch (err) {
+        if (err instanceof WorkspaceNameTakenError) return reply.code(409).send({ error: 'a workspace with that name already exists' })
+        if (err instanceof WorkspaceNotFoundError) return reply.code(404).send({ error: 'no such workspace' })
+        throw err
+      }
+    },
+  )
+
+  app.post<{ Params: { id: string }; Body: { name?: string } | undefined }>(
+    '/api/workspaces/:id/duplicate',
+    { schema: { body: { type: ['object', 'null'], properties: { name: { type: 'string', minLength: 1, maxLength: 60 } } } } },
+    async (request, reply) => {
+      try {
+        return reply.code(201).send(store.duplicate(request.params.id, request.body?.name))
+      } catch (err) {
+        if (err instanceof WorkspaceNotFoundError) return reply.code(404).send({ error: 'no such workspace' })
+        throw err
+      }
+    },
+  )
+
+  app.delete<{ Params: { id: string } }>('/api/workspaces/:id', async (request, reply) => {
+    try {
+      store.remove(request.params.id)
+      return reply.code(204).send()
+    } catch (err) {
+      if (err instanceof WorkspaceProtectedError) return reply.code(400).send({ error: 'the default workspace cannot be deleted' })
+      if (err instanceof WorkspaceNotFoundError) return reply.code(404).send({ error: 'no such workspace' })
+      throw err
+    }
+  })
 
   // The body carries the version it was based on; a stale one is rejected with the current workspace,
   // so two screens never silently overwrite each other.
