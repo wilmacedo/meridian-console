@@ -325,11 +325,10 @@ Inactive: label `ac/.55`, bar width 0. Active (its window is open and not closin
 
 **Mic button**: see "Mic button" under v9 additions below (72px box, ring canvas, halt for NOX).
 
-**Keyboard**: `1`–`9` open the *n*th module (so `1` closes all windows); `Space` starts listening
-(default prevented); `Esc` cancels a pending pin if there is one, otherwise closes the active window.
-`Space` while already listening sends; while NOX is busy (thinking, speaking, a task running) it stops NOX
-instead (see the mic button), and so does `Esc`. `W` toggles the workspace panel, `⌥1–9` jumps to a
-workspace and `,` toggles Settings.
+**Keyboard**: `1`–`9` open the *n*th module (so `1` closes all windows); `Esc` stops NOX when it is busy
+(thinking, speaking, a task running), else drops a recording, else cancels a pending pin, otherwise closes the
+active window. There is no key to start listening: the mic button and the orb do that. `W` toggles the
+workspace panel, `⌥1–9` jumps to a workspace and `,` toggles Settings.
 
 ## Windows
 
@@ -878,11 +877,10 @@ with an `nxPing` ring, while busy), **halted** (16×2 bar, for 1.6s after a halt
 
 Halt: while thinking, speaking or working the button is the amber `--nx-wn` stop for NOX; one tap cancels
 speech, the running task and a pending pin and logs `agent halted by operator`; the canvas fires an expanding
-amber circle (900ms) and dims the bars. Tooltips: `Talk (space)` / `Stop & send (space)` / `Stop NOX (esc)`.
+amber circle (900ms) and dims the bars. Tooltips: `Talk` / `Stop & send` / `Stop NOX (esc)`.
 
-Hint under the button (mono 9, `.2em`, `nxSub` on change): listening `00:07 · TAP TO SEND` with a blinking
-dot; thinking `SENDING · TAP TO STOP`; working `WORKING · TAP TO STOP NOX`; speaking `TAP TO STOP NOX`;
-halted `NOX HALTED`; boot `BOOTING`; else `TAP TO TALK`. Tapping while listening **sends**; Esc cancels.
+There is no text under the button; the state shows in the glyph, the ring and the tooltip.
+Tapping while listening **sends**; Esc drops the recording.
 
 ## Additions not in the prototype
 
@@ -903,8 +901,8 @@ Decided for the project; drawn from the design's own tokens, kept minimal.
   palette (a single, dark variant) the mode choice is locked to `Auto`. Hiding a dock module closes its window
   and the 1-9 shortcuts count what is left.
 - **Voice input is feature-detected**: if the page is not in a secure context (no HTTPS) or the browser has
-  no recorder, the mic button is dimmed (hint `NEEDS HTTPS`) and does nothing, and NOX remains reachable through the dev CLI
-  (see architecture). `Space`, the mic button and a click on the orb all start and stop listening, and
+  no recorder, the mic button is dimmed and does nothing, and NOX remains reachable through the dev CLI
+  (see architecture). The mic button and a click on the orb start and stop listening, and
   `Esc` drops a recording, or stops NOX when it is busy.
 
 ## Out of scope for now

@@ -8,8 +8,6 @@ import { audioContext, interruptPlayback } from './voice-player.svelte'
 
 export const mic = $state({
   phase: 'idle' as 'idle' | 'recording' | 'sending',
-  // When the recording began (ms), for the timer under the button.
-  startedAt: 0,
   // The owner just stopped NOX; the button says so for a moment.
   halted: false,
   // When that happened (performance.now), for the burst around the button.
@@ -124,7 +122,6 @@ async function begin(followUp = false): Promise<void> {
   const data = new Float32Array(analyser.fftSize)
 
   agent.mode = 'listening'
-  mic.startedAt = Date.now()
   mic.halted = false
   kick(1)
   if (!followUp) play('mic-on')

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { agent, viewMode } from '../agent/agent-state.svelte'
-  import { clock } from '../clock.svelte'
   import { dock } from '../dock/dock.svelte'
   import { live } from '../live/stream.svelte'
   import { activeVariant } from '../theme/theme.svelte'
@@ -20,26 +19,12 @@
   const stoppable = $derived(!listening && !halted && mode !== 'boot' && (busy() || dock.pending !== null))
   const amber = $derived(stoppable || halted)
 
-  const seconds = $derived(listening ? Math.max(0, Math.floor((clock.now.getTime() - mic.startedAt) / 1000)) : 0)
-  const pad = (n: number): string => String(n).padStart(2, '0')
-  const timer = $derived(`${pad(Math.floor(seconds / 60))}:${pad(seconds % 60)}`)
-
-  const hint = $derived(
-    offline ? 'OFFLINE'
-    : !micAvailable() ? 'NEEDS HTTPS'
-    : listening ? `${timer} · TAP TO SEND`
-    : thinking ? 'SENDING · TAP TO STOP'
-    : halted ? 'NOX HALTED'
-    : stoppable ? (mode === 'working' ? 'WORKING · TAP TO STOP NOX' : 'TAP TO STOP NOX')
-    : mode === 'boot' ? 'BOOTING'
-    : 'TAP TO TALK',
-  )
   const tip = $derived(
     offline ? 'Offline: NOX cannot hear you right now'
     : !micAvailable() ? 'The microphone needs HTTPS (see docs/https.md)'
-    : listening ? 'Stop & send (space)'
+    : listening ? 'Stop & send'
     : stoppable || thinking ? 'Stop NOX (esc)'
-    : 'Talk (space)',
+    : 'Talk',
   )
 
   const edge = $derived(amber ? 'rgba(var(--nx-wn), 0.8)' : listening ? 'rgba(var(--nx-ac), 0.95)' : mode === 'idle' ? 'rgba(var(--nx-ac), 0.35)' : 'rgba(var(--nx-ac), 0.6)')
@@ -96,14 +81,6 @@
       {/key}
     </button>
   </div>
-  <div class="hint">
-    {#key hint}
-      <span class="line">
-        {#if listening}<span class="rec"></span>{/if}
-        <span>{hint}</span>
-      </span>
-    {/key}
-  </div>
 </div>
 
 <style>
@@ -111,7 +88,6 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: 14px;
   }
   .box {
     position: relative;
@@ -241,30 +217,5 @@
   }
   .dots i:nth-child(3) {
     animation-delay: 0.3s;
-  }
-  .hint {
-    position: absolute;
-    left: 50%;
-    top: calc(100% + 2px);
-    transform: translateX(-50%);
-    white-space: nowrap;
-    pointer-events: none;
-    font: 400 9px/1 var(--font-mono);
-    letter-spacing: 0.2em;
-    color: rgba(var(--nx-ac), 0.7);
-  }
-  .line {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    animation: nx-sub 0.4s ease both;
-  }
-  .rec {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: rgb(var(--nx-fg));
-    box-shadow: 0 0 8px rgb(var(--nx-ac));
-    animation: nx-blink 1s ease-in-out infinite;
   }
 </style>

@@ -415,7 +415,7 @@ freezing the server process. Cards on screen are cleared when the link drops.
   what is actually playing (`agent.amplitude`). The agent mode follows reality: `thinking` until the first
   audio is ready, `speaking` while it plays, `idle` when the screen reports (`speech_done`) it finished, or
   after 90 s.
-- **Input:** tap the mic button, `Space` or the orb (tap again to send now, `Esc` to drop it); a pause of
+- **Input:** tap the mic button or the orb (tap again to send now, `Esc` to drop it); a pause of
   1.0 s after speech sends it by itself, and 7 s of silence or 30 s of talking ends it. The browser's
   `MediaRecorder` clip goes to `POST /api/voice/ask`, which transcribes it with ElevenLabs Scribe
   (`scribe_v2`, Portuguese) and answers like `/api/nox/say`; the first line of the stream is
@@ -481,7 +481,7 @@ point voice will use.
   `container`, …): STT that handles PT/EN code-switching, a system prompt that keeps technical terms,
   ids and commands in their original form, and TTS pronunciation checked for those terms. UI labels stay
   in English, as designed.
-- Interaction: push-to-talk first (mic button, `Space`), VAD for end of utterance, barge-in next,
+- Interaction: push-to-talk first (mic button), VAD for end of utterance, barge-in next,
   wake word ("NOX") last.
 - **HTTPS on the LAN is a hard requirement**: browsers expose the microphone only in a secure context
   (`localhost` counts, `http://10.0.0.x` does not), so a local CA (Caddy) or a Tailscale certificate is
