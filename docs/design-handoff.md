@@ -755,7 +755,10 @@ Decided for the project; drawn from the design's own tokens, kept minimal.
 
 - **Settings dropdown**: a small icon in the header opens a dropdown with mode (`Auto by clock` /
   `Light` / `Dark`) and palette (`Mono` / `Blue` / `Meridian`). With Blue selected the mode choice is
-  disabled (Blue has a single, dark variant). The stored theme is per workspace.
+  disabled (Blue has a single, dark variant). The stored theme is per workspace. A third group,
+  `Services`, lists every service with a check; unchecking one retires it from the Services window, the
+  dock widget and the header count (the setting is stored with the workspace). It replaces the
+  prototype's "edit nix.config.json" footnote mechanism.
 - **Voice input is feature-detected**: if a microphone is unavailable or not permitted the mic button
   is shown as inert, and NOX remains reachable through the dev CLI (see architecture).
 
