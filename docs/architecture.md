@@ -373,7 +373,10 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   only the server can make so the agent cannot confirm for itself, and an audit log. Cookies, storage, headers,
   passwords and typed text never come back or get logged. NOX is told, in its persona and to the auto mode
   classifier, never to reach that browser any other way; that is a guard-rail, not a boundary, since the debug port
-  is open on loopback to any local process. Details and setup in the service's README.
+  is open on loopback to any local process. It is brought up **on demand**: the first browser action opens an SSH
+  tunnel and starts the owner's Chrome on its machine (a scheduled task with no trigger on Windows, so the window
+  appears on their desktop), and the tunnel is dropped after a quiet spell; nothing runs on that machine on its own.
+  Details and setup in the service's README.
 - **Managing services:** NOX can add, edit and remove *managed* services (data, stored in SQLite, live
   without a restart) with `add_service` / `edit_service` / `remove_service`, find containers with
   `list_containers`, and run any action with `call_service_action`; see `services.md`. The registry mounts

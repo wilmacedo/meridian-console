@@ -19,12 +19,19 @@ def host_allowed(host, allowed):
     return any(host == d or host.endswith("." + d) for d in allowed)
 
 
+# A sign-in page served by an allowed host itself (App Store Connect's /login holds Apple's form in an iframe of
+# another origin, so the page looks empty rather than looking like a login).
+LOGIN_PATH = re.compile(r"^/(login|signin|sign-in|sign_in|auth|sso)(/|$)", re.I)
+
+
 def classify_url(url, allowed):
     """'ready' (readable), 'needs_login' (the owner must sign in) or 'blocked' (outside the allowlist)."""
     u = urlparse(url or "")
     if u.hostname in LOGIN_HOSTS:
         return "needs_login"
-    return "ready" if u.scheme == "https" and host_allowed(u.hostname, allowed) else "blocked"
+    if u.scheme != "https" or not host_allowed(u.hostname, allowed):
+        return "blocked"
+    return "needs_login" if LOGIN_PATH.match(u.path or "") else "ready"
 
 
 def tab_is_ours(url, allowed):

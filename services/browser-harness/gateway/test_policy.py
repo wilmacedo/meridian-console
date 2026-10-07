@@ -18,6 +18,14 @@ class Urls(unittest.TestCase):
         self.assertEqual(p.classify_url("https://idmsa.apple.com/appleauth", ALLOWED), "needs_login")
         self.assertEqual(p.classify_url("javascript:alert(1)", ALLOWED), "blocked")
 
+    def test_a_login_page_on_an_allowed_host(self):
+        self.assertEqual(p.classify_url("https://appstoreconnect.apple.com/login", ALLOWED), "needs_login")
+        self.assertEqual(p.classify_url("https://appstoreconnect.apple.com/login?returnUrl=%2Fapps", ALLOWED), "needs_login")
+        self.assertEqual(p.classify_url("https://appstoreconnect.apple.com/signin/x", ALLOWED), "needs_login")
+        self.assertEqual(p.classify_url("https://appstoreconnect.apple.com/apps/1/distribution", ALLOWED), "ready")
+        self.assertEqual(p.classify_url("https://appstoreconnect.apple.com/loginhelp", ALLOWED), "ready")
+        self.assertEqual(p.classify_url("https://evil.test/login", ALLOWED), "blocked")
+
     def test_tabs(self):
         self.assertTrue(p.tab_is_ours("about:blank", ALLOWED))
         self.assertTrue(p.tab_is_ours("https://idmsa.apple.com/x", ALLOWED))
