@@ -298,7 +298,21 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
 - **State on the orb:** the server broadcasts the agent mode (`thinking` while the request runs,
   `speaking` while text streams, `idle` after). Until voice supplies a real audio level the orb uses a
   steady amplitude while speaking.
-- **Logging:** every UI command and request is written to the event stream under `nox`.
+- **Logging:** every UI command and request is written to the event stream under `nox`, and so is every
+  shell command NOX or one of its tasks runs (`ran: ssh ...`), read from the complete `tool_use` the
+  Claude Code stream carries; card decisions and task start/finish are logged too.
+- **Live documents:** `compose_doc` takes an optional `id`. Composing again with the id of the document on
+  screen updates it where it is: no re-streaming, and the window is not reopened if the owner closed it.
+  There is still one document slot per screen, so a task reporting progress replaces whatever document was
+  open, and an update for an id that is no longer the current one opens as a new document.
+- **Background tasks:** `start_task({title, goal})` hands a long job to a worker (`nox/tasks.ts`): its own
+  headless `claude` process with the same flags as NOX (Bash for ssh, the Meridian tools, the gate for
+  confirmations, `start_task` denied so tasks can't spawn tasks) and a worker persona that reports through
+  `compose_doc` with id `task-<id>`. NOX answers at once and stays free. The gate for a task lives at
+  `/mcp/gate/<workspace>`, so its cards go to the workspace that asked. At most 2 run at once, 15 minutes
+  each, and they use the owner's Claude subscription like any turn. A worker that fails, times out or is
+  stopped (`stop_task`) replaces its document with the reason; one that finishes wrote its own outcome.
+  Tasks live in memory: a server restart ends them. NOX does not announce a finished task by itself.
 
 ### Voice, as built (phase 7)
 
@@ -343,7 +357,7 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   interface and the registry:
   - workspaces: `list_workspaces` (with the screens showing each), `open_window`, `close_window`,
     `arrange`, `pin_widget`, `clear_agent_widgets`, `set_theme`;
-  - `compose_doc({title, kicker, blocks[]})`: the design's block language, validated server-side; live
+  - `compose_doc({id?, title, kicker, blocks[]})`: the design's block language, validated server-side; live
     docs update by id;
   - every service **action** from the registry (feeder dispense, farm start/stop, …);
   - `get_status`, `query_events`, `get_telemetry`.
