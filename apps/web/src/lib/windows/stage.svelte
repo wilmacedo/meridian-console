@@ -20,7 +20,7 @@
   const liveCount = $derived(wm.wins.filter((w) => !w.closing).length)
 
   function footLeft(id: WindowId): string {
-    if (id === 'services') return `${registry.services.filter((s) => s.status.state === 'ok').length}/${registry.services.length} SERVICES ONLINE`
+    if (id === 'services') return `${registry.services.filter((s) => s.status.state === 'online').length}/${registry.services.length} SERVICES ONLINE`
     if (id === 'doc') return `COMPOSED BY NOX · ${docs.current?.blocks.length ?? 0} BLOCKS`
     if (id === 'telemetry') return `${host.name.toUpperCase()} · LIVE`
     return ''

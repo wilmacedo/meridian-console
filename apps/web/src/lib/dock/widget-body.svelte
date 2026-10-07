@@ -5,7 +5,7 @@
 
   let { def }: { def: WidgetDef } = $props()
 
-  const STATUS = { ok: ['ONLINE', 'rgb(var(--nx-ac))'], warn: ['DEGRADED', '#ffd34d'], err: ['OFFLINE', '#ff6b8a'] } as const
+  const STATUS = { online: ['ONLINE', 'rgb(var(--nx-ac))'], degraded: ['DEGRADED', '#ffd34d'], offline: ['OFFLINE', '#ff6b8a'] } as const
 </script>
 
 {#if def.type === 'doc' && def.blocks}

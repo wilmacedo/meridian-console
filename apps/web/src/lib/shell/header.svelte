@@ -5,7 +5,7 @@
 
   const pad = (n: number): string => String(n).padStart(2, '0')
   const time = $derived(`${pad(clock.now.getHours())}:${pad(clock.now.getMinutes())}:${pad(clock.now.getSeconds())}`)
-  const online = $derived(registry.services.filter((s) => s.status.state === 'ok').length)
+  const online = $derived(registry.services.filter((s) => s.status.state === 'online').length)
 </script>
 
 <header>

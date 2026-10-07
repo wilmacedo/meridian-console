@@ -8,9 +8,9 @@ const STATUS_TIMEOUT_MS = 2000
 async function status(): Promise<ServiceStatus> {
   try {
     await fetch(SOURCE_URL, { signal: AbortSignal.timeout(STATUS_TIMEOUT_MS) })
-    return { state: 'ok', facts: [{ label: 'SOURCE', value: SOURCE_URL }] }
+    return { state: 'online' }
   } catch {
-    return { state: 'err', message: 'packet source unreachable' }
+    return { state: 'offline', message: 'packet source unreachable' }
   }
 }
 
@@ -18,9 +18,9 @@ export default defineServerService({
   manifest: {
     id: 'aqw-idle',
     name: 'aqw-idle',
-    kind: 'packet-stream',
-    tag: 'SOCKET',
-    description: 'Live packet stream relayed from aqw-idle-presence',
+    mono: 'AQ',
+    desc: 'Live packet stream from aqw-idle-presence',
+    address: new URL(SOURCE_URL).host,
   },
   routes: packetRoutes,
   status,

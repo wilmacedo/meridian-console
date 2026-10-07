@@ -9,7 +9,7 @@ let cached: { at: number; value: FeederStatus } | undefined
 
 async function status(): Promise<ServiceStatus> {
   const deviceId = process.env.TUYA_FEEDER_DEVICE_ID
-  if (!deviceId) return { state: 'warn', message: 'TUYA_FEEDER_DEVICE_ID is not set' }
+  if (!deviceId) return { state: 'degraded', message: 'TUYA_FEEDER_DEVICE_ID is not set' }
 
   if (!cached || Date.now() - cached.at > STATUS_CACHE_MS) {
     cached = { at: Date.now(), value: await readStatus(deviceId) }
@@ -24,14 +24,7 @@ async function status(): Promise<ServiceStatus> {
         ? `battery ${battery.value}`
         : undefined
 
-  return {
-    state: problem ? 'warn' : 'ok',
-    message: problem,
-    facts: [
-      { label: 'LAST FEED', value: lastFeed ? `${lastFeed.portions} · ${lastFeed.source}` : '—' },
-      { label: 'BATTERY', value: battery?.value ?? '—' },
-    ],
-  }
+  return { state: problem ? 'degraded' : 'online', message: problem }
 }
 
 const routes: FastifyPluginAsync = async (app) => {
@@ -43,9 +36,8 @@ export default defineServerService({
   manifest: {
     id: 'tuya-feeder',
     name: 'pet-feeder',
-    kind: 'home-device',
-    tag: 'TUYA',
-    description: 'Automatic pet feeder with a camera, through the Tuya Cloud API',
+    mono: 'PF',
+    desc: 'Pet feeder and camera · Tuya Cloud',
   },
   routes,
   status,
