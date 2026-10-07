@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SentenceSplitter } from './sentences.js'
+import { forSpeech, SentenceSplitter } from './sentences.js'
 
 const run = (...pieces: string[]): string[] => {
   const s = new SentenceSplitter()
@@ -45,5 +45,22 @@ describe('SentenceSplitter', () => {
 
   it('treats line breaks as stops', () => {
     expect(run('Primeira linha bem comprida aqui\nSegunda linha bem comprida aqui')).toEqual(['Primeira linha bem comprida aqui', 'Segunda linha bem comprida aqui'])
+  })
+})
+
+describe('forSpeech', () => {
+  it('reads a markdown link as its text and drops bare addresses', () => {
+    expect(forSpeech('Segundo o [TSE](https://www.tse.jus.br/noticias/2026) o resultado saiu.')).toBe('Segundo o TSE o resultado saiu.')
+    expect(forSpeech('Veja https://exemplo.com/a?b=1 depois.')).toBe('Veja depois.')
+  })
+
+  it('drops a sources lead-in and markdown marks', () => {
+    expect(forSpeech('Fontes: [TSE](https://a.b/c) e [Agência Brasil](https://d.e/f)')).toBe('TSE e Agência Brasil')
+    expect(forSpeech('**Importante**: `ssh` e _nada_ mais')).toBe('Importante: ssh e nada mais')
+  })
+
+  it('leaves ordinary speech alone and can end up empty', () => {
+    expect(forSpeech('Está ligado há cinco dias, quinze horas.')).toBe('Está ligado há cinco dias, quinze horas.')
+    expect(forSpeech('https://so-um-link.com')).toBe('')
   })
 })

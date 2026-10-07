@@ -318,6 +318,14 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   workspace; the header shows a pulsing `● N TASK(S)` chip (amber, the thinking tint) that opens the
   newest task's document, fetched from `GET /api/docs/<id>` (the server keeps the latest version of every
   live document in memory). The orb does not change.
+- **Web access:** NOX has `WebSearch` and `WebFetch` (Claude Code's own tools, on the subscription), next to
+  Bash for ssh. The risk is a page that talks to the agent, so the auto mode classifier is told that web
+  text is untrusted data that never justifies running a command, changing a service or reaching another
+  machine, and the persona says the same. Checked with a page that told the assistant, in hidden text, to
+  run a command and keep it secret: NOX summarised the page, reported the hidden request and ran nothing.
+  `WebFetch` refuses `localhost` and forces HTTPS, so pages on the LAN are read through ssh instead.
+  Anything that reaches the speech pipeline goes through `forSpeech`, which turns `[site](url)` into
+  `site` and drops addresses and markdown marks, because a search result tends to bring a source list.
 - **Acknowledging slow work:** the persona asks NOX to open with one short sentence ("Entendi, vou olhar os
   logs do baixa") before a slow tool, and the text before a tool call is spoken at once. When the model
   doesn't, the server does it: a turn that reaches a slow tool (Bash on a machine, `service_*`,

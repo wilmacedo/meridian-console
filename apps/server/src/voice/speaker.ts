@@ -1,6 +1,6 @@
 import type { StreamMessage } from '@meridian/service-sdk'
 import { synthesize, type VoiceConfig } from './elevenlabs.js'
-import { SentenceSplitter } from './sentences.js'
+import { forSpeech, SentenceSplitter } from './sentences.js'
 
 interface Hooks {
   // Delivers a message to the screen that is listening; false when there is none.
@@ -56,7 +56,10 @@ export class TurnSpeaker {
     this.hooks.send({ type: 'speech_end', turn: this.turn })
   }
 
-  private speak(sentence: string): void {
+  private speak(raw: string): void {
+    const sentence = forSpeech(raw)
+    // Nothing left once the links and marks are gone: there is nothing to say.
+    if (!sentence) return
     this.hooks.onSpent(sentence.length)
     // Synthesis starts now; delivery waits its turn so the sentences stay in order.
     const audio = synthesize(this.config, sentence)

@@ -45,3 +45,15 @@ export class SentenceSplitter {
     return rest || undefined
   }
 }
+
+// What reads well aloud. NOX is told to write plain speech, but a search result tends to bring a
+// "Fontes: [site](https://...)" line along, and a voice would read the address out letter by letter.
+export function forSpeech(sentence: string): string {
+  return sentence
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[*_`#>]+/g, '')
+    .replace(/^\s*(fontes?|sources?)\s*:\s*/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}

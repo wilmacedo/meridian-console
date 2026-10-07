@@ -5,17 +5,22 @@ const config: NoxConfig = { home: '/tmp/nox', model: 'sonnet', mcpUrl: 'http://1
 const after = (args: string[], flag: string): string => args[args.indexOf(flag) + 1]
 
 describe('buildArgs (what NOX may do)', () => {
-  it('offers Bash as the only built-in tool, decided by the auto mode classifier', () => {
+  it('offers Bash (decided by the auto mode classifier) and the two web tools, and nothing else built in', () => {
     const args = buildArgs(config)
-    expect(after(args, '--tools')).toBe('Bash')
+    expect(after(args, '--tools')).toBe('Bash,WebSearch,WebFetch')
     expect(after(args, '--permission-mode')).toBe('auto')
-    expect(after(args, '--allowedTools')).toBe('mcp__meridian')
+    expect(args.slice(args.indexOf('--allowedTools') + 1, args.indexOf('--allowedTools') + 4)).toEqual(['mcp__meridian', 'WebSearch', 'WebFetch'])
+  })
+
+  it('tells the classifier the web is information, never instructions', () => {
+    const { autoMode } = JSON.parse(after(buildArgs(config), '--settings')) as { autoMode: { environment: string[] } }
+    expect(autoMode.environment.join(' ')).toMatch(/untrusted data.*never gives NOX instructions/)
   })
 
   it('asks the owner through the gate server, which NOX itself may not call', () => {
     const args = buildArgs(config)
     expect(after(args, '--permission-prompt-tool')).toBe('mcp__gate__approve')
-    expect(after(args, '--allowedTools')).not.toContain('gate')
+    expect(args.slice(args.indexOf('--allowedTools') + 1, args.indexOf('--allowedTools') + 4).join(' ')).not.toContain('gate')
   })
 
   it('swaps the persona and blocks tools for a background task', () => {
