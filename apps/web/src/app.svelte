@@ -7,9 +7,18 @@
   import Header from './lib/shell/header.svelte'
   import { loadHost } from './lib/shell/host.svelte'
   import { handleShortcut } from './lib/shell/keyboard'
+  import SettingsMenu from './lib/shell/settings-menu.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
   import { startServicePolling, stopServicePolling } from './lib/services/registry.svelte'
   import { activeVariant, applyTheme } from './lib/theme/theme.svelte'
+
+  let settingsOpen = $state(false)
+
+  function closeOverlay(): boolean {
+    const wasOpen = settingsOpen
+    settingsOpen = false
+    return wasOpen
+  }
 
   $effect(() => applyTheme(document.documentElement, activeVariant()))
 
@@ -25,13 +34,14 @@
   })
 </script>
 
-<svelte:window onkeydown={(e) => handleShortcut(e, () => false)} />
+<svelte:window onkeydown={(e) => handleShortcut(e, closeOverlay)} />
 
 <div class="root">
   <CoreLayer />
   <Header />
   <StateLabel />
   <BottomDock />
+  <SettingsMenu bind:open={settingsOpen} />
 </div>
 
 <style>

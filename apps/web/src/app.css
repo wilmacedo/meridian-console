@@ -62,3 +62,20 @@ button {
     opacity: 0;
   }
 }
+
+@keyframes nx-sub {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+    filter: blur(10px);
+  }
+  60% {
+    opacity: 0.9;
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
