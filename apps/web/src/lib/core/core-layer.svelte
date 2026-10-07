@@ -3,6 +3,7 @@
   import { agent, kick, onKick, viewMode } from '../agent/agent-state.svelte'
   import { toggleListening } from '../voice/microphone.svelte'
   import { layout } from '../workspace/layout.svelte'
+  import { prefs } from '../workspace/prefs.svelte'
   import { switchFx } from '../workspace/switch-fx.svelte'
   import { wm } from '../windows/window-manager.svelte'
   import { activeVariant, isLight } from '../theme/theme.svelte'
@@ -27,6 +28,7 @@
       return { mode: viewMode(), amplitude: agent.amplitude, micLevel: agent.micLevel, dimmed, working: agent.working, workProgress: agent.workProgress, lift: layout.h >= 720 && !dimmed, colors: { a: v.orbA, b: v.orbB, w: v.orbW }, lowQuality: orbQuality.value === 'low' }
     })
     orb = o
+    o.setStrandCount(prefs.strands)
     o.start()
     const stopKick = onKick((s) => o.kick(s))
     return () => {
@@ -34,6 +36,8 @@
       stopKick()
     }
   })
+
+  $effect(() => orb?.setStrandCount(prefs.strands))
 
   function onPointerMove(e: PointerEvent): void {
     orb?.setPointer(e.clientX / window.innerWidth - 0.5, e.clientY / window.innerHeight - 0.5)
@@ -48,8 +52,10 @@
 
 <svelte:window onpointermove={onPointerMove} />
 
-<div class="grid fine"></div>
-<div class="grid coarse"></div>
+{#if prefs.grid}
+  <div class="grid fine"></div>
+  <div class="grid coarse"></div>
+{/if}
 <canvas bind:this={canvas} onclick={onClick} style:filter style:cursor={pointer ? 'pointer' : 'default'}></canvas>
 <div class="vignette"></div>
 

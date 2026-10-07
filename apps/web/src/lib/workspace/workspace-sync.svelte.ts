@@ -4,11 +4,13 @@ import type { RailId } from '../dock/widgets'
 import type { DocSpec } from '../docs/doc-blocks'
 import { docs, restoreDoc } from '../docs/docs.svelte'
 import { watchWorkspace } from '../live/stream.svelte'
+import type { ModuleId } from '../modules'
 import type { PaletteId, ThemeMode } from '../theme/palettes'
 import { theme } from '../theme/theme.svelte'
 import { restoreWindows, snapshotWindows, type PersistedWindow } from '../windows/window-manager.svelte'
 import { layout } from './layout.svelte'
 import type { LayoutMode } from './layout-mode'
+import { clampStrands, sanitizeModuleOrder, STRANDS_DEFAULT } from './module-order'
 import { prefs } from './prefs.svelte'
 import { finishSwitchFx, sleep, startSwitchFx, switchFx } from './switch-fx.svelte'
 import { workspaceCode } from './workspace-card'
@@ -26,6 +28,9 @@ interface WorkspaceState {
   hiddenServices?: string[]
   hiddenModules?: string[]
   layout?: LayoutMode
+  grid?: boolean
+  strands?: number
+  moduleOrder?: ModuleId[]
 }
 
 // What is on screen right now, which the stored copy trails by the write debounce.
@@ -38,6 +43,9 @@ export function snapshot(): WorkspaceState {
     hiddenServices: [...prefs.hiddenServices],
     hiddenModules: [...prefs.hiddenModules],
     layout: layout.mode,
+    grid: prefs.grid,
+    strands: prefs.strands,
+    moduleOrder: [...prefs.moduleOrder],
   }
 }
 
@@ -52,6 +60,9 @@ function restore(state: WorkspaceState): void {
   prefs.hiddenServices = state.hiddenServices ?? []
   prefs.hiddenModules = state.hiddenModules ?? []
   layout.mode = state.layout ?? 'auto'
+  prefs.grid = state.grid ?? true
+  prefs.strands = clampStrands(state.strands ?? STRANDS_DEFAULT)
+  prefs.moduleOrder = sanitizeModuleOrder(state.moduleOrder)
 }
 
 // The address decides the workspace: ?workspace=<id>, and the default one when it names none. Nothing is
@@ -239,6 +250,9 @@ export function resetWorkspaceSettings(): void {
   theme.palette = 'meridian'
   prefs.hiddenServices = []
   prefs.hiddenModules = []
+  prefs.grid = true
+  prefs.strands = STRANDS_DEFAULT
+  prefs.moduleOrder = sanitizeModuleOrder(undefined)
   layout.mode = 'auto'
 }
 

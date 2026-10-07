@@ -129,6 +129,13 @@ export class CoreOrb {
     this.sparks = Array.from({ length: SPARK_COUNT }, () => ({ k: (rand() * k) | 0, th: rand() * TAU, v: (0.15 + rand() * 0.5) * (rand() < 0.5 ? -1 : 1), s: 0.6 + rand() * 0.8 }))
   }
 
+  // Redraws with another number of strands; the sparks ride whichever strands exist.
+  setStrandCount(count: number): void {
+    const k = Math.max(16, Math.min(80, Math.round(count)))
+    if (k === this.strands.length) return
+    this.strands = Array.from({ length: k }, makeStrand)
+  }
+
   start(): void {
     this.last = performance.now()
     const loop = (now: number): void => {
