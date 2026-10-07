@@ -1,12 +1,12 @@
-import Database from 'better-sqlite3'
+import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_WORKSPACE, StaleVersionError, WorkspaceNotFoundError, WorkspaceStore } from './workspace-store.js'
 
-const store = (): WorkspaceStore => new WorkspaceStore(new Database(':memory:'))
+const store = (): WorkspaceStore => new WorkspaceStore(new DatabaseSync(':memory:'))
 
 describe('WorkspaceStore', () => {
   it('creates the default workspace on first start, once', () => {
-    const db = new Database(':memory:')
+    const db = new DatabaseSync(':memory:')
     new WorkspaceStore(db)
     const again = new WorkspaceStore(db)
     expect(again.list().map((w) => w.id)).toEqual([DEFAULT_WORKSPACE])

@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3'
+import type { DatabaseSync } from 'node:sqlite'
 import type { Workspace, WorkspaceSummary } from '@meridian/service-sdk'
 
 export const DEFAULT_WORKSPACE = 'default'
@@ -32,7 +32,7 @@ type Listener = (workspace: Workspace) => void
 export class WorkspaceStore {
   private listeners = new Set<Listener>()
 
-  constructor(private db: Database.Database) {
+  constructor(private db: DatabaseSync) {
     db.exec(`CREATE TABLE IF NOT EXISTS workspaces (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -44,12 +44,12 @@ export class WorkspaceStore {
   }
 
   list(): WorkspaceSummary[] {
-    const rows = this.db.prepare('SELECT id, name, version, updated_at FROM workspaces ORDER BY updated_at DESC').all() as Row[]
+    const rows = this.db.prepare('SELECT id, name, version, updated_at FROM workspaces ORDER BY updated_at DESC').all() as unknown as Row[]
     return rows.map((r) => ({ id: r.id, name: r.name, version: r.version, updatedAt: r.updated_at }))
   }
 
   get(id: string): Workspace | undefined {
-    const row = this.db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id) as Row | undefined
+    const row = this.db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id) as unknown as Row | undefined
     return row && toWorkspace(row)
   }
 
