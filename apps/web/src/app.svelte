@@ -17,8 +17,8 @@
   import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
   import { sendToServer, startStream } from './lib/live/stream.svelte'
-  import { cancelListening } from './lib/voice/microphone.svelte'
-  import { retryPlayback, setPlaybackFinished, unlockAudio } from './lib/voice/voice-player.svelte'
+  import { cancelListening, continueListening } from './lib/voice/microphone.svelte'
+  import { retryPlayback, setPlaybackFinished, setPlaybackSpoken, unlockAudio } from './lib/voice/voice-player.svelte'
   import { runCommand } from './lib/workspace/commands'
   import { deviceWorkspaceId, loadWorkspace, receiveWorkspace, startWorkspaceSync } from './lib/workspace/workspace-sync.svelte'
   import { activeVariant, applyTheme, darkVariant } from './lib/theme/theme.svelte'
@@ -41,6 +41,7 @@
     const stopClock = startClock()
     finishBoot()
     setPlaybackFinished((turn) => sendToServer({ type: 'speech_done', turn }))
+    setPlaybackSpoken(() => void continueListening())
     // Audio can only start after a gesture; the first one unlocks it, and any later one retries queued speech.
     const unlock = (): void => {
       unlockAudio()

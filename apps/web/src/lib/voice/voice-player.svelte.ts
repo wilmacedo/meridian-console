@@ -21,6 +21,11 @@ let onFinished: ((turn: number) => void) | undefined
 
 export const setPlaybackFinished = (fn: (turn: number) => void): void => void (onFinished = fn)
 
+// Only when NOX ran out of things to say, not when the owner cut it off.
+let onSpoken: (() => void) | undefined
+
+export const setPlaybackSpoken = (fn: () => void): void => void (onSpoken = fn)
+
 // Browsers only let a page play audio after the user has interacted with it; this runs on the first gesture.
 export function unlockAudio(): void {
   ctx ??= new AudioContext()
@@ -55,6 +60,7 @@ function finishIfDone(): void {
   if (!ended || playing || decoding > 0 || ready.size > 0) return
   stop()
   onFinished?.(turn)
+  onSpoken?.()
 }
 
 async function playNext(): Promise<void> {

@@ -1,4 +1,5 @@
 import { agent, kick } from '../agent/agent-state.svelte'
+import { approvals } from '../agent/approval.svelte'
 import { workspaceId } from '../workspace/workspace-sync.svelte'
 import { live, screenId, sendToServer } from '../live/stream.svelte'
 import { play } from '../sound/sfx.svelte'
@@ -14,6 +15,8 @@ export const micAvailable = (): boolean => isSecureContext && !!navigator.mediaD
 const SPEECH_LEVEL = 0.02
 const SILENCE_MS = 1000
 const NO_SPEECH_MS = 7000
+// After NOX has spoken the mic reopens by itself; this is how long it waits for the owner to carry on.
+const FOLLOW_UP_MS = 5000
 // Only a guard for a noisy room that never goes quiet; a recording this long is still far below the server's 10 MB limit.
 const MAX_MS = 10 * 60_000
 const TICK_MS = 50
@@ -59,7 +62,8 @@ async function ask(blob: Blob): Promise<void> {
     if (!res.ok || !res.body) return idle()
     // The answer is spoken and acted on by the server; the stream just has to run to its end.
     for await (const _chunk of res.body) void _chunk
-    mic.phase = 'idle'
+    // The reply may already have been spoken, and the mic reopened for the follow-up.
+    if (mic.phase === 'sending') mic.phase = 'idle'
   } catch {
     // Cut off by the owner, who is already starting to talk: not ours to reset.
     if (!controller.signal.aborted) idle()
@@ -88,7 +92,7 @@ function finish(send: boolean, heardSpeech: boolean): void {
   r.stop()
 }
 
-async function begin(): Promise<void> {
+async function begin(followUp = false): Promise<void> {
   mic.phase = 'recording'
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
@@ -109,7 +113,7 @@ async function begin(): Promise<void> {
 
   agent.mode = 'listening'
   kick(1)
-  play('mic-on')
+  if (!followUp) play('mic-on')
   recorder.start()
 
   const startedAt = performance.now()
@@ -125,7 +129,7 @@ async function begin(): Promise<void> {
       lastSpeechAt = now
     }
     if (heardSpeech && now - lastSpeechAt > SILENCE_MS) finish(true, heardSpeech)
-    else if (!heardSpeech && now - startedAt > NO_SPEECH_MS) finish(false, false)
+    else if (!heardSpeech && now - startedAt > (followUp ? FOLLOW_UP_MS : NO_SPEECH_MS)) finish(false, false)
     else if (now - startedAt > MAX_MS) finish(true, heardSpeech)
   }, TICK_MS)
   stopEarly = () => finish(true, heardSpeech)
@@ -146,4 +150,11 @@ export function cancelListening(): boolean {
   if (mic.phase !== 'recording') return false
   finish(false, false)
   return true
+}
+
+// NOX finished speaking: keep listening for a while, so a conversation does not need a tap per turn. Quiet for
+// FOLLOW_UP_MS ends it, with the same sound as any other recording that is dropped.
+export async function continueListening(): Promise<void> {
+  if (!micAvailable() || live.link === 'offline' || mic.phase === 'recording' || approvals.pending.length) return
+  await begin(true)
 }
