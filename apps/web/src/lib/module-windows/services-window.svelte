@@ -61,7 +61,7 @@
               <span class="method" class:post={a.method === 'POST'}>{a.method}</span>
               <span class="path" title={a.description}>{a.path}</span>
               <span class="result" class:done={results[key] && !results[key].pending}>{resultText(key)}</span>
-              <button disabled={a.input !== undefined} title={a.input ? 'Needs input' : a.description} onclick={() => runAction(s.id, a)}>RUN</button>
+              <button disabled={a.input !== undefined} title={a.input ? 'Needs input' : a.description} onclick={() => runAction(s.id, a, s.name)}>RUN</button>
             </div>
           {/each}
         </div>
