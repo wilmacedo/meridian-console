@@ -132,8 +132,8 @@
     cursor: default;
   }
   .mic.thinking {
-    --core: rgba(255, 205, 80, 0.35);
-    --inner: rgba(255, 205, 80, 0.4);
+    --core: rgba(var(--nx-wn), 0.35);
+    --inner: rgba(var(--nx-wn), 0.4);
   }
   .ping {
     position: absolute;

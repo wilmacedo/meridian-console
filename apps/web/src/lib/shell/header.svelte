@@ -2,6 +2,7 @@
   import { clock } from '../clock.svelte'
   import { showDoc } from '../docs/docs.svelte'
   import { live } from '../live/stream.svelte'
+  import { layout } from '../workspace/layout.svelte'
   import { visibleServices } from '../workspace/prefs.svelte'
 
   const pad = (n: number): string => String(n).padStart(2, '0')
@@ -9,15 +10,21 @@
   const tasks = $derived(live.tasks.length)
   // The newest task's document: it is what the owner wants to look at.
   const openTask = (): void => void showDoc(`task-${live.tasks.at(-1)!.id}`)
+  const showHost = $derived(layout.w >= 1180)
+  const showServices = $derived(layout.w >= 980)
   const online = $derived(visibleServices().filter((s) => s.status.state === 'online').length)
 </script>
 
-<header>
+<header style:padding-inline={layout.w < 760 ? '0' : '250px'}>
   <span class="brand"><i class="diamond"></i>NOX // NEURAL INTERFACE</span>
-  <span class="sep"></span>
-  <span>{live.host.name.toUpperCase()}</span>
-  <span class="sep"></span>
-  <span>SVC {online}/{visibleServices().length}</span>
+  {#if showHost}
+    <span class="sep"></span>
+    <span>{live.host.name.toUpperCase()}</span>
+  {/if}
+  {#if showServices}
+    <span class="sep"></span>
+    <span>SVC {online}/{visibleServices().length}</span>
+  {/if}
   {#if live.link === 'offline'}
     <span class="sep"></span>
     <span class="offline"><i></i>RECONNECTING</span>
@@ -41,6 +48,8 @@
     align-items: center;
     gap: 18px;
     pointer-events: none;
+    box-sizing: border-box;
+    white-space: nowrap;
     font: 400 10px/1 var(--font-mono);
     letter-spacing: 0.06em;
     color: rgba(var(--nx-ac), 0.55);
@@ -67,9 +76,9 @@
     gap: 7px;
     padding: 4px 9px;
     background: rgba(var(--nx-pn), 0.6);
-    border: 1px solid rgba(255, 205, 80, 0.45);
+    border: 1px solid rgba(var(--nx-wn), 0.45);
     border-radius: 999px;
-    color: rgb(255, 205, 80);
+    color: rgb(var(--nx-wn));
     font: inherit;
     letter-spacing: 0.14em;
     cursor: pointer;
@@ -77,14 +86,14 @@
     animation: nx-sub 0.4s ease both;
   }
   .tasks:hover {
-    border-color: rgb(255, 205, 80);
+    border-color: rgb(var(--nx-wn));
   }
   .tasks i {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: rgb(255, 205, 80);
-    box-shadow: 0 0 6px rgb(255, 205, 80);
+    background: rgb(var(--nx-wn));
+    box-shadow: 0 0 6px rgb(var(--nx-wn));
     animation: nx-flash 1.1s ease-in-out infinite;
   }
   .offline {
