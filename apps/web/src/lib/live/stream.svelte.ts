@@ -1,3 +1,4 @@
+import { clearApprovals, hideApproval, showApproval } from '../agent/approval.svelte'
 import { agent } from '../agent/agent-state.svelte'
 import { enqueueSpeech, endSpeech, player } from '../voice/voice-player.svelte'
 import type { ClientMessage, ContainerInfo, ScreenCommand, HostInfo, MeridianEvent, ServiceSummary, StreamMessage, TelemetrySample } from '@meridian/service-sdk'
@@ -84,10 +85,14 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
       else if (message.type === 'command') onCommand(message.command)
       else if (message.type === 'speech') void enqueueSpeech(message.turn, message.seq, message.audio)
       else if (message.type === 'speech_end') endSpeech(message.turn)
+      else if (message.type === 'approval') showApproval({ id: message.id, tool: message.tool, detail: message.detail })
+      else if (message.type === 'approval_end') hideApproval(message.id)
       else apply(message)
     }
     socket.onclose = () => {
       live.connected = false
+      // A card nobody answers is denied by the server after a minute.
+      clearApprovals()
       if (stopped) return
       timer = setTimeout(connect, delay)
       delay = Math.min(delay * 2, RECONNECT_MAX_MS)

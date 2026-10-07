@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { finishBoot } from './lib/agent/agent-state.svelte'
+  import { denyApproval } from './lib/agent/approval.svelte'
+  import ApprovalCard from './lib/shell/approval-card.svelte'
   import { startClock } from './lib/clock.svelte'
   import CoreLayer from './lib/core/core-layer.svelte'
   import { cancelPending } from './lib/dock/dock.svelte'
@@ -27,7 +29,7 @@
       settingsOpen = false
       return true
     }
-    return cancelListening() || cancelPending()
+    return denyApproval() || cancelListening() || cancelPending()
   }
 
   $effect(() => applyTheme(document.documentElement, activeVariant(), darkVariant()))
@@ -74,6 +76,7 @@
   <Rail rail="R" />
   <BottomDock />
   <SettingsMenu bind:open={settingsOpen} />
+  <ApprovalCard />
   <DragGhost />
 </div>
 
