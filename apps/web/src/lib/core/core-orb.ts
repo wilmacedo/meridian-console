@@ -8,6 +8,8 @@ export interface OrbFrameInputs {
   dimmed: boolean
   // "r,g,b" triples: primary and secondary strand colours, and the spark colour.
   colors: { a: string; b: string; w: string }
+  // Half the strands, no wide glow and no sub-pixel scaling, for devices that struggle.
+  lowQuality: boolean
 }
 
 interface Harmonic {
@@ -163,7 +165,7 @@ export class CoreOrb {
   private frame(now: number): void {
     const c = this.canvas
     const input = this.inputs()
-    const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP)
+    const dpr = input.lowQuality ? 1 : Math.min(window.devicePixelRatio || 1, DPR_CAP)
     const w = c.clientWidth
     const h = c.clientHeight
     if (!w || !h) return
@@ -227,6 +229,7 @@ export class CoreOrb {
     const seg = (POINTS / SEGMENTS) | 0
     ctx.lineCap = 'round'
     this.strands.forEach((st, k) => {
+      if (input.lowQuality && k % 2 === 1) return
       for (let i = 0; i <= POINTS; i++) this.point(st, k, (i / POINTS) * TAU, t, pts, i * 2, ampK, tw)
       glow.moveTo(pts[0], pts[1])
       for (let i = 1; i <= POINTS; i++) glow.lineTo(pts[i * 2], pts[i * 2 + 1])
@@ -248,9 +251,11 @@ export class CoreOrb {
     ctx.strokeStyle = `rgb(${A})`
     ctx.lineWidth = 6
     ctx.stroke(glow)
-    ctx.globalAlpha = 0.018 * dim
-    ctx.lineWidth = 16
-    ctx.stroke(glow)
+    if (!input.lowQuality) {
+      ctx.globalAlpha = 0.018 * dim
+      ctx.lineWidth = 16
+      ctx.stroke(glow)
+    }
 
     const sparkCount = Math.min(Math.round(10 + energy * 8 + amp * 10), this.sparks.length)
     for (let i = 0; i < sparkCount; i++) {

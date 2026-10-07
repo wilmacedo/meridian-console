@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { orbQuality, setOrbQuality, type OrbQuality } from '../core/orb-quality.svelte'
   import { MODE_LABELS, PALETTE_LABELS, type PaletteId, type ThemeMode } from '../theme/palettes'
   import { live } from '../live/stream.svelte'
   import { hasLightVariant, theme } from '../theme/theme.svelte'
@@ -10,6 +11,10 @@
 
   const modes = Object.keys(MODE_LABELS) as ThemeMode[]
   const palettes = Object.keys(PALETTE_LABELS) as PaletteId[]
+  const qualities: { id: OrbQuality; label: string }[] = [
+    { id: 'high', label: 'High' },
+    { id: 'low', label: 'Low' },
+  ]
   const modeLocked = $derived(!hasLightVariant(theme.palette))
 </script>
 
@@ -38,6 +43,14 @@
         {#each palettes as p}
           <button role="menuitemradio" aria-checked={theme.palette === p} class:on={theme.palette === p} onclick={() => (theme.palette = p)}>
             <i class="dot"></i>{PALETTE_LABELS[p]}
+          </button>
+        {/each}
+      </div>
+      <div class="group">
+        <span class="title">ORB</span>
+        {#each qualities as q (q.id)}
+          <button role="menuitemradio" aria-checked={orbQuality.value === q.id} class:on={orbQuality.value === q.id} onclick={() => setOrbQuality(q.id)}>
+            <i class="dot"></i>{q.label}
           </button>
         {/each}
       </div>

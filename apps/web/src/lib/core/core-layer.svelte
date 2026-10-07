@@ -5,6 +5,7 @@
   import { wm } from '../windows/window-manager.svelte'
   import { activeVariant, isLight } from '../theme/theme.svelte'
   import { CoreOrb } from './core-orb'
+  import { orbQuality } from './orb-quality.svelte'
 
   let canvas: HTMLCanvasElement
   let orb: CoreOrb | undefined
@@ -20,7 +21,7 @@
   onMount(() => {
     const o = new CoreOrb(canvas, () => {
       const v = activeVariant()
-      return { mode: agent.mode, amplitude: agent.amplitude, micLevel: agent.micLevel, dimmed, colors: { a: v.orbA, b: v.orbB, w: v.orbW } }
+      return { mode: agent.mode, amplitude: agent.amplitude, micLevel: agent.micLevel, dimmed, colors: { a: v.orbA, b: v.orbB, w: v.orbW }, lowQuality: orbQuality.value === 'low' }
     })
     orb = o
     o.start()
