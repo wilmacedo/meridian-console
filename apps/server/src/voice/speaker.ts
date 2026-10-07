@@ -31,6 +31,11 @@ export class TurnSpeaker {
     this.cancelled = true
   }
 
+  // Speaks a whole sentence now, outside the text NOX is writing.
+  say(sentence: string): void {
+    if (!this.cancelled) this.speak(sentence)
+  }
+
   push(delta: string): void {
     if (this.cancelled) return
     for (const sentence of this.splitter.push(delta)) this.speak(sentence)

@@ -64,6 +64,22 @@ describe('TurnSpeaker', () => {
     expect(sent.at(-1)).toEqual({ type: 'speech_end', turn: 7 })
   })
 
+  it('speaks a sentence handed to it at once, ahead of the text that follows', async () => {
+    const { speaker, sent } = setup(async (t) => Buffer.from(t))
+    speaker.say('Entendi, vou ver isso.')
+    speaker.push('Depois a resposta completa aqui.')
+    await speaker.finish()
+    expect(sent.filter((m) => m.type === 'speech').map((m) => Buffer.from((m as { audio: string }).audio, 'base64').toString())).toEqual(['Entendi, vou ver isso.', 'Depois a resposta completa aqui.'])
+  })
+
+  it('does not speak a sentence handed to it after being cancelled', async () => {
+    const { speaker, sent } = setup(async (t) => Buffer.from(t))
+    speaker.cancel()
+    speaker.say('Nunca dita.')
+    await speaker.finish()
+    expect(sent.filter((m) => m.type === 'speech')).toHaveLength(0)
+  })
+
   it('speaks the trailing text on finish', async () => {
     const { speaker, sent } = setup(async (t) => Buffer.from(t))
     speaker.push('Tudo certo por aqui')

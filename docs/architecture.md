@@ -318,6 +318,13 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   workspace; the header shows a pulsing `● N TASK(S)` chip (amber, the thinking tint) that opens the
   newest task's document, fetched from `GET /api/docs/<id>` (the server keeps the latest version of every
   live document in memory). The orb does not change.
+- **Acknowledging slow work:** the persona asks NOX to open with one short sentence ("Entendi, vou olhar os
+  logs do baixa") before a slow tool, and the text before a tool call is spoken at once. When the model
+  doesn't, the server does it: a turn that reaches a slow tool (Bash on a machine, `service_*`,
+  `call_service_action`, `list_containers`, `add_service`, `edit_service`, `start_task`) without having said
+  anything gets a short canned acknowledgement (`nox/acknowledge.ts`). Quick tools (windows, theme, local
+  reads) get none. Turn numbers start from the clock, so a screen left open across a server restart does
+  not mistake new speech for old and drop it.
 - **Managing services:** NOX can add, edit and remove *managed* services (data, stored in SQLite, live
   without a restart) with `add_service` / `edit_service` / `remove_service`, find containers with
   `list_containers`, and run any action with `call_service_action`; see `services.md`. The registry mounts
