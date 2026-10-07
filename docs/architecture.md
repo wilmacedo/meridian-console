@@ -251,6 +251,38 @@ aside: it needs its own model provider and can't run on the subscription, and ev
 it has an equivalent in Claude Code. Its good ideas are worth borrowing over time: memory that grows
 from use, skills NOX writes for itself, scheduled and proactive tasks, reaching NOX outside the screen.
 
+### As built (phase 6)
+
+- **Process:** `apps/server/src/nox/process.ts` keeps one `claude -p` process alive (`--input-format
+  stream-json`), answering one request at a time, and resumes the same session across server restarts
+  (the id lives in `session-id` under NOX's home). `POST /api/nox/say {text, workspace?}` is the single
+  entry point; the answer streams back as newline-delimited JSON (`text`, `tool`, `done`, `error`). Voice
+  will post to it, and so does the dev CLI: `pnpm nox "abre a telemetria" [--workspace <id>]`.
+- **Reach, enforced by flags** (and covered by a test, `buildArgs`): `--tools ""` removes every built-in
+  tool, `--permission-mode dontAsk` denies whatever isn't allowed, `--allowedTools mcp__meridian` allows
+  only Meridian's own MCP server, `--strict-mcp-config` ignores every other server, and
+  `--setting-sources ""` keeps the owner's own Claude Code settings out. NOX therefore has no shell, no
+  files and no network of its own until the approval flow exists.
+- **Persona and notes:** the system prompt is `nox/persona.ts`; anything in `$NOX_HOME/CLAUDE.md`
+  (default `~/.meridian/nox/`) is appended as the owner's notes. `NOX_MODEL` picks the model (Sonnet).
+- **Meridian MCP server:** `POST /mcp`, a stateless JSON-RPC implementation of the tools part of MCP
+  (`nox/mcp.ts`), served by the same Fastify process. Tools: `list_workspaces`, `open_window`,
+  `close_window`, `close_all_windows`, `arrange_windows`, `pin_widget`, `clear_agent_widgets`,
+  `set_theme`, `compose_doc` (validated server-side by `nox/doc-validation.ts`; an error message names the
+  bad path so NOX can fix its call), `get_status`, `query_events`, `get_telemetry`, and one
+  `service_<id>_<action>` per **read-only** service action. Actions that change something are not exposed
+  until risky actions can be approved on screen.
+- **Acting on a screen:** the server tracks which workspace each connected screen shows
+  (`ScreenRegistry`). A UI tool sends a `command` message over `/api/stream` to the **newest screen of the
+  workspace** (the workspace of whoever is talking, unless the tool names another); that screen runs it
+  with its own window manager and dock, and the resulting layout reaches the other screens through the
+  workspace like any manual change. With no screen showing the workspace the tool fails and NOX says so.
+  `pin_widget` only starts the pin: the pin card appears and the owner drops it on a rail.
+- **State on the orb:** the server broadcasts the agent mode (`thinking` while the request runs,
+  `speaking` while text streams, `idle` after). Until voice supplies a real audio level the orb uses a
+  steady amplitude while speaking.
+- **Logging:** every UI command and request is written to the event stream under `nox`.
+
 ### Shape
 
 - **One global NOX session** (not per workspace), a long-lived headless process run by the server and

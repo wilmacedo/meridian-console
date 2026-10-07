@@ -32,6 +32,7 @@ with Node's built-in `node:sqlite`, which still prints an `ExperimentalWarning` 
 pnpm install
 pnpm dev:web      # http://localhost:5173
 pnpm dev:server   # http://localhost:4000
+pnpm nox "abre a telemetria"   # talk to NOX without a microphone (needs the server and `claude` logged in)
 ```
 
 ## Contributing
