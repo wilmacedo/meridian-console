@@ -335,8 +335,11 @@ Absolute box on the stage: radius 16, 1px border, shadow, glass surface. Column 
 4. **Body**: scrolls vertically, padding `18px 20px`.
 5. **Footer** (padding `11px 20px`, top border `ac/.16`, mono 10.5/600 `.2em`, entrance `nxSub .5s ease .5s both`): left a context line (below), right `SYNCED AT hh:mm`.
 
-Focused vs unfocused: border `hi/.2` vs `hi/.08`; shadow `0 26px 70px sh/.5` vs `0 12px 34px sh/.35`;
-while being dragged `0 36px 90px sh/.6, 0 0 0 1px ac/.25`. Border and shadow transition `.25s`.
+Focused vs unfocused: border `hi/.2` vs `hi/.08`, and the top line below. The prototype also sets
+per-state shadows (`0 26px 70px sh/.5` focused, `0 12px 34px sh/.35` otherwise, a stronger one while
+dragged), but `nxEdge` runs with `fill-mode: both` and keeps animating `box-shadow`, so its final
+resting shadow (`0 30px 80px sh/.6` plus the inset top line) always wins and the per-state shadows
+are never visible. The resting shadow is the spec. Border transition `.25s`.
 
 Module titles, kickers and footer context lines:
 
@@ -433,8 +436,8 @@ against the targets; the smallest absolute difference ≤ 8 wins, provided the s
 inside the stage. When resizing, only the edges being moved are tested (right edge for E/SE,
 left for W/SW, bottom for S/SE/SW), and the result must respect the minimum size and the stage.
 
-**Guides**: after snapping, a guide is drawn for the snapped target **and** for every target an edge
-of the window coincides with (within .5px). A guide is a full-height (vertical) or full-width
+**Guides**: when moving, after snapping, a guide is drawn for the snapped target **and** for every
+target an edge of the window coincides with (within .5px); when resizing, only for the snapped target. A guide is a full-height (vertical) or full-width
 (horizontal) 1px line in `ac`, glow `0 0 6px ac/.6`, opacity **.75 centre, .4 gap, .55 edge**;
 a line at the far edge (`W` / `H`) is drawn 1px inward so it stays visible.
 
