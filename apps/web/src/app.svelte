@@ -8,6 +8,7 @@
   import { loadHost } from './lib/shell/host.svelte'
   import { handleShortcut } from './lib/shell/keyboard'
   import SettingsMenu from './lib/shell/settings-menu.svelte'
+  import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
   import { startServicePolling, stopServicePolling } from './lib/services/registry.svelte'
   import { activeVariant, applyTheme } from './lib/theme/theme.svelte'
@@ -40,6 +41,7 @@
   <CoreLayer />
   <Header />
   <StateLabel />
+  <Stage />
   <BottomDock />
   <SettingsMenu bind:open={settingsOpen} />
 </div>

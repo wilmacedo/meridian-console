@@ -1,7 +1,7 @@
 <script lang="ts">
   import { agent, startListening } from '../agent/agent-state.svelte'
   import { MODULES } from '../modules'
-  import { openModule, openModules } from './open-modules.svelte'
+  import { isOpen, openModule } from '../windows/window-manager.svelte'
 
   const half = Math.ceil(MODULES.length / 2)
   const left = MODULES.slice(0, half)
@@ -12,7 +12,7 @@
 </script>
 
 {#snippet moduleButton(m: (typeof MODULES)[number])}
-  {@const active = openModules.ids.includes(m.id)}
+  {@const active = isOpen(m.id)}
   <button class="module" class:active onclick={() => openModule(m.id)}>
     <span>{m.label.toUpperCase()}</span>
     <span class="bar"></span>

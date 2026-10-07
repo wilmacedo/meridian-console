@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { agent, kick, onKick, startListening } from '../agent/agent-state.svelte'
-  import { openModules } from '../shell/open-modules.svelte'
+  import { wm } from '../windows/window-manager.svelte'
   import { activeVariant, isLight } from '../theme/theme.svelte'
   import { CoreOrb } from './core-orb'
 
@@ -9,7 +9,7 @@
   let orb: CoreOrb | undefined
   let pointer = $state(false)
 
-  const dimmed = $derived(openModules.ids.length > 0)
+  const dimmed = $derived(wm.active !== 'core')
   const filter = $derived.by(() => {
     const invert = isLight() ? 'invert(1) hue-rotate(180deg)' : ''
     const recede = dimmed ? (isLight() ? 'blur(6px) opacity(.45)' : 'blur(6px) brightness(.55) saturate(1.2)') : ''

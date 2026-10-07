@@ -174,3 +174,9 @@ export function nudge(id: WindowId, dx: number, dy: number, resize: boolean): vo
   w.prev = null
   wm.custom = true
 }
+
+// What a dock button or a number key does: Core clears the stage, any other module opens its window.
+export function openModule(id: ModuleId): void {
+  if (id === 'core') closeAll()
+  else open(id)
+}

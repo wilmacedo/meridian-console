@@ -79,3 +79,76 @@ button {
     filter: none;
   }
 }
+
+@keyframes nx-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.04);
+    filter: blur(18px) brightness(1.8);
+  }
+  35% {
+    opacity: 0.55;
+    filter: blur(9px) brightness(1.4);
+  }
+  70% {
+    opacity: 1;
+    filter: blur(1.5px) brightness(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes nx-sweep {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(320%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+@keyframes nx-edge {
+  0% {
+    box-shadow:
+      0 0 0 1px rgba(var(--nx-fg), 0.7),
+      0 0 70px rgba(var(--nx-hi), 0.25),
+      inset 0 0 50px rgba(var(--nx-hi), 0.12);
+  }
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(var(--nx-hi), 0),
+      0 30px 80px rgba(var(--nx-sh), 0.6),
+      inset 0 1px 0 rgba(var(--nx-hi), 0.08);
+  }
+}
+
+@keyframes nx-close {
+  0% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  28% {
+    opacity: 1;
+    transform: scale(1.01, 0.9);
+    filter: brightness(1.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.03, 0.012);
+    filter: brightness(2.4) blur(1px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0, 0.006);
+    filter: brightness(3) blur(2px);
+  }
+}
