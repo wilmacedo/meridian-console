@@ -3,6 +3,7 @@
   import { eventsFor } from '../live/events-view.svelte'
   import { clockTime, LEVEL_COLOR } from '../live/format'
   import { live } from '../live/stream.svelte'
+  import Sparkline from '../module-windows/sparkline.svelte'
   import type { WidgetDef } from './widgets'
 
   let { def }: { def: WidgetDef } = $props()
@@ -36,8 +37,25 @@
       <div class="empty">NO EVENTS YET</div>
     {/each}
   </div>
+{:else if def.type === 'tele'}
+  {@const recent = live.telemetry.slice(-32)}
+  {@const last = recent.at(-1)}
+  {@const rows = [
+    { label: 'CPU', value: last ? String(Math.round(last.cpu)) : '—', unit: '%', series: recent.map((s) => s.cpu), max: 100, color: 'rgb(var(--nx-ac))' },
+    { label: 'MEM', value: last ? last.mem.toFixed(1) : '—', unit: 'GB', series: recent.map((s) => s.mem), max: live.host.memTotalGb || 1, color: 'rgb(var(--nx-ac))' },
+    ...(last?.temp != null ? [{ label: 'TEMP', value: String(Math.round(last.temp)), unit: '°C', series: recent.map((s) => s.temp ?? 0), max: 100, color: last.temp > 70 ? '#ff6b8a' : '#ffd34d' }] : []),
+  ]}
+  <div class="tele">
+    {#each rows as r (r.label)}
+      <div class="trow">
+        <span class="tlabel">{r.label}</span>
+        <Sparkline values={r.series} max={r.max} color={r.color} height={24} span={20} stroke={1.2} fill={0.1} />
+        <span class="tvalue">{r.value}<span class="tunit">{r.unit}</span></span>
+      </div>
+    {/each}
+  </div>
 {:else}
-  <!-- tele and feeder bodies come with their data sources. -->
+  <!-- The feeder body comes with its service. -->
   <div class="empty">NO DATA SOURCE CONNECTED YET</div>
 {/if}
 
@@ -69,6 +87,32 @@
   .state {
     font-size: 9px;
     letter-spacing: 0.12em;
+  }
+  .tele {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .trow {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 66px;
+    gap: 10px;
+    align-items: center;
+  }
+  .tlabel {
+    font: 400 9.5px/1 var(--font-mono);
+    letter-spacing: 0.12em;
+    color: rgba(var(--nx-ac), 0.75);
+  }
+  .tvalue {
+    text-align: right;
+    font: 400 12px/1 var(--font-mono);
+    color: rgb(var(--nx-fg));
+  }
+  .tunit {
+    font-size: 9px;
+    color: rgba(var(--nx-ac), 0.6);
+    margin-left: 3px;
   }
   .logs {
     display: flex;

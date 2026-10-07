@@ -279,3 +279,12 @@ button {
     inset 0 1px 0 rgba(var(--nx-ac), 0.1),
     0 10px 30px rgba(var(--nx-sh), 0.35);
 }
+
+@keyframes nx-bar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
