@@ -1,8 +1,8 @@
 # tuya-feeder service
 
 A Meridian service for Tuya/SmartLife devices, starting with an automatic pet feeder with a camera: it
-exposes the feeder through the server (`server/`), contributes its widgets to the Habitat screen (`web/`)
-and ships the notes below. See `docs/services.md` for the service contract.
+exposes the feeder through the server (`server/`), contributes the Cameras window and a feeder dock
+widget (`web/`) and ships the notes below. See `docs/services.md` for the service contract.
 
 Anything specific to one installation (device IDs and names, observed readings, schedules) does not
 belong here: keep it in `docs/local/` at the repo root, which is git-ignored.
@@ -122,32 +122,36 @@ stream `feeder`. Requires `TUYA_FEEDER_DEVICE_ID` in `.env`.
 - Verified: two consecutive sessions replace the URL, the stream plays (H.264 640x360), and a viewer
   kept connected for 77s kept receiving data past the URL's ~1 minute lifetime.
 - `POST /api/services/tuya-feeder/camera/webrtc` proxies the SDP offer/answer to go2rtc, so only go2rtc's WebRTC media
-  port (8555) needs to be reachable by clients. The UI side is `web/`: the service lists `feeder-camera.svelte`
-  as a Habitat widget, and it opens the connection on mount and closes it on unmount
-  (verified: leaving the screen drops go2rtc to 0 consumers). Audio arrives (G.711) and the panel has a
-  SOUND toggle; the video starts muted because browsers only autoplay muted video.
+  port (8555) needs to be reachable by clients. The UI side is `web/`: `feeder-camera-tile.svelte` is the
+  camera tile of the Cameras window, and it opens the connection on mount and closes it on unmount
+  (verified: closing the window drops go2rtc to 0 consumers). The video starts muted because browsers
+  only autoplay muted video; audio (G.711) arrives but the new design has no sound control yet.
 - Gotcha: Fastify rejects a request that has `Content-Type: application/json` with an empty body, so the
   client only sets the header when it sends a body.
 
 #### Feeder control in the repo
 
 `server/feeder.ts` exposes `GET /api/services/tuya-feeder/status` and `POST /api/services/tuya-feeder/feed`
-(`{ "portions": 1..99 }`, rejected with 400 otherwise, 429 within 10s of the previous feeding). The Habitat
-screen shows it through the `feeder-panel.svelte` widget: status rows, a 1-5 portion stepper (the UI caps it lower than the
-API on purpose) and a two-step **FEED NOW → CONFIRM** button that cancels itself after 5s. After a feeding
-it polls until `feed_report`'s timestamp changes and shows `SERVED n` or `FEEDING FAILED`.
+(`{ "portions": 1..99 }`, rejected with 400 otherwise, 429 within 10s of the previous feeding); both are also
+service actions (`feeder-status`, `feed`), which is what NOX calls. The automation card in the Cameras window
+(and the `feeder` dock widget) shows the hopper level and the last feeding, with a two-step
+**DISPENSE NOW → CONFIRM** button that cancels itself after 5s and dispenses 1 portion. After a feeding it
+polls until `feed_report`'s timestamp changes and shows `SERVED n` or `FEEDING FAILED`.
 
 - Status is derived from the shadow: last feeding from `feed_report` (source = whichever of the manual/auto
   reports is closest in time), battery, food storage, and `blocked`. **`blocked` is only true when the
   clog flag is newer than the last feeding**, since the flag never cleared after successful feedings.
-- Readings older than 7 days are marked STALE in the UI (`food_storage_status` can be years old).
+- Readings older than 7 days are marked STALE in the UI (`food_storage_status` can be years old). Food
+  storage is an enum (`full` / `less` / `lack`), not a percentage, so the hopper shows FULL / LOW / EMPTY
+  with a level bar rather than a number.
 - Scheduled feedings do run on their own and are reported through `auto_feed_report`.
 - The Tuya token is cached in `tuya-client.ts` until shortly before it expires.
 - A real feeding triggered from the UI works end to end.
 
 ### Open questions
 
-- **`schedule` format**: Tuya's docs say "1–7 bytes of weekdays, then 3-byte rules (portions + minutes
+- **`schedule` format** (the design's NEXT FEEDING and day schedule need it; until it is decoded the
+  automation card leaves them out rather than invent them): Tuya's docs say "1–7 bytes of weekdays, then 3-byte rules (portions + minutes
   since 0h), binary + base64". The value observed on the test unit is a ~15-character repeating string
   starting with `7f` — it **does not match the documented format**, so decoding it requires comparing
   against changes made in the SmartLife app.
