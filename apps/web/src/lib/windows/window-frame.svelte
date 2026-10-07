@@ -4,7 +4,7 @@
   import { dock, pinLabel, requestPin } from '../dock/dock.svelte'
   import { pinDef } from '../dock/pin'
   import { docs } from '../docs/docs.svelte'
-  import { host } from '../shell/host.svelte'
+  import { live } from '../live/stream.svelte'
   import { pointerDrag, type PointerDragOptions } from './pointer-drag'
   import { windowMeta } from './window-meta'
   import { beginGesture, close, endGesture, focus, moveGesture, nudge, rectFor, toggleMaximise, wm, type GestureMode, type WindowState } from './window-manager.svelte'
@@ -13,7 +13,7 @@
 
   const pin = $derived(pinDef(win.id))
   const rect = $derived(rectFor(win))
-  const meta = $derived(windowMeta(win.id, { hostName: host.name, doc: docs.current }))
+  const meta = $derived(windowMeta(win.id, { hostName: live.host.name, doc: docs.current }))
   const focused = $derived(wm.active === win.id)
   const dragging = $derived(wm.gesture === win.id)
   const pad = (n: number): string => String(n).padStart(2, '0')

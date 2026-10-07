@@ -9,12 +9,11 @@
   import Rail from './lib/dock/rail.svelte'
   import BottomDock from './lib/shell/bottom-dock.svelte'
   import Header from './lib/shell/header.svelte'
-  import { loadHost } from './lib/shell/host.svelte'
   import { handleShortcut } from './lib/shell/keyboard'
   import SettingsMenu from './lib/shell/settings-menu.svelte'
   import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
-  import { startServicePolling, stopServicePolling } from './lib/services/registry.svelte'
+  import { startStream } from './lib/live/stream.svelte'
   import { activeVariant, applyTheme } from './lib/theme/theme.svelte'
 
   let settingsOpen = $state(false)
@@ -31,12 +30,11 @@
 
   onMount(() => {
     const stopClock = startClock()
-    startServicePolling()
+    const stopStream = startStream()
     finishBoot()
-    void loadHost()
     return () => {
       stopClock()
-      stopServicePolling()
+      stopStream()
     }
   })
 </script>

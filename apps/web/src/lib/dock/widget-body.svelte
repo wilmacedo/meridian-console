@@ -1,6 +1,6 @@
 <script lang="ts">
   import DocBlocks from '../docs/doc-blocks.svelte'
-  import { registry } from '../services/registry.svelte'
+  import { live } from '../live/stream.svelte'
   import type { WidgetDef } from './widgets'
 
   let { def }: { def: WidgetDef } = $props()
@@ -12,7 +12,7 @@
   <DocBlocks blocks={def.blocks} compact />
 {:else if def.type === 'services'}
   <div class="svcs">
-    {#each registry.services as s (s.id)}
+    {#each live.services as s (s.id)}
       {@const [label, color] = STATUS[s.status.state]}
       <div class="svc">
         <span class="dot" style:background={color} style:box-shadow="0 0 6px {color}"></span>

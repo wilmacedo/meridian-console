@@ -2,8 +2,7 @@
   import DocWindowBody from '../docs/doc-window-body.svelte'
   import { docs } from '../docs/docs.svelte'
   import { railsShown } from '../dock/dock.svelte'
-  import { registry } from '../services/registry.svelte'
-  import { host } from '../shell/host.svelte'
+  import { live } from '../live/stream.svelte'
   import WindowFrame from './window-frame.svelte'
   import WindowPlaceholder from './window-placeholder.svelte'
   import { arrange, isOpen, setStage, wm, type WindowId } from './window-manager.svelte'
@@ -20,9 +19,9 @@
   const liveCount = $derived(wm.wins.filter((w) => !w.closing).length)
 
   function footLeft(id: WindowId): string {
-    if (id === 'services') return `${registry.services.filter((s) => s.status.state === 'online').length}/${registry.services.length} SERVICES ONLINE`
+    if (id === 'services') return `${live.services.filter((s) => s.status.state === 'online').length}/${live.services.length} SERVICES ONLINE`
     if (id === 'doc') return `COMPOSED BY NOX · ${docs.current?.blocks.length ?? 0} BLOCKS`
-    if (id === 'telemetry') return `${host.name.toUpperCase()} · LIVE`
+    if (id === 'telemetry') return `${live.host.name.toUpperCase()} · LIVE`
     return ''
   }
 
