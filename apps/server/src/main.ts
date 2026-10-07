@@ -40,7 +40,7 @@ const nox = new Nox(
   { port },
   { setWorkspace: (id) => (turnWorkspace = id), log: (message) => app.log.info(message) },
 )
-registerNox(app, nox, bus, screens)
+registerNox(app, { nox, bus, screens, registry })
 app.addHook('onClose', async () => nox.stop())
 
 app.listen({ port, host: '0.0.0.0' }).catch((err) => {
