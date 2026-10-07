@@ -16,6 +16,7 @@
   import WorkspaceMenu from './lib/shell/workspace-menu.svelte'
   import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
+  import TaskCard from './lib/shell/task-card.svelte'
   import { sendToServer, startStream } from './lib/live/stream.svelte'
   import { cancelListening, continueListening, haltIfBusy } from './lib/voice/microphone.svelte'
   import { retryPlayback, setPlaybackFinished, setPlaybackSpoken, unlockAudio } from './lib/voice/voice-player.svelte'
@@ -78,6 +79,7 @@
   <PendingPin />
   <Rail rail="L" />
   <Rail rail="R" />
+  <TaskCard />
   <BottomDock />
   <SettingsMenu bind:open={settingsOpen} />
   <WorkspaceMenu bind:open={workspacesOpen} />

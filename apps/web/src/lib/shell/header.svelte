@@ -29,7 +29,7 @@
     <span class="sep"></span>
     <span class="offline"><i></i>RECONNECTING</span>
   {/if}
-  {#if tasks > 0}
+  {#if tasks > 1}
     <span class="sep"></span>
     <button class="tasks" onclick={openTask} title={live.tasks.map((t) => t.title).join(' · ')}><i></i>{tasks} {tasks === 1 ? 'TASK' : 'TASKS'}</button>
   {/if}

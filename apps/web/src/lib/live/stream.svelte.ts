@@ -1,8 +1,9 @@
 import { clearApprovals, hideApproval, showApproval } from '../agent/approval.svelte'
 import { play } from '../sound/sfx.svelte'
 import { agent } from '../agent/agent-state.svelte'
+import { taskProgress } from '../agent/task-progress'
 import { enqueueSpeech, endSpeech, player } from '../voice/voice-player.svelte'
-import type { ClientMessage, ContainerInfo, ScreenCommand, HostInfo, MeridianEvent, ServiceSummary, StreamMessage, TelemetrySample } from '@meridian/service-sdk'
+import type { ClientMessage, ContainerInfo, ScreenCommand, HostInfo, MeridianEvent, ServiceSummary, StreamMessage, TaskView, TelemetrySample } from '@meridian/service-sdk'
 
 // The events window keeps the 120 most recent.
 const EVENT_BUFFER = 120
@@ -25,7 +26,7 @@ export const live = $state({
   telemetry: [] as TelemetrySample[],
   containers: [] as ContainerInfo[],
   // Background tasks NOX is running for this workspace.
-  tasks: [] as { id: string; title: string }[],
+  tasks: [] as TaskView[],
 })
 
 function apply(message: StreamMessage): void {
@@ -46,6 +47,8 @@ function apply(message: StreamMessage): void {
       if (live.tasks.some((t) => !message.tasks.some((n) => n.id === t.id))) play('task-done')
       live.tasks = message.tasks
       agent.working = message.tasks.length > 0
+      // Empty: the ring fills as it fades, so a finished task reads as complete.
+      agent.workProgress = message.tasks.length ? taskProgress(message.tasks.at(-1)!.steps) : 1
       break
     case 'snapshot':
       live.host = message.host
@@ -161,3 +164,5 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
     socket?.close()
   }
 }
+
+if (import.meta.env.DEV) Object.assign(window, { noxLive: live })
