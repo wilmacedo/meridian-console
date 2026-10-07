@@ -45,6 +45,7 @@ function apply(message: StreamMessage): void {
       // One that is gone from the list has finished (or was stopped): nothing else tells the owner it is done.
       if (live.tasks.some((t) => !message.tasks.some((n) => n.id === t.id))) play('task-done')
       live.tasks = message.tasks
+      agent.working = message.tasks.length > 0
       break
     case 'snapshot':
       live.host = message.host
@@ -91,6 +92,7 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
   let lastHeard = Date.now()
   // Another workspace's tasks leaving the list are not this one's finishing.
   live.tasks = []
+  agent.working = false
 
   function connect(): void {
     lastHeard = Date.now()

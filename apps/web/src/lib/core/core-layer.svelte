@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { agent, kick, onKick } from '../agent/agent-state.svelte'
+  import { agent, kick, onKick, viewMode } from '../agent/agent-state.svelte'
   import { toggleListening } from '../voice/microphone.svelte'
+  import { layout } from '../workspace/layout.svelte'
   import { wm } from '../windows/window-manager.svelte'
   import { activeVariant, isLight } from '../theme/theme.svelte'
   import { CoreOrb } from './core-orb'
@@ -21,7 +22,7 @@
   onMount(() => {
     const o = new CoreOrb(canvas, () => {
       const v = activeVariant()
-      return { mode: agent.mode, amplitude: agent.amplitude, micLevel: agent.micLevel, dimmed, colors: { a: v.orbA, b: v.orbB, w: v.orbW }, lowQuality: orbQuality.value === 'low' }
+      return { mode: viewMode(), amplitude: agent.amplitude, micLevel: agent.micLevel, dimmed, working: agent.working, workProgress: agent.workProgress, lift: layout.h >= 720 && !dimmed, colors: { a: v.orbA, b: v.orbB, w: v.orbW }, lowQuality: orbQuality.value === 'low' }
     })
     orb = o
     o.start()

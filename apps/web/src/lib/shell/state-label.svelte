@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { agent, type AgentMode } from '../agent/agent-state.svelte'
+  import { agent, viewMode, type ViewMode } from '../agent/agent-state.svelte'
   import { live } from '../live/stream.svelte'
 
-  const LABELS: Record<AgentMode, string> = { boot: 'BOOTING', idle: 'STANDBY', listening: 'LISTENING', thinking: 'THINKING', speaking: 'SPEAKING' }
+  const LABELS: Record<ViewMode, string> = { boot: 'BOOTING', idle: 'STANDBY', listening: 'LISTENING', thinking: 'THINKING', working: 'WORKING', speaking: 'SPEAKING' }
   const TICKS = 24
 
   let frame = $state(0)
@@ -11,20 +11,22 @@
     return () => clearInterval(timer)
   })
 
+  const mode = $derived(viewMode())
   const offline = $derived(live.link === 'offline')
-  const color = $derived(offline ? '#ff6b8a' : agent.mode === 'thinking' ? 'rgb(var(--nx-fg))' : 'rgb(var(--nx-ac))')
-  const active = $derived(!offline && agent.mode !== 'idle' && agent.mode !== 'boot')
+  const color = $derived(offline ? '#ff6b8a' : mode === 'thinking' || mode === 'working' ? 'rgb(var(--nx-fg))' : 'rgb(var(--nx-ac))')
+  const active = $derived(!offline && mode !== 'idle' && mode !== 'boot')
   const ticks = $derived(
     Array.from({ length: TICKS }, (_, i) => {
       const wide = i % 6 === 0
-      const lit = active ? Math.sin(frame * 0.9 + i * 0.7) > (agent.mode === 'thinking' ? -0.2 : 0.3) : wide
+      // WORKING: a short lit run travelling along the bar.
+      const lit = mode === 'working' ? (((i - frame) % TICKS) + TICKS) % TICKS < 5 : active ? Math.sin(frame * 0.9 + i * 0.7) > (mode === 'thinking' ? -0.2 : 0.3) : wide
       return { wide, lit }
     }),
   )
 </script>
 
 <div class="state" style:color style:--glow={color}>
-  <div class="label">{offline ? 'OFFLINE' : LABELS[agent.mode]}</div>
+  <div class="label">{offline ? 'OFFLINE' : LABELS[mode]}</div>
   <div class="ticks">
     {#each ticks as tick}
       <span class:wide={tick.wide} class:lit={tick.lit}></span>

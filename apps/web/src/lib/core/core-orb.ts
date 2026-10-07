@@ -1,11 +1,15 @@
-import type { AgentMode } from '../agent/agent-state.svelte'
+import type { ViewMode } from '../agent/agent-state.svelte'
 
 export interface OrbFrameInputs {
-  mode: AgentMode
+  mode: ViewMode
   amplitude: number
   micLevel: number
   // True while any window is open: the orb recedes behind them.
   dimmed: boolean
+  // A background task is running: the progress ring is drawn, and at `lift` the orb makes room for its card.
+  working: boolean
+  workProgress: number
+  lift: boolean
   // "r,g,b" triples: primary and secondary strand colours, and the spark colour.
   colors: { a: string; b: string; w: string }
   // Half the strands, no wide glow and no sub-pixel scaling, for devices that struggle.
@@ -52,7 +56,7 @@ const DIMMED_FRAME_MS = 1000 / 15
 // is far cheaper than a CSS blur filter over a full-viewport canvas that changes every frame.
 const DIMMED_SCALE = 0.3
 
-const ENERGY_TARGET: Record<AgentMode, number> = { speaking: 0.6, thinking: 0.9, listening: 0.45, boot: 0.5, idle: 0.15 }
+const ENERGY_TARGET: Record<ViewMode, number> = { speaking: 0.6, thinking: 0.9, working: 0.55, listening: 0.45, boot: 0.5, idle: 0.15 }
 
 const rand = (): number => Math.random()
 
@@ -99,6 +103,8 @@ export class CoreOrb {
   private ampTarget = 0
   private listen = 0
   private think = 0
+  private work = 0
+  private workP = 0
   private mic = 0
   private dim = 1
   private scale = 1
@@ -194,20 +200,22 @@ export class CoreOrb {
     this.energy += (ENERGY_TARGET[m] - this.energy) * 0.035
     this.listen += ((m === 'listening' ? 1 : 0) - this.listen) * 0.05
     this.think += ((m === 'thinking' ? 1 : 0) - this.think) * 0.05
+    this.work += ((input.working ? 1 : 0) - this.work) * 0.05
+    this.workP += (input.workProgress - this.workP) * (input.workProgress < this.workP ? 1 : 0.12)
     this.ampTarget = m === 'speaking' ? input.amplitude : this.ampTarget * 0.85
     this.amp += (this.ampTarget * (0.85 + 0.15 * Math.sin(t * 37)) - this.amp) * 0.22
     this.mic = m === 'listening' ? this.mic + (input.micLevel - this.mic) * 0.25 : this.mic * 0.9
     this.kickSmooth += (this.kickValue - this.kickSmooth) * 0.3
     this.kickValue *= 0.9
     this.dim += ((input.dimmed ? 0.42 : 1) - this.dim) * 0.05
-    this.scale += ((input.dimmed ? 0.92 : 1) - this.scale) * 0.05
+    this.scale += ((input.dimmed ? 0.92 : 1 - this.work * (input.lift ? 0.22 : 0.1)) - this.scale) * 0.05
 
     const { energy, amp, listen, think, mic, kickSmooth } = this
     const ab = Math.min(1, Math.max(0, (now - this.bootAt - BOOT_DELAY_MS) / BOOT_RISE_MS))
     const boot = 1 - Math.pow(1 - ab, 3)
     const R = Math.min(w, h) * 0.25 * this.scale * (0.6 + 0.4 * boot) * (1 - think * 0.06 - listen * (0.04 - mic * 0.05) + amp * 0.03 + kickSmooth * 0.05)
     const cx = w / 2 + this.mx * 14
-    const cy = h * 0.46 + this.my * 10
+    const cy = h * (0.46 - (input.lift && !input.dimmed ? this.work * 0.08 : 0)) + this.my * 10
     this.cx = cx
     this.cy = cy
     this.radius = R
@@ -288,6 +296,40 @@ export class CoreOrb {
         ctx.arc(cx, cy, R * (1.24 + j * 0.04), start, start + len)
         ctx.stroke()
       }
+    }
+    if (this.work > 0.02) {
+      const ticks = 72
+      const rr = R * 1.3
+      const wk = this.work * dim
+      const head = (t * 0.3) % 1
+      ctx.lineWidth = 1.3
+      for (let j = 0; j < ticks; j++) {
+        const f = j / ticks
+        const a = -Math.PI / 2 + f * TAU
+        const lit = f < this.workP
+        const d = Math.min(Math.abs(f - head), 1 - Math.abs(f - head))
+        const sc = Math.max(0, 1 - d * 14)
+        ctx.globalAlpha = Math.min(1, (lit ? 0.6 : 0.1) + sc * 0.5) * wk
+        ctx.strokeStyle = lit || sc > 0.3 ? `rgb(${B})` : `rgb(${A})`
+        const r1 = rr + (j % 6 === 0 ? R * 0.055 : R * 0.025) + sc * R * 0.03
+        ctx.beginPath()
+        ctx.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr)
+        ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1)
+        ctx.stroke()
+      }
+      ctx.strokeStyle = `rgb(${B})`
+      ctx.lineWidth = 1
+      for (let j = 0; j < 2; j++) {
+        const sa = t * (1.1 + j * 0.5) * (j ? -1 : 1) + j * 3
+        ctx.globalAlpha = 0.35 * wk
+        ctx.beginPath()
+        ctx.arc(cx, cy, R * (1.2 - j * 0.04), sa, sa + 0.5 + 0.2 * Math.sin(t * 2 + j))
+        ctx.stroke()
+      }
+      const pa = -Math.PI / 2 + this.workP * TAU
+      const hs = R * 0.09
+      ctx.globalAlpha = 0.95 * wk
+      ctx.drawImage(sprites.w, cx + Math.cos(pa) * rr - hs, cy + Math.sin(pa) * rr - hs, hs * 2, hs * 2)
     }
     if (listen > 0.02) {
       ctx.strokeStyle = `rgb(${B})`

@@ -2,13 +2,22 @@ import type { AgentMode } from '@meridian/service-sdk'
 
 export type { AgentMode }
 
+// What the UI shows: a background task running while the agent is otherwise idle reads as WORKING. It is not a
+// mode the server reports, so the wire protocol stays as it is.
+export type ViewMode = AgentMode | 'working'
+
 // The orb and the header read this; voice and the NOX bridge will write it.
 export const agent = $state({
   mode: 'boot' as AgentMode,
   // 0-1 level of the audio NOX is speaking / the user's microphone.
   amplitude: 0,
   micLevel: 0,
+  // A background task is running, and how far along it is (0-1).
+  working: false,
+  workProgress: 0,
 })
+
+export const viewMode = (): ViewMode => (agent.mode === 'idle' && agent.working ? 'working' : agent.mode)
 
 const kickListeners = new Set<(strength: number) => void>()
 
