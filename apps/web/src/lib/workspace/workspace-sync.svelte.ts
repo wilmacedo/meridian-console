@@ -1,4 +1,4 @@
-import type { Workspace } from '@meridian/service-sdk'
+import type { Workspace, WorkspaceSummary } from '@meridian/service-sdk'
 import { restoreDock, snapshotDock, type PersistedWidget } from '../dock/dock.svelte'
 import type { RailId } from '../dock/widgets'
 import type { DocSpec } from '../docs/doc-blocks'
