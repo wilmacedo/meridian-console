@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { pointerDrag } from '../windows/pointer-drag'
   import { closeWidget, dock, toggleCollapsed, type Widget } from './dock.svelte'
+  import { dragEnd, dragMove, DRAG_START_THRESHOLD, pressWidget } from './dock-drag.svelte'
   import WidgetBody from './widget-body.svelte'
 
   let { widget, slot }: { widget: Widget; slot: string } = $props()
@@ -12,7 +14,11 @@
   {#if dock.flash === widget.id}
     {#key dock.flashCount}<div class="flash"></div>{/key}
   {/if}
-  <div class="head" class:collapsed={widget.collapsed}>
+  <div
+    class="head"
+    class:collapsed={widget.collapsed}
+    use:pointerDrag={{ ignore: 'button', threshold: DRAG_START_THRESHOLD, onPress: (e) => pressWidget(e, widget.id), onMove: dragMove, onEnd: dragEnd }}
+  >
     <div class="grip"><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <div class="titles">
       <div class="meta">

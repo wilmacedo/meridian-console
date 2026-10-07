@@ -17,6 +17,27 @@ const CLOSE_MS = 560
 const CLOSE_SLIDE_PX = 24
 const CLEAR_STAGGER_MS = 90
 const FLASH_MS = 2300
+const PENDING_EXIT_MS = 260
+
+export interface DragState {
+  // A widget id, or PENDING_ID for the card of a pin being placed.
+  id: string
+  // Ghost position (top-left, viewport px) and size.
+  x: number
+  y: number
+  w: number
+  h: number
+  // Where inside the ghost it was grabbed.
+  ox: number
+  oy: number
+  // Target rail and slot index; null when the pointer is nowhere near a rail (pending pins only).
+  rail: RailId | null
+  index: number
+  rot: number
+  landing: boolean
+}
+
+export const PENDING_ID = '__pending'
 
 export const dock = $state({
   rails: { L: ['w1'], R: ['w2'] } as Record<RailId, string[]>,
@@ -26,6 +47,10 @@ export const dock = $state({
   } as Record<string, Widget>,
   flash: null as string | null,
   flashCount: 0,
+  // A pin waiting to be dropped on a rail.
+  pending: null as WidgetDef | null,
+  pendingLeaving: false,
+  drag: null as DragState | null,
 })
 
 let nextId = 2
@@ -35,7 +60,8 @@ export const setRailEl = (rail: RailId, el: HTMLElement | undefined): void => vo
 export const railEl = (rail: RailId): HTMLElement | undefined => railEls[rail]
 
 export const railOf = (id: string): RailId => (dock.rails.L.includes(id) ? 'L' : 'R')
-export const hasWidgets = (): boolean => dock.rails.L.length > 0 || dock.rails.R.length > 0
+// Rails show, and the stage makes room for them, while they hold widgets or a pin is being placed.
+export const railsShown = (): boolean => dock.rails.L.length > 0 || dock.rails.R.length > 0 || dock.pending !== null
 
 // A system widget is unique per type and service; asking for one that exists must not duplicate it.
 export function findSystemWidget(def: WidgetDef): string | undefined {
@@ -73,6 +99,34 @@ export function moveWidget(id: string, rail: RailId, index: number): void {
   dock.widgets[id].landed = true
   flashWidget(id)
 }
+
+export function requestPin(def: WidgetDef): void {
+  const existing = findSystemWidget(def)
+  if (existing) {
+    scrollToWidget(existing)
+    flashWidget(existing)
+  } else {
+    dock.pending = def
+  }
+}
+
+export function cancelPending(): boolean {
+  if (!dock.pending || dock.pendingLeaving || dock.drag) return false
+  dock.pendingLeaving = true
+  setTimeout(() => {
+    dock.pending = null
+    dock.pendingLeaving = false
+  }, PENDING_EXIT_MS)
+  return true
+}
+
+export function dropPending(rail: RailId, index: number): void {
+  if (!dock.pending) return
+  insertWidget(dock.pending, rail, index)
+  dock.pending = null
+}
+
+export const pinLabel = (def: WidgetDef | null): string => (dock.pending ? 'PINNING…' : def && findSystemWidget(def) ? 'DOCKED' : 'PIN TO DOCK')
 
 export function toggleCollapsed(id: string): void {
   dock.widgets[id].collapsed = !dock.widgets[id].collapsed

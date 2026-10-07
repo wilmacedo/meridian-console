@@ -10,7 +10,20 @@
   const pad = (n: number): string => String(n).padStart(2, '0')
   const left = $derived(rail === 'L')
   const ids = $derived(dock.rails[rail])
-  const visible = $derived(ids.length > 0)
+  const visible = $derived(ids.length > 0 || dock.drag !== null || dock.pending !== null)
+  const targeted = $derived(dock.drag?.rail === rail)
+  const hot = $derived(targeted && !dock.drag?.landing)
+
+  // The dragged widget leaves the list, and a slot marks where it would land (or, while a pin is
+  // pending, where it could).
+  type Item = { kind: 'widget' | 'slot'; id: string }
+  const items = $derived.by(() => {
+    const d = dock.drag
+    const list: Item[] = ids.filter((id) => id !== d?.id).map((id) => ({ kind: 'widget', id }))
+    if (d || dock.pending) list.splice(targeted && d ? Math.min(d.index, list.length) : list.length, 0, { kind: 'slot', id: `slot-${rail}` })
+    return list
+  })
+  const slotHeight = $derived(targeted && dock.drag ? Math.max(64, Math.min(dock.drag.h, 320)) : 52)
 
   // cubic-bezier(.2,.8,.2,1), the design's easing for reflow.
   const ease = (t: number): number => {
@@ -74,20 +87,25 @@
     <span class="count">{pad(ids.length)}</span>
   </div>
   <div class="well">
+    <div class="hot" class:on={hot}></div>
     <div class="list" bind:this={list} data-rail={rail} onscroll={measure} style:mask-image={mask} style:-webkit-mask-image={mask}>
       <div class="content" bind:this={content}>
-        {#each ids as id, i (id)}
-          {@const w = dock.widgets[id]}
+        {#each items as it, i (it.id)}
+          {@const w = it.kind === 'widget' ? dock.widgets[it.id] : null}
           <div
             class="item"
-            class:closing={w.closing}
-            class:landed={w.landed}
-            data-wid={id}
-            style:--h="{w.exitHeight}px"
-            style:--dx="{w.exitDx}px"
+            class:slot={!w}
+            class:targeted={!w && targeted}
+            class:closing={w?.closing}
+            class:landed={w?.landed}
+            data-wid={w ? it.id : undefined}
+            data-slot={w ? undefined : it.id}
+            style:height={w ? undefined : `${slotHeight}px`}
+            style:--h="{w?.exitHeight ?? 0}px"
+            style:--dx="{w?.exitDx ?? 0}px"
             animate:flip={{ duration: 300, easing: ease }}
           >
-            <WidgetCard widget={w} slot="{rail}·{pad(i + 1)}" />
+            {#if w}<WidgetCard widget={w} slot="{rail}·{pad(i + 1)}" />{:else}SLOT {rail}·{pad(i + 1)}{/if}
           </div>
         {/each}
       </div>
@@ -166,6 +184,21 @@
     flex: 1;
     min-height: 0;
   }
+  .hot {
+    position: absolute;
+    inset: -8px -8px 10px;
+    border-radius: 16px;
+    pointer-events: none;
+    background: rgba(var(--nx-mu), 0.07);
+    box-shadow:
+      inset 0 0 0 1px rgba(var(--nx-ac), 0.2),
+      0 0 40px rgba(var(--nx-ac), 0.08);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .hot.on {
+    opacity: 1;
+  }
   .list {
     position: absolute;
     inset: 0;
@@ -182,6 +215,26 @@
   .item {
     flex: none;
     animation: nx-in 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .item.slot {
+    display: grid;
+    place-items: center;
+    border: 1px dashed rgba(var(--nx-ac), 0.22);
+    border-radius: 12px;
+    font: 400 10px/1 var(--font-mono);
+    letter-spacing: 0.22em;
+    color: rgba(var(--nx-ac), 0.4);
+    animation:
+      nx-slot-in 0.3s ease both,
+      nx-slot-pulse 1.6s ease-in-out infinite;
+    transition:
+      height 0.2s ease,
+      border-color 0.2s;
+  }
+  .item.slot.targeted {
+    border-color: rgba(var(--nx-ac), 0.75);
+    background: rgba(var(--nx-mu), 0.12);
+    color: rgb(var(--nx-ac));
   }
   .item.landed {
     animation: nx-land 0.45s var(--ease-out) both;

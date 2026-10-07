@@ -7,14 +7,14 @@ export interface PointerDragOptions {
   threshold?: number
   cursor?: string
   // Fires on every accepted press, before any movement (e.g. to focus the window).
-  onPress?: () => void
+  onPress?: (e: PointerEvent) => void
   onStart?: () => void
-  onMove: (dx: number, dy: number) => void
-  onEnd: (moved: boolean) => void
+  onMove: (dx: number, dy: number, e: PointerEvent) => void
+  onEnd: (moved: boolean, cancelled: boolean) => void
 }
 
-// Pointer Events drag with capture, so a gesture survives leaving the element, and a single active
-// pointer, so a second touch can't hijack it.
+// Pointer Events drag with a single active pointer, so a second touch can't hijack it. Move and up
+// are listened for on `window`, so the gesture survives the dragged element being removed mid-drag.
 export const pointerDrag: Action<HTMLElement, PointerDragOptions> = (node, initial) => {
   let options = initial
   let pointerId: number | null = null
@@ -31,8 +31,10 @@ export const pointerDrag: Action<HTMLElement, PointerDragOptions> = (node, initi
     sx = e.clientX
     sy = e.clientY
     moved = false
-    node.setPointerCapture(e.pointerId)
-    options.onPress?.()
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', end)
+    window.addEventListener('pointercancel', end)
+    options.onPress?.(e)
   }
 
   function move(e: PointerEvent): void {
@@ -46,22 +48,22 @@ export const pointerDrag: Action<HTMLElement, PointerDragOptions> = (node, initi
       document.body.style.userSelect = 'none'
       options.onStart?.()
     }
-    options.onMove(dx, dy)
+    options.onMove(dx, dy, e)
   }
 
   function end(e: PointerEvent): void {
     if (e.pointerId !== pointerId) return
     pointerId = null
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', end)
+    window.removeEventListener('pointercancel', end)
     document.body.style.cursor = ''
     document.body.style.userSelect = ''
-    options.onEnd(moved)
+    options.onEnd(moved, e.type === 'pointercancel')
   }
 
   node.style.touchAction = 'none'
   node.addEventListener('pointerdown', down)
-  node.addEventListener('pointermove', move)
-  node.addEventListener('pointerup', end)
-  node.addEventListener('pointercancel', end)
 
   return {
     update(next) {
@@ -69,9 +71,7 @@ export const pointerDrag: Action<HTMLElement, PointerDragOptions> = (node, initi
     },
     destroy() {
       node.removeEventListener('pointerdown', down)
-      node.removeEventListener('pointermove', move)
-      node.removeEventListener('pointerup', end)
-      node.removeEventListener('pointercancel', end)
+      // A running gesture outlives its element (a dragged widget leaves its list) and cleans up in `end`.
     },
   }
 }

@@ -3,6 +3,9 @@
   import { finishBoot } from './lib/agent/agent-state.svelte'
   import { startClock } from './lib/clock.svelte'
   import CoreLayer from './lib/core/core-layer.svelte'
+  import { cancelPending } from './lib/dock/dock.svelte'
+  import DragGhost from './lib/dock/drag-ghost.svelte'
+  import PendingPin from './lib/dock/pending-pin.svelte'
   import Rail from './lib/dock/rail.svelte'
   import BottomDock from './lib/shell/bottom-dock.svelte'
   import Header from './lib/shell/header.svelte'
@@ -17,9 +20,11 @@
   let settingsOpen = $state(false)
 
   function closeOverlay(): boolean {
-    const wasOpen = settingsOpen
-    settingsOpen = false
-    return wasOpen
+    if (settingsOpen) {
+      settingsOpen = false
+      return true
+    }
+    return cancelPending()
   }
 
   $effect(() => applyTheme(document.documentElement, activeVariant()))
@@ -43,10 +48,12 @@
   <Header />
   <StateLabel />
   <Stage />
+  <PendingPin />
   <Rail rail="L" />
   <Rail rail="R" />
   <BottomDock />
   <SettingsMenu bind:open={settingsOpen} />
+  <DragGhost />
 </div>
 
 <style>

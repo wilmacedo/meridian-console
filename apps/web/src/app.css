@@ -199,3 +199,66 @@ button {
     transform: none;
   }
 }
+
+@keyframes nx-jiggle {
+  0% {
+    transform: rotate(-1.4deg) translateY(0);
+  }
+  50% {
+    transform: rotate(0deg) translateY(-1px);
+  }
+  100% {
+    transform: rotate(1.4deg) translateY(0);
+  }
+}
+
+@keyframes nx-lift {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.82);
+    filter: blur(12px);
+  }
+  60% {
+    opacity: 1;
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes nx-drop {
+  0% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.85);
+    filter: blur(10px);
+  }
+}
+
+@keyframes nx-slot-in {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes nx-slot-pulse {
+  0%,
+  100% {
+    border-color: rgba(var(--nx-ac), 0.18);
+  }
+  50% {
+    border-color: rgba(var(--nx-ac), 0.55);
+  }
+}

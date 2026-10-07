@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
   import { clock } from '../clock.svelte'
+  import { dock, pinLabel, requestPin } from '../dock/dock.svelte'
+  import { pinDef } from '../dock/pin'
   import { docs } from '../docs/docs.svelte'
   import { host } from '../shell/host.svelte'
   import { pointerDrag, type PointerDragOptions } from './pointer-drag'
@@ -9,6 +11,7 @@
 
   let { win, footLeft = '', children }: { win: WindowState; footLeft?: string; children?: Snippet } = $props()
 
+  const pin = $derived(pinDef(win.id))
   const rect = $derived(rectFor(win))
   const meta = $derived(windowMeta(win.id, { hostName: host.name, doc: docs.current }))
   const focused = $derived(wm.active === win.id)
@@ -57,6 +60,9 @@
         <div class="kicker">{meta.kicker}</div>
         <div class="title">{meta.title}</div>
       </div>
+      {#if pin}
+        <button class="pin" disabled={dock.pending !== null} onclick={() => requestPin(pin)}><i></i>{pinLabel(pin)}</button>
+      {/if}
       <button class="close" aria-label="Close" onclick={() => close(win.id)}>✕</button>
     </div>
     <div class="body">{@render children?.()}</div>
@@ -169,6 +175,34 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .pin {
+    height: 30px;
+    flex: none;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(var(--nx-mu), 0.08);
+    border: 1px solid rgba(var(--nx-ac), 0.35);
+    border-radius: 8px;
+    color: rgb(var(--nx-ac));
+    font: 400 10px/1 var(--font-mono);
+    letter-spacing: 0.16em;
+    cursor: pointer;
+  }
+  .pin:hover:not(:disabled) {
+    background: rgba(var(--nx-mu), 0.22);
+    color: rgb(var(--nx-fg));
+  }
+  .pin:disabled {
+    cursor: default;
+  }
+  .pin i {
+    width: 5px;
+    height: 5px;
+    border: 1px solid currentColor;
+    transform: rotate(45deg);
   }
   .close {
     width: 30px;
