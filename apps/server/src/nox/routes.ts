@@ -62,6 +62,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
             screens.setAgentMode('speaking')
           }
         }
+        if (event.type === 'tool') speaker?.flush()
         if (event.type === 'error') bus.emit('nox', 'error', event.message)
         reply.raw.write(`${JSON.stringify(event)}\n`)
       }

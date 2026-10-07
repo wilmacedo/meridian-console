@@ -42,6 +42,14 @@ describe('TurnSpeaker', () => {
     expect(log.spent).toBe('Primeira frase bem comprida aqui.'.length + 'Segunda frase bem comprida aqui.'.length)
   })
 
+  it('speaks a half sentence at once when asked, instead of holding it to the end', async () => {
+    const { speaker, sent } = setup(async (t) => Buffer.from(t))
+    speaker.push('Vou pedir a sua confirmação')
+    speaker.flush()
+    await vi.waitFor(() => expect(sent.filter((m) => m.type === 'speech')).toHaveLength(1))
+    expect(sent.some((m) => m.type === 'speech_end')).toBe(false)
+  })
+
   it('speaks the trailing text on finish', async () => {
     const { speaker, sent } = setup(async (t) => Buffer.from(t))
     speaker.push('Tudo certo por aqui')

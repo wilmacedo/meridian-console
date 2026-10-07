@@ -29,10 +29,16 @@ export class TurnSpeaker {
     for (const sentence of this.splitter.push(delta)) this.speak(sentence)
   }
 
-  // Speaks what is left and resolves once every sentence has been delivered.
-  async finish(): Promise<void> {
+  // Speaks what has not formed a sentence yet. NOX does this before it acts, because the tool call can
+  // wait on the owner (a confirmation card) and what it said before must not be heard after the wait.
+  flush(): void {
     const rest = this.splitter.flush()
     if (rest) this.speak(rest)
+  }
+
+  // Speaks what is left and resolves once every sentence has been delivered.
+  async finish(): Promise<void> {
+    this.flush()
     await this.chain
     this.hooks.send({ type: 'speech_end', turn: this.turn })
   }
