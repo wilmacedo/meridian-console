@@ -3,8 +3,9 @@
   import { results, keyOf, runAction } from '../live/actions.svelte'
   import { eventsView } from '../live/events-view.svelte'
   import { uptime } from '../live/format'
+  import { windowsOf } from '../services/service-ui'
   import { live } from '../live/stream.svelte'
-  import { openModule } from '../windows/window-manager.svelte'
+  import { open, openModule } from '../windows/window-manager.svelte'
 
   const STATUS: Record<ServiceState, { label: string; color: string }> = {
     online: { label: 'Online', color: '#3fd68b' },
@@ -66,6 +67,9 @@
       {/if}
       <div class="links">
         {#if hasLog(s.id, s.emitsEvents, s.actions.length)}<button class="link" onclick={() => openLogs(s.id)}>LOGS →</button>{/if}
+        {#each windowsOf(s.id) as w (w.windowId)}
+          <button class="link" onclick={() => open(w.windowId)}>{w.title.toUpperCase()} →</button>
+        {/each}
         {#if s.url}<a class="link" href={s.url} target="_blank" rel="noreferrer">OPEN ↗</a>{/if}
       </div>
     </div>

@@ -1,5 +1,4 @@
 import { defineWebService } from '@meridian/service-sdk/web'
-import FeederCamera from './feeder-camera.svelte'
-import FeederPanel from './feeder-panel.svelte'
 
-export default defineWebService({ habitat: [FeederCamera, FeederPanel] })
+// The camera and feeder UI are rebuilt for the new design next.
+export default defineWebService({})

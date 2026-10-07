@@ -13,7 +13,7 @@
 
   const pin = $derived(pinDef(win.id))
   const rect = $derived(rectFor(win))
-  const meta = $derived(windowMeta(win.id, { hostName: live.host.name, doc: docs.current }))
+  const meta = $derived(windowMeta(win.id, { hostName: live.host.name, doc: docs.current, monoOf: (id) => live.services.find((s) => s.id === id)?.mono ?? '··' }))
   const focused = $derived(wm.active === win.id)
   const dragging = $derived(wm.gesture === win.id)
   const pad = (n: number): string => String(n).padStart(2, '0')

@@ -1,7 +1,8 @@
 import type { DocBlock } from '../docs/doc-blocks'
 
 export type RailId = 'L' | 'R'
-export type WidgetType = 'tele' | 'feeder' | 'services' | 'logs' | 'doc'
+// Built-in types, or one contributed by a service.
+export type WidgetType = 'tele' | 'services' | 'logs' | 'doc' | (string & {})
 
 // What a widget is, not how it looks right now: enough to persist it and recreate it with live data.
 export interface WidgetDef {
@@ -16,7 +17,6 @@ export interface WidgetDef {
 }
 
 export const tele = (): WidgetDef => ({ type: 'tele', src: 'sys', title: 'Telemetry', kicker: 'HOST · LIVE' })
-export const feeder = (): WidgetDef => ({ type: 'feeder', src: 'sys', title: 'Feeder', kicker: 'AUTOMATION · LIVE' })
 export const services = (): WidgetDef => ({ type: 'services', src: 'sys', title: 'Services', kicker: 'LAUNCHER · LIVE' })
 export const logs = (svc: string): WidgetDef => ({
   type: 'logs',
@@ -26,3 +26,5 @@ export const logs = (svc: string): WidgetDef => ({
   kicker: svc === 'all' ? 'UNIFIED LOGS · LIVE' : 'LOGS · LIVE',
 })
 export const docWidget = (title: string, blocks: DocBlock[]): WidgetDef => ({ type: 'doc', src: 'agent', title, kicker: 'COMPOSED BY NOX', blocks })
+
+export const serviceWidget = (type: string, title: string, kicker: string): WidgetDef => ({ type, src: 'sys', title, kicker })

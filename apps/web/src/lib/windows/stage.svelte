@@ -1,5 +1,7 @@
 <script lang="ts">
   import { eventsFor, eventsView } from '../live/events-view.svelte'
+  import CamerasWindow from '../module-windows/cameras-window.svelte'
+  import { contributedWindow, moduleContributions } from '../services/service-ui'
   import TelemetryWindow from '../module-windows/telemetry-window.svelte'
   import ServicesWindow from '../module-windows/services-window.svelte'
   import EventsWindow from '../module-windows/events-window.svelte'
@@ -25,6 +27,7 @@
   function footLeft(id: WindowId): string {
     if (id === 'services') return `${live.services.filter((s) => s.status.state === 'online').length}/${live.services.length} SERVICES ONLINE`
     if (id === 'doc') return `COMPOSED BY NOX · ${docs.current?.blocks.length ?? 0} BLOCKS`
+    if (id === 'cameras') return moduleContributions('cameras').map((c) => c.footer).filter(Boolean).join(' · ')
     if (id === 'logs') return `${eventsFor(eventsView.filter).length} EVENTS BUFFERED`
     if (id === 'telemetry') return `${live.host.name.toUpperCase()} · LIVE`
     return ''
@@ -51,7 +54,7 @@
     <!-- A new document replaces the old one with a fresh open animation, hence the title in the key. -->
     {#each wm.wins as win (win.id === 'doc' ? `doc:${docs.current?.title}` : win.id)}
       <WindowFrame {win} footLeft={footLeft(win.id)}>
-        {#if win.id === 'doc'}<DocWindowBody />{:else if win.id === 'logs'}<EventsWindow />{:else if win.id === 'services'}<ServicesWindow />{:else if win.id === 'telemetry'}<TelemetryWindow />{:else}<WindowPlaceholder />{/if}
+        {#if win.id === 'doc'}<DocWindowBody />{:else if win.id === 'logs'}<EventsWindow />{:else if win.id === 'services'}<ServicesWindow />{:else if win.id === 'telemetry'}<TelemetryWindow />{:else if win.id === 'cameras'}<CamerasWindow />{:else}{@const own = contributedWindow(win.id)}{#if own}{@const Body = own.component}<Body />{:else}<WindowPlaceholder />{/if}{/if}
       </WindowFrame>
     {/each}
   {/if}

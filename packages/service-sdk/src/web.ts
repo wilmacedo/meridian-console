@@ -1,16 +1,35 @@
 import type { Component } from 'svelte'
-import type { ServiceSummary } from './index.js'
 
-export interface ServiceViewProps {
-  service: ServiceSummary
+// Contributions are self-contained: they fetch their own data from /api/services/<id>/... and import
+// nothing from apps/web.
+type Contribution = Component<Record<string, never>>
+
+export interface ServiceWindow {
+  // Unique within the service.
+  id: string
+  title: string
+  kicker: string
+  // A window with a module is what that dock button opens. Several services can contribute to one
+  // module; their bodies stack in a single window.
+  module?: 'cameras'
+  // The widget type this window's PIN button docks, if any.
+  pin?: string
+  // Left side of the window footer.
+  footer?: string
+  component: Contribution
+}
+
+export interface ServiceWidget {
+  // Stable, so a workspace can persist the widget and recreate it.
+  type: string
+  title: string
+  kicker: string
+  component: Contribution
 }
 
 export interface WebService {
-  // Full-page UI shown when the service is selected, below the shell's breadcrumb. Without one, the
-  // generic panel (manifest, status and facts) is used.
-  panel?: Component<ServiceViewProps>
-  // Self-contained widgets (they fetch their own data) rendered on the Habitat screen, in order.
-  habitat?: Component<Record<string, never>>[]
+  windows?: ServiceWindow[]
+  widgets?: ServiceWidget[]
 }
 
 export const defineWebService = (service: WebService): WebService => service

@@ -2,8 +2,8 @@ import { kick } from '../agent/agent-state.svelte'
 import type { ModuleId } from '../modules'
 import { cascade, clampRect, snapMove, snapResize, tile, toFrac, toRect, type Frac, type Guide, type Rect, type ResizeMode, type Size } from './window-layout'
 
-// A window is a module's window or the generated doc.
-export type WindowId = Exclude<ModuleId, 'core'> | 'doc'
+// A module's window (its module id), the generated doc, or a service's own window ("<service>:<id>").
+export type WindowId = string
 
 export interface WindowState {
   id: WindowId
@@ -37,7 +37,7 @@ const live = (): WindowState[] => wm.wins.filter((w) => !w.closing)
 const find = (id: WindowId): WindowState | undefined => wm.wins.find((w) => w.id === id)
 const rectOf = (w: WindowState): Rect => toRect(w.frac, wm.stage)
 
-export const isOpen = (id: WindowId | ModuleId): boolean => live().some((w) => w.id === id)
+export const isOpen = (id: WindowId): boolean => live().some((w) => w.id === id)
 
 export function setStage(size: Size): void {
   if (Math.abs(size.w - wm.stage.w) > 0.5 || Math.abs(size.h - wm.stage.h) > 0.5) wm.stage = size

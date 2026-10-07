@@ -1,7 +1,13 @@
 import { docs } from '../docs/docs.svelte'
 import { eventsView } from '../live/events-view.svelte'
+import { contributedWidget, contributedWindow, moduleContributions } from '../services/service-ui'
 import type { WindowId } from '../windows/window-manager.svelte'
-import { docWidget, feeder, logs, services, tele, type WidgetDef } from './widgets'
+import { docWidget, logs, serviceWidget, services, tele, type WidgetDef } from './widgets'
+
+function contributed(type: string | undefined): WidgetDef | null {
+  const w = type ? contributedWidget(type) : undefined
+  return w ? serviceWidget(w.type, w.title, w.kicker) : null
+}
 
 // The widget a window's PIN button docks.
 export function pinDef(id: WindowId): WidgetDef | null {
@@ -13,8 +19,10 @@ export function pinDef(id: WindowId): WidgetDef | null {
     case 'logs':
       return logs(eventsView.filter)
     case 'cameras':
-      return feeder()
+      return contributed(moduleContributions('cameras').find((w) => w.pin)?.pin)
     case 'doc':
       return docs.current ? docWidget(docs.current.title, docs.current.blocks) : null
+    default:
+      return contributed(contributedWindow(id)?.pin)
   }
 }

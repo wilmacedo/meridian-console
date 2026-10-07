@@ -4,6 +4,7 @@
   import { clockTime, LEVEL_COLOR } from '../live/format'
   import { live } from '../live/stream.svelte'
   import Sparkline from '../module-windows/sparkline.svelte'
+  import { contributedWidget } from '../services/service-ui'
   import type { WidgetDef } from './widgets'
 
   let { def }: { def: WidgetDef } = $props()
@@ -54,8 +55,10 @@
       </div>
     {/each}
   </div>
+{:else if contributedWidget(def.type)}
+  {@const Body = contributedWidget(def.type)!.component}
+  <Body />
 {:else}
-  <!-- The feeder body comes with its service. -->
   <div class="empty">NO DATA SOURCE CONNECTED YET</div>
 {/if}
 

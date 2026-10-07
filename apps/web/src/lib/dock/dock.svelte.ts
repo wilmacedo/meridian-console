@@ -1,5 +1,5 @@
 import { kick } from '../agent/agent-state.svelte'
-import { feeder, tele, type RailId, type WidgetDef } from './widgets'
+import { tele, type RailId, type WidgetDef } from './widgets'
 
 export interface Widget {
   id: string
@@ -40,10 +40,9 @@ export interface DragState {
 export const PENDING_ID = '__pending'
 
 export const dock = $state({
-  rails: { L: ['w1'], R: ['w2'] } as Record<RailId, string[]>,
+  rails: { L: ['w1'], R: [] } as Record<RailId, string[]>,
   widgets: {
     w1: { id: 'w1', def: tele(), collapsed: false, closing: false, landed: false, exitHeight: 0, exitDx: 0 },
-    w2: { id: 'w2', def: feeder(), collapsed: false, closing: false, landed: false, exitHeight: 0, exitDx: 0 },
   } as Record<string, Widget>,
   flash: null as string | null,
   flashCount: 0,
@@ -53,7 +52,7 @@ export const dock = $state({
   drag: null as DragState | null,
 })
 
-let nextId = 2
+let nextId = 1
 const railEls: Partial<Record<RailId, HTMLElement>> = {}
 
 export const setRailEl = (rail: RailId, el: HTMLElement | undefined): void => void (railEls[rail] = el)

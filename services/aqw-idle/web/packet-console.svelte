@@ -1,13 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import type { ServiceViewProps } from '@meridian/service-sdk/web'
   import { consoleState, startPacketFeed, stopPacketFeed, clearFeed } from './console-state.svelte'
   import { filterFeed, findSelected } from './derived'
   import { readFiltersFromUrl, writeFiltersToUrl } from './url-filters'
   import PacketLogTable from './packet-log-table.svelte'
   import PacketInspector from './packet-inspector.svelte'
-
-  const { service }: ServiceViewProps = $props()
 
   readFiltersFromUrl()
   $effect(() => writeFiltersToUrl())
@@ -73,7 +70,7 @@
   <div class="head">
     <div>
       <div class="title-row">
-        <div class="title">{service.name}</div>
+        <div class="title">aqw-idle</div>
         <div class="socket-chip" class:down={!consoleState.connected}>
           {consoleState.connected ? 'SOCKET OPEN' : 'SOCKET CLOSED'}
         </div>
