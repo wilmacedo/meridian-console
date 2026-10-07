@@ -13,6 +13,12 @@ export class StaleVersionError extends Error {
 
 export class WorkspaceNotFoundError extends Error {}
 
+// A workspace needs a name of its own: the same name, or one that makes the same id, is refused.
+export class WorkspaceNameTakenError extends Error {}
+
+// What a workspace made after the default starts with: the default's theme, so a new one looks like the rest.
+const FALLBACK_THEME = { mode: 'auto', palette: 'meridian' }
+
 interface Row {
   id: string
   name: string
@@ -54,13 +60,14 @@ export class WorkspaceStore {
   }
 
   // With `wantedId` (what an address asked for), an existing workspace of that id is returned as it is, so two
-  // screens opening the same new address end up on one workspace, not two.
+  // screens opening the same new address end up on one workspace, not two. Without it, the name must be new.
   create(name: string, wantedId?: string): Workspace {
     if (wantedId !== undefined) return this.get(wantedId) ?? this.insert(wantedId, name)
-    const base = slug(name)
-    let id = base
-    for (let n = 2; this.get(id); n++) id = `${base}-${n}`
-    return this.insert(id, name)
+    const trimmed = name.trim()
+    const id = slug(trimmed)
+    const taken = this.list().some((w) => w.id === id || w.name.toLowerCase() === trimmed.toLowerCase())
+    if (!trimmed || taken) throw new WorkspaceNameTakenError(trimmed)
+    return this.insert(id, trimmed)
   }
 
   // `baseVersion` is the version the caller's state was derived from.
@@ -80,8 +87,9 @@ export class WorkspaceStore {
   }
 
   private insert(id: string, name: string): Workspace {
-    const workspace: Workspace = { id, name, version: 1, updatedAt: new Date().toISOString(), state: {} }
-    this.db.prepare('INSERT INTO workspaces (id, name, state, version, updated_at) VALUES (?, ?, ?, ?, ?)').run(id, name, '{}', 1, workspace.updatedAt)
+    const state = id === DEFAULT_WORKSPACE ? {} : { theme: (this.get(DEFAULT_WORKSPACE)?.state as { theme?: unknown } | undefined)?.theme ?? FALLBACK_THEME }
+    const workspace: Workspace = { id, name, version: 1, updatedAt: new Date().toISOString(), state }
+    this.db.prepare('INSERT INTO workspaces (id, name, state, version, updated_at) VALUES (?, ?, ?, ?, ?)').run(id, name, JSON.stringify(state), 1, workspace.updatedAt)
     return workspace
   }
 }

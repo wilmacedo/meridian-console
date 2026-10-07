@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_WORKSPACE, StaleVersionError, WorkspaceNotFoundError, WorkspaceStore } from './workspace-store.js'
+import { DEFAULT_WORKSPACE, StaleVersionError, WorkspaceNameTakenError, WorkspaceNotFoundError, WorkspaceStore } from './workspace-store.js'
 
 const store = (): WorkspaceStore => new WorkspaceStore(new DatabaseSync(':memory:'))
 
@@ -45,11 +45,29 @@ describe('WorkspaceStore', () => {
     expect(s.list().map((w) => w.id).sort()).toEqual(['1', 'default'])
   })
 
-  it('creates further workspaces with unique kebab-case ids', () => {
+  it('creates further workspaces with kebab-case ids', () => {
     const s = store()
-    expect(s.create('Left Monitor').id).toBe('left-monitor')
-    expect(s.create('Left monitor').id).toBe('left-monitor-2')
-    expect(s.list()).toHaveLength(3)
+    expect(s.create('  Left Monitor ')).toMatchObject({ id: 'left-monitor', name: 'Left Monitor' })
+    expect(s.list()).toHaveLength(2)
+  })
+
+  it('refuses a name that is taken, whatever its case, or that makes the id of one that exists', () => {
+    const s = store()
+    s.create('Left Monitor')
+    expect(() => s.create('left monitor')).toThrow(WorkspaceNameTakenError)
+    expect(() => s.create('Left-Monitor')).toThrow(WorkspaceNameTakenError)
+    expect(() => s.create('Default')).toThrow(WorkspaceNameTakenError)
+    expect(() => s.create('   ')).toThrow(WorkspaceNameTakenError)
+    expect(s.list()).toHaveLength(2)
+  })
+
+  it('starts a new workspace with the default one\'s theme, or meridian when it has none', () => {
+    const s = store()
+    expect(s.create('A').state).toEqual({ theme: { mode: 'auto', palette: 'meridian' } })
+    s.update(DEFAULT_WORKSPACE, 1, { theme: { mode: 'dark', palette: 'blue' }, windows: { list: [] } })
+    expect(s.create('B').state).toEqual({ theme: { mode: 'dark', palette: 'blue' } })
+    expect(s.create('C', 'c').state).toEqual({ theme: { mode: 'dark', palette: 'blue' } })
+    expect(s.get(DEFAULT_WORKSPACE)?.state).toMatchObject({ windows: { list: [] } })
   })
 
   it('tells subscribers about every accepted update', () => {
