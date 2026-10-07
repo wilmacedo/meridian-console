@@ -9,6 +9,14 @@
   import { shellUi } from './shell-ui.svelte'
 
   const open = $derived(shellUi.workspacesOpen)
+  // The panel stays mounted while it plays its exit.
+  const CLOSE_MS = 260
+  let shown = $state(false)
+  $effect(() => {
+    if (open) return void (shown = true)
+    const timer = setTimeout(() => (shown = false), CLOSE_MS)
+    return () => clearTimeout(timer)
+  })
   const list = $derived(workspaces.list)
   const current = $derived(currentWorkspace())
   const code = $derived(workspaceCode(currentIndex()))
@@ -74,8 +82,8 @@
     <span class="chev" style:transform="rotate({open ? 180 : 0}deg)">▾</span>
   </button>
 
-  {#if open}
-    <div class="panel">
+  {#if shown}
+    <div class="panel" class:leaving={!open}>
       <i class="sweep"></i>
       <i class="topline"></i>
       <div class="title"><span>WORKSPACES</span><span class="rule"></span><span>⌥1–9</span></div>
@@ -225,6 +233,17 @@
       inset 0 1px 0 rgba(var(--nx-hi), 0.08);
     animation: nx-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
     transform-origin: top left;
+  }
+  .panel.leaving {
+    pointer-events: none;
+    animation: panel-out 0.26s cubic-bezier(0.6, 0, 0.3, 1) forwards;
+  }
+  @keyframes panel-out {
+    to {
+      opacity: 0;
+      transform: scale(0.97) translateY(-6px);
+      filter: blur(8px);
+    }
   }
   .sweep {
     position: absolute;
