@@ -12,8 +12,8 @@ interface Pending {
   settle: (allow: boolean) => void
 }
 
-// Risky things NOX wants to do wait here for the owner: a card on the screen that spoke, answered by
-// a tap or by voice. Nothing is allowed unless a person said so; no screen, no answer or a timeout is a no.
+// Risky things NOX wants to do wait here for the owner: a card on every screen of the workspace (the one
+// in front of the owner is not known), answered by a tap or by voice; the first answer closes it everywhere. Nothing is allowed unless a person said so; no screen, no answer or a timeout is a no.
 export class Approvals {
   private pending = new Map<string, Pending>()
 
@@ -25,7 +25,7 @@ export class Approvals {
   ask(workspace: string, tool: string, input: unknown): Promise<boolean> {
     const detail = describe(input)
     const id = randomUUID()
-    if (!this.screens.sendTo(workspace, { type: 'approval', id, tool, detail })) {
+    if (this.screens.sendToAll(workspace, { type: 'approval', id, tool, detail }) === 0) {
       this.bus.emit('nox', 'warn', `denied ${tool}: no screen to confirm on: ${detail}`)
       return Promise.resolve(false)
     }
@@ -49,7 +49,7 @@ export class Approvals {
     if (!p) return false
     this.pending.delete(id)
     p.settle(allow)
-    this.screens.sendTo(p.workspace, { type: 'approval_end', id })
+    this.screens.sendToAll(p.workspace, { type: 'approval_end', id })
     this.bus.emit('nox', allow ? 'info' : 'warn', `${allow ? 'allowed' : 'denied'} ${p.tool} (${reason})`)
     return true
   }

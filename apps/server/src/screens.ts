@@ -46,6 +46,13 @@ export class ScreenRegistry {
     return target !== undefined
   }
 
+  // Sends to every screen of the workspace, for what any of them may answer. Returns how many got it.
+  sendToAll(workspace: string, message: StreamMessage): number {
+    const targets = [...this.screens.values()].filter((s) => s.workspace === workspace)
+    for (const s of targets) s.send(message)
+    return targets.length
+  }
+
   dispatch(workspace: string, command: ScreenCommand): boolean {
     return this.sendTo(workspace, { type: 'command', command })
   }

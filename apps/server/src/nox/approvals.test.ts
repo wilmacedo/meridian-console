@@ -5,16 +5,19 @@ import { ScreenRegistry } from '../screens.js'
 import { Approvals, APPROVAL_TIMEOUT_MS, spokenAnswer, verdict } from './approvals.js'
 
 let sent: StreamMessage[]
+let other: StreamMessage[]
 let approvals: Approvals
 let bus: EventBus
 
 beforeEach(() => {
   vi.useFakeTimers()
   sent = []
+  other = []
   bus = new EventBus()
   const screens = new ScreenRegistry()
   const key = screens.add((m) => sent.push(m))
   screens.watch(key, 'default')
+  screens.watch(screens.add((m) => other.push(m)), 'default')
   approvals = new Approvals(screens, bus)
 })
 afterEach(() => vi.useRealTimers())
@@ -29,6 +32,15 @@ describe('Approvals', () => {
     await expect(result).resolves.toBe(true)
     expect(sent.at(-1)).toEqual({ type: 'approval_end', id: card().id })
     expect(approvals.answer(card().id, false)).toBe(false)
+  })
+
+  it('shows the card on every screen of the workspace and dismisses it on all of them', async () => {
+    const result = approvals.ask('default', 'Bash', { command: 'x' })
+    expect(other.some((m) => m.type === 'approval')).toBe(true)
+    approvals.answer(card().id, false)
+    await result
+    expect(other.at(-1)).toMatchObject({ type: 'approval_end' })
+    expect(sent.at(-1)).toMatchObject({ type: 'approval_end' })
   })
 
   it('denies at once when no screen shows the workspace', async () => {
