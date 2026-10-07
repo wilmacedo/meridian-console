@@ -1,3 +1,4 @@
+import { limiter } from './limiter.js'
 const API = 'https://api.elevenlabs.io'
 
 // Flash is the low-latency multilingual model; override it, and the voice, from the environment.
@@ -38,9 +39,15 @@ async function failure(res: Response): Promise<ElevenLabsError> {
   return new ElevenLabsError(`ElevenLabs answered ${res.status}${detail ? `: ${detail}` : ''}`, res.status)
 }
 
+// The plan allows 6 requests at once; leave room for another turn's sentence.
+const MAX_CONCURRENT = 4
+const limited = limiter(MAX_CONCURRENT)
+
 // Speech for one sentence, as mp3. The language is pinned to Portuguese so a sentence full of English
 // terms is not mistaken for English.
-export async function synthesize(config: VoiceConfig, text: string): Promise<Buffer> {
+export const synthesize = (config: VoiceConfig, text: string): Promise<Buffer> => limited(() => request(config, text))
+
+async function request(config: VoiceConfig, text: string): Promise<Buffer> {
   const res = await fetch(`${API}/v1/text-to-speech/${config.voiceId}?output_format=${OUTPUT_FORMAT}`, {
     method: 'POST',
     headers: { 'xi-api-key': config.apiKey, 'Content-Type': 'application/json' },

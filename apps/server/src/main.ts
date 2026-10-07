@@ -74,6 +74,10 @@ app.addHook('onClose', async () => nox.stop())
 if (await registerWebApp(app, defaultWebRoot())) app.log.info(`serving the web app from ${defaultWebRoot()}`)
 else app.log.info('no web build found (pnpm build); the Vite dev server serves the app')
 
+// A failure nobody was waiting for (a voice request that failed after its turn ended, say) is logged, not
+// allowed to take the whole server, and every screen with it, down.
+process.on('unhandledRejection', (reason) => app.log.error(reason, 'unhandled rejection'))
+
 app.listen({ port, host: '0.0.0.0' }).catch((err) => {
   app.log.error(err)
   process.exit(1)

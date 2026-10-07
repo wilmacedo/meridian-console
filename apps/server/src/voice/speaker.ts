@@ -63,6 +63,9 @@ export class TurnSpeaker {
     this.hooks.onSpent(sentence.length)
     // Synthesis starts now; delivery waits its turn so the sentences stay in order.
     const audio = synthesize(this.config, sentence)
+    // Nobody is listening to this promise until its sentence's turn comes, and a failure before that must
+    // not count as unhandled (it would take the whole server down); the chain below still sees it.
+    audio.catch(() => undefined)
     const seq = this.seq++
     this.chain = this.chain.then(async () => {
       try {

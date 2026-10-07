@@ -80,6 +80,18 @@ describe('TurnSpeaker', () => {
     expect(sent.filter((m) => m.type === 'speech')).toHaveLength(0)
   })
 
+  it('survives a sentence failing while an earlier one is still being made, and reports it', async () => {
+    const { speaker, sent, log } = setup(async (t) => {
+      if (t.startsWith('Segunda')) throw new Error('429 too many concurrent requests')
+      await new Promise((r) => setTimeout(r, 30))
+      return Buffer.from(t)
+    })
+    speaker.push('Primeira frase bem comprida aqui. Segunda frase bem comprida aqui. Terceira frase bem comprida aqui.')
+    await speaker.finish()
+    expect(sent.filter((m) => m.type === 'speech')).toHaveLength(2)
+    expect(log.errors).toEqual(['429 too many concurrent requests'])
+  })
+
   it('speaks the trailing text on finish', async () => {
     const { speaker, sent } = setup(async (t) => Buffer.from(t))
     speaker.push('Tudo certo por aqui')

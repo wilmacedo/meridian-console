@@ -53,6 +53,7 @@ export function forSpeech(sentence: string): string {
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/https?:\/\/\S+/g, '')
     .replace(/[*_`#>]+/g, '')
+    .replace(/^\s*[-•]\s+/, '')
     .replace(/^\s*(fontes?|sources?)\s*:\s*/i, '')
     .replace(/\s{2,}/g, ' ')
     .trim()

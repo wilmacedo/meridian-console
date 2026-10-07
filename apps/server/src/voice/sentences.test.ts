@@ -59,6 +59,11 @@ describe('forSpeech', () => {
     expect(forSpeech('**Importante**: `ssh` e _nada_ mais')).toBe('Importante: ssh e nada mais')
   })
 
+  it('drops a list marker', () => {
+    expect(forSpeech('- Pasta anywh, na home: 44 gigas.')).toBe('Pasta anywh, na home: 44 gigas.')
+    expect(forSpeech('• Docker: 22 gigas.')).toBe('Docker: 22 gigas.')
+  })
+
   it('leaves ordinary speech alone and can end up empty', () => {
     expect(forSpeech('Está ligado há cinco dias, quinze horas.')).toBe('Está ligado há cinco dias, quinze horas.')
     expect(forSpeech('https://so-um-link.com')).toBe('')
