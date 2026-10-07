@@ -18,6 +18,8 @@ export const live = $state({
   events: [] as MeridianEvent[],
   telemetry: [] as TelemetrySample[],
   containers: [] as ContainerInfo[],
+  // Background tasks NOX is running for this workspace.
+  tasks: [] as { id: string; title: string }[],
 })
 
 function apply(message: StreamMessage): void {
@@ -30,6 +32,9 @@ function apply(message: StreamMessage): void {
       // steady one so the orb still moves.
       if (message.mode !== 'speaking') agent.amplitude = 0
       else if (!player.active) agent.amplitude = 0.55
+      break
+    case 'tasks':
+      live.tasks = message.tasks
       break
     case 'snapshot':
       live.host = message.host

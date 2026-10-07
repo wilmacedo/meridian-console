@@ -21,7 +21,7 @@ export function pinDef(id: WindowId): WidgetDef | null {
     case 'cameras':
       return contributed(moduleContributions('cameras').find((w) => w.pin)?.pin)
     case 'doc':
-      return docs.current ? docWidget(docs.current.title, docs.current.blocks) : null
+      return docs.current ? docWidget(docs.current.title, docs.current.blocks, docs.current.id) : null
     default:
       return contributed(contributedWindow(id)?.pin)
   }

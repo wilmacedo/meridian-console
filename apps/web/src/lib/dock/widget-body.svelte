@@ -6,6 +6,7 @@
   import { visibleServices } from '../workspace/prefs.svelte'
   import Sparkline from '../module-windows/sparkline.svelte'
   import { contributedWidget } from '../services/service-ui'
+  import BoundWidget from './bound-widget.svelte'
   import type { WidgetDef } from './widgets'
 
   let { def }: { def: WidgetDef } = $props()
@@ -15,6 +16,8 @@
 
 {#if def.type === 'doc' && def.blocks}
   <DocBlocks blocks={def.blocks} compact />
+{:else if def.type === 'bound' && def.bind}
+  <BoundWidget bind={def.bind} />
 {:else if def.type === 'services'}
   <div class="svcs">
     {#each visibleServices() as s (s.id)}

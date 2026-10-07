@@ -1,4 +1,5 @@
 import { kick } from '../agent/agent-state.svelte'
+import { dock } from '../dock/dock.svelte'
 import { open } from '../windows/window-manager.svelte'
 import type { DocSpec } from './doc-blocks'
 
@@ -40,3 +41,22 @@ export function restoreDoc(spec: DocSpec | null): void {
 }
 
 if (import.meta.env.DEV) Object.assign(window, { noxDocs: { openDoc } })
+
+// A document NOX composed. Widgets docked from a live document follow it wherever it is; if the owner has
+// docked one, they are watching it there, so an update doesn't pull the document window open.
+export function composeDoc(spec: DocSpec): void {
+  const bound = spec.id ? Object.values(dock.widgets).filter((w) => w.def.docId === spec.id) : []
+  for (const w of bound) {
+    w.def.title = spec.title
+    w.def.blocks = spec.blocks
+  }
+  if (bound.length > 0 && docs.current?.id !== spec.id) return
+  openDoc(spec)
+}
+
+// Opens a live document by id, whether or not this screen saw it composed (the server keeps the latest).
+export async function showDoc(id: string): Promise<void> {
+  if (docs.current?.id === id) return void open('doc')
+  const res = await fetch(`/api/docs/${encodeURIComponent(id)}`)
+  if (res.ok) openDoc((await res.json()) as DocSpec)
+}

@@ -1,7 +1,8 @@
 import type { ScreenCommand } from '@meridian/service-sdk'
 import { clearAgentWidgets, requestPin } from '../dock/dock.svelte'
+import { boundWidget } from '../dock/widgets'
 import { pinDef } from '../dock/pin'
-import { openDoc } from '../docs/docs.svelte'
+import { composeDoc } from '../docs/docs.svelte'
 import { MODULES } from '../modules'
 import { contributedWindow } from '../services/service-ui'
 import { theme } from '../theme/theme.svelte'
@@ -40,7 +41,10 @@ export function runCommand(command: ScreenCommand): void {
       if (command.palette) theme.palette = command.palette
       break
     case 'compose_doc':
-      openDoc(command.doc)
+      composeDoc(command.doc)
+      break
+    case 'pin_live_widget':
+      requestPin(boundWidget(command.widget))
       break
   }
 }
