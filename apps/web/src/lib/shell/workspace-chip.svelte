@@ -5,6 +5,7 @@
   import { NAME_MAX, nameProblem } from '../workspace/workspace-name'
   import { workspaceCard, workspaceCode } from '../workspace/workspace-card'
   import { createWorkspace, currentIndex, currentWorkspace, refreshWorkspaces, renameWorkspace, snapshot, switchWorkspace, workspaceId, workspaces } from '../workspace/workspace-sync.svelte'
+  import { open as openWindow } from '../windows/window-manager.svelte'
   import { shellUi } from './shell-ui.svelte'
 
   const open = $derived(shellUi.workspacesOpen)
@@ -132,7 +133,7 @@
         {/if}
         <div class="hints">
           <span>DOUBLE-CLICK TO RENAME</span>
-          <button onclick={() => ((shellUi.workspacesOpen = false), (shellUi.settingsOpen = true))}>, SETTINGS</button>
+          <button onclick={() => ((shellUi.workspacesOpen = false), openWindow('settings'))}>, SETTINGS</button>
         </div>
       </div>
     </div>

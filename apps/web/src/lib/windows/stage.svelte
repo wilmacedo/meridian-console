@@ -1,5 +1,6 @@
 <script lang="ts">
   import { eventsFor, eventsView } from '../live/events-view.svelte'
+  import SettingsWindow from '../settings/settings-window.svelte'
   import CamerasWindow from '../module-windows/cameras-window.svelte'
   import { contributedWindow, moduleContributions } from '../services/service-ui'
   import TelemetryWindow from '../module-windows/telemetry-window.svelte'
@@ -59,7 +60,7 @@
     <!-- A new document replaces the old one with a fresh open animation, hence the title in the key. -->
     {#each wm.wins as win (win.id === 'doc' ? `doc:${docs.current?.title}` : win.id)}
       <WindowFrame {win} footLeft={footLeft(win.id)}>
-        {#if win.id === 'doc'}<DocWindowBody />{:else if win.id === 'logs'}<EventsWindow />{:else if win.id === 'services'}<ServicesWindow />{:else if win.id === 'telemetry'}<TelemetryWindow />{:else if win.id === 'cameras'}<CamerasWindow />{:else}{@const own = contributedWindow(win.id)}{#if own}{@const Body = own.component}<Body />{:else}<WindowPlaceholder />{/if}{/if}
+        {#if win.id === 'doc'}<DocWindowBody />{:else if win.id === 'settings'}<SettingsWindow />{:else if win.id === 'logs'}<EventsWindow />{:else if win.id === 'services'}<ServicesWindow />{:else if win.id === 'telemetry'}<TelemetryWindow />{:else if win.id === 'cameras'}<CamerasWindow />{:else}{@const own = contributedWindow(win.id)}{#if own}{@const Body = own.component}<Body />{:else}<WindowPlaceholder />{/if}{/if}
       </WindowFrame>
     {/each}
   {/if}

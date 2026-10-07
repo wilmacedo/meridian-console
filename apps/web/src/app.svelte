@@ -12,7 +12,7 @@
   import BottomDock from './lib/shell/bottom-dock.svelte'
   import Header from './lib/shell/header.svelte'
   import { handleShortcut } from './lib/shell/keyboard'
-  import SettingsMenu from './lib/shell/settings-menu.svelte'
+  import SettingsButton from './lib/shell/settings-button.svelte'
   import WorkspaceBanner from './lib/shell/workspace-banner.svelte'
   import WorkspaceChip from './lib/shell/workspace-chip.svelte'
   import { shellUi } from './lib/shell/shell-ui.svelte'
@@ -28,8 +28,7 @@
   import { activeVariant, applyTheme, darkVariant } from './lib/theme/theme.svelte'
 
   function closeOverlay(): boolean {
-    if (shellUi.settingsOpen || shellUi.workspacesOpen) {
-      shellUi.settingsOpen = false
+    if (shellUi.workspacesOpen) {
       shellUi.workspacesOpen = false
       return true
     }
@@ -85,7 +84,7 @@
   <Rail rail="R" />
   <TaskCard />
   <BottomDock />
-  <SettingsMenu bind:open={shellUi.settingsOpen} />
+  <SettingsButton />
   <WorkspaceChip />
   <WorkspaceBanner />
   <ApprovalCard />

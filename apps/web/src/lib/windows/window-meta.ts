@@ -23,6 +23,7 @@ const KICKERS: Record<string, (ctx: MetaContext) => string> = {
 }
 
 export function windowMeta(id: WindowId, ctx: MetaContext): WindowMeta {
+  if (id === 'settings') return { index: 'ST', title: 'Settings', kicker: 'This workspace · autosave' }
   if (id === 'doc') return { index: 'NX', title: ctx.doc?.title ?? 'Document', kicker: ctx.doc?.kicker ?? '' }
   const own = contributedWindow(id)
   if (own) return { index: ctx.monoOf(own.serviceId), title: own.title, kicker: own.kicker }

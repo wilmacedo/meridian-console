@@ -1,7 +1,7 @@
 import { toggleListening } from '../voice/microphone.svelte'
 import { visibleModules } from '../workspace/prefs.svelte'
 import { switchWorkspace, workspaces } from '../workspace/workspace-sync.svelte'
-import { closeActive, openModule } from '../windows/window-manager.svelte'
+import { close, closeActive, isOpen, open, openModule } from '../windows/window-manager.svelte'
 import { shellUi } from './shell-ui.svelte'
 
 // Esc closes an open overlay (settings menu, pending pin) before it closes a window.
@@ -20,8 +20,11 @@ export function handleShortcut(e: KeyboardEvent, closeOverlay: () => boolean): v
   } else if (e.key === 'Escape') {
     if (!closeOverlay()) closeActive()
   } else if (e.key === 'w' || e.key === 'W') {
-    shellUi.settingsOpen = false
     shellUi.workspacesOpen = !shellUi.workspacesOpen
+  } else if (e.key === ',') {
+    shellUi.workspacesOpen = false
+    if (isOpen('settings')) close('settings')
+    else open('settings')
   } else if (/^[1-9]$/.test(e.key)) {
     const m = visibleModules()[Number(e.key) - 1]
     if (m) openModule(m.id)
