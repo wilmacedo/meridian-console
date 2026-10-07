@@ -13,3 +13,7 @@ build/
 docs/local/
 docs/plans/
 design/
+
+# Python virtualenvs and caches (services/browser-harness)
+.venv/
+__pycache__/

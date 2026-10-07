@@ -104,6 +104,25 @@ importers:
         specifier: ~6.0.2
         version: 6.0.3
 
+  services/browser-harness:
+    dependencies:
+      '@meridian/service-sdk':
+        specifier: workspace:*
+        version: link:../../packages/service-sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+      svelte:
+        specifier: ^5.56.10
+        version: 5.57.0
+      svelte-check:
+        specifier: ^4.7.6
+        version: 4.7.6(picomatch@4.0.7)(svelte@5.57.0)(typescript@6.0.3)
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+
   services/tuya-feeder:
     dependencies:
       '@meridian/service-sdk':
