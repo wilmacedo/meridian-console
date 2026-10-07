@@ -1,9 +1,10 @@
 import { hostname } from 'node:os'
 import type { FastifyInstance } from 'fastify'
-import type { HostInfo, StreamMessage } from '@meridian/service-sdk'
+import type { ClientMessage, HostInfo, StreamMessage } from '@meridian/service-sdk'
 import type { EventBus } from './event-bus.js'
 import type { Registry } from './service-registry.js'
 import type { HostTelemetry } from './telemetry.js'
+import type { WorkspaceStore } from './workspace-store.js'
 
 // A client that drops without a clean close (tab killed, laptop asleep) leaves a socket that looks
 // open forever; ping it and terminate it if it doesn't answer.
@@ -15,11 +16,12 @@ interface StreamSources {
   bus: EventBus
   registry: Registry
   telemetry: HostTelemetry
+  workspaces: WorkspaceStore
 }
 
 // One WebSocket carries everything live: the snapshot on connect, then events, service status
 // changes and telemetry as they happen.
-export function registerStream(app: FastifyInstance, { bus, registry, telemetry }: StreamSources): void {
+export function registerStream(app: FastifyInstance, { bus, registry, telemetry, workspaces }: StreamSources): void {
   app.get('/api/stream', { websocket: true }, (socket) => {
     const send = (message: StreamMessage): void => {
       if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message))
@@ -28,7 +30,28 @@ export function registerStream(app: FastifyInstance, { bus, registry, telemetry 
     const host: HostInfo = { name: hostName(), memTotalGb: telemetry.memTotalGb }
     send({ type: 'snapshot', host, services: registry.summaries(), events: bus.recent(), telemetry: telemetry.samples(), containers: telemetry.containers() })
 
+    // A screen shows one workspace and only hears about that one.
+    let watching: string | undefined
+    const sendWorkspace = (id: string): void => {
+      const w = workspaces.get(id)
+      if (w) send({ type: 'workspace', id: w.id, version: w.version, state: w.state })
+    }
+    socket.on('message', (raw: Buffer) => {
+      try {
+        const message = JSON.parse(raw.toString()) as ClientMessage
+        if (message.type === 'watch') {
+          watching = message.workspace
+          sendWorkspace(watching)
+        }
+      } catch {
+        // Not a message we know; ignore it.
+      }
+    })
+
     const stops = [
+      workspaces.subscribe((w) => {
+        if (w.id === watching) send({ type: 'workspace', id: w.id, version: w.version, state: w.state })
+      }),
       bus.subscribe((event) => send({ type: 'event', event })),
       registry.onChange(() => send({ type: 'services', services: registry.summaries() })),
       telemetry.subscribe((sample, containers) => send({ type: 'telemetry', sample, containers })),
