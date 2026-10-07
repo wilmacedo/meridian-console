@@ -67,6 +67,15 @@ The core also serves what a screen needs live: `GET /api/services`, `GET /api/ev
 `/api/stream`, which carries a snapshot on connect and then events, status changes and host telemetry
 (see [`architecture.md`](architecture.md#data-flow)).
 
+## Endpoints added at runtime
+
+Any service, made of code or added from NOX, can grow actions without touching its files: NOX's
+`add_endpoint` stores an HTTP call (`method`, full `url`, optional `input` JSON Schema, `mutating`) in
+SQLite, and the registry lists it as one more action of that service. It runs like any other (the
+`POST /api/services/<id>/actions/<endpoint id>` route, the event log, NOX's confirmation for mutating
+ones). A GET sends its input as query parameters, other methods as a JSON body. An id cannot repeat one of
+the service's own actions, and removing a managed service removes its endpoints.
+
 ## Web side
 
 ```ts

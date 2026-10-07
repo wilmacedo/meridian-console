@@ -6,7 +6,7 @@ import Fastify from 'fastify'
 import { describe, expect, it, vi } from 'vitest'
 import type { DockerApi } from './docker.js'
 import { EventBus } from './event-bus.js'
-import { ManagedServiceStore } from './managed-services.js'
+import { ManagedServiceStore, validateEndpoint } from './managed-services.js'
 
 async function setup(state: { state: string } = { state: 'running' }) {
   // The services folder is read when the module loads, so point it at an empty one first.
@@ -26,6 +26,50 @@ async function setup(state: { state: string } = { state: 'running' }) {
   await app.ready()
   return { app, bus, store, registry, calls }
 }
+
+describe('endpoints added to a service', () => {
+  async function target() {
+    const seen: string[] = []
+    const upstream = Fastify()
+    upstream.get('/status', async (req) => (seen.push(`GET ${JSON.stringify(req.query)}`), { connected: true }))
+    upstream.post('/login', async (req) => (seen.push(`POST ${JSON.stringify(req.body)}`), { ok: true }))
+    await upstream.listen({ port: 0, host: '127.0.0.1' })
+    return { seen, base: `http://127.0.0.1:${(upstream.server.address() as { port: number }).port}`, close: () => upstream.close() }
+  }
+
+  it('become actions of the service, run through the shared route, and go away with it', async () => {
+    const { app, registry, store } = await setup()
+    const { seen, base, close } = await target()
+    await registry.managed.upsert({ id: 'baixa', name: 'Baixa', desc: '', container: 'c1' })
+    registry.endpoints.upsert('baixa', validateEndpoint({ id: 'presence', title: 'Presence', url: `${base}/status`, input: { type: 'object', properties: { area: { type: 'string' } } } }))
+    registry.endpoints.upsert('baixa', validateEndpoint({ id: 'login', title: 'Login', method: 'post', url: `${base}/login` }))
+    const actions = registry.summaries()[0].actions
+    expect(actions.filter((a) => ['presence', 'login'].includes(a.id)).map((a) => [a.id, a.mutating])).toEqual([['login', true], ['presence', false]])
+
+    expect((await app.inject({ method: 'POST', url: '/api/services/baixa/actions/presence', payload: { area: 'town' } })).json()).toMatchObject({ ok: true, result: { connected: true } })
+    expect((await registry.run('baixa', 'login', { user: 'a' })).result).toEqual({ ok: true })
+    expect(seen).toEqual(['GET {"area":"town"}', 'POST {"user":"a"}'])
+
+    registry.managed.remove('baixa')
+    expect(store.endpoints()).toEqual([])
+    await close()
+  })
+
+  it('refuse a missing service, a built-in id and a bad spec; report the upstream error', async () => {
+    const { registry } = await setup()
+    await registry.managed.upsert({ id: 'baixa', name: 'Baixa', desc: '', container: 'c1' })
+    const ok = validateEndpoint({ id: 'x', title: 'X', url: 'http://127.0.0.1:1/x' })
+    expect(() => registry.endpoints.upsert('ghost', ok)).toThrow('no service')
+    expect(() => registry.endpoints.upsert('baixa', { ...ok, id: 'logs' })).toThrow('built into it')
+    expect(() => validateEndpoint({ id: 'Bad Id', title: 't', url: 'http://x' })).toThrow('kebab-case')
+    expect(() => validateEndpoint({ id: 'a', title: 't', url: 'ftp://x' })).toThrow('http')
+    expect(() => validateEndpoint({ id: 'a', title: 't', url: 'http://x', method: 'TRACE' })).toThrow('method')
+    registry.endpoints.upsert('baixa', ok)
+    await expect(registry.run('baixa', 'x', {})).rejects.toThrow()
+    expect(registry.endpoints.remove('baixa', 'x')).toBe(true)
+    expect(registry.endpoints.remove('baixa', 'x')).toBe(false)
+  })
+})
 
 describe('managed services in the registry', () => {
   it('adds a service while running: it is listed, flagged as managed, watched and stored', async () => {
@@ -49,7 +93,7 @@ describe('managed services in the registry', () => {
     expect(calls).toEqual(['restart c1'])
     expect(bus.recent().some((e) => e.source === 'baixa' && e.message.includes('/restart'))).toBe(true)
     expect((await app.inject({ method: 'POST', url: '/api/services/ghost/actions/restart' })).statusCode).toBe(404)
-    expect((await app.inject({ method: 'POST', url: '/api/services/baixa/actions/nope' })).statusCode).toBe(500)
+    expect((await app.inject({ method: 'POST', url: '/api/services/baixa/actions/nope' })).statusCode).toBe(404)
   })
 
   it('replaces a service on edit, reports a change of state, and forgets one on remove', async () => {

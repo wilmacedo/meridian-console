@@ -5,7 +5,7 @@ import type { Registry } from '../service-registry.js'
 import type { HostTelemetry } from '../telemetry.js'
 import type { WorkspaceStore } from '../workspace-store.js'
 import type { ContainerSummary, DockerApi } from '../docker.js'
-import { validateSpec, type ManagedSpec } from '../managed-services.js'
+import { validateEndpoint, validateSpec, type ManagedSpec } from '../managed-services.js'
 import type { Approvals } from './approvals.js'
 import type { Tasks } from './tasks.js'
 import { validateDoc } from './doc-validation.js'
@@ -473,6 +473,44 @@ export function buildTools(d: ToolDeps): McpTool[] {
         await d.registry.managed.upsert(spec)
         d.bus.emit('nox', 'info', `edited service ${id}`)
         return `Updated "${spec.name}". ${statusOf(id)}`
+      },
+    },
+    {
+      name: 'add_endpoint',
+      description:
+        'Teaches Meridian an HTTP endpoint of a service, live: it becomes one more action of that service (run it with call_service_action). Works on any service, including the ones made of code, and does not touch their files. Give the full URL. A GET takes its input as query parameters, any other method as a JSON body; describe it in input as a JSON Schema when it takes any. Actions that are not GET ask the owner to confirm before they run. Adding an id that already exists replaces it.',
+      inputSchema: {
+        type: 'object',
+        required: ['service', 'id', 'title', 'url'],
+        properties: {
+          service: { type: 'string', description: 'Id of the service, as get_status shows it.' },
+          id: { type: 'string', description: 'Kebab-case, unique within the service, for example "presence-status".' },
+          title: { type: 'string' },
+          description: { type: 'string', description: 'What it does, in a line.' },
+          method: { type: 'string', enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], description: 'Defaults to GET.' },
+          url: { type: 'string', description: 'The full http(s) URL.' },
+          mutating: { type: 'boolean', description: 'Whether it changes something; defaults to true for everything but GET.' },
+          input: { type: 'object', description: 'JSON Schema of the input, when it takes any.' },
+        },
+      },
+      handler: (a) => {
+        const { service, ...rest } = a
+        const spec = validateEndpoint(rest)
+        d.registry.endpoints.upsert(text(a, 'service') ?? '', spec)
+        d.bus.emit('nox', 'info', `added endpoint ${String(service)}/${spec.id}`)
+        return `Added ${spec.method} ${spec.id} to ${String(service)}${spec.mutating ? '; it asks for confirmation when run' : ''}.`
+      },
+    },
+    {
+      name: 'remove_endpoint',
+      description: 'Removes an endpoint that was added with add_endpoint. The service\'s own actions cannot be removed.',
+      inputSchema: { type: 'object', required: ['service', 'id'], properties: { service: { type: 'string' }, id: { type: 'string' } } },
+      handler: (a) => {
+        const service = text(a, 'service') ?? ''
+        const id = text(a, 'id') ?? ''
+        if (!d.registry.endpoints.remove(service, id)) throw new Error(`"${service}" has no added endpoint "${id}"`)
+        d.bus.emit('nox', 'info', `removed endpoint ${service}/${id}`)
+        return `Removed ${id} from ${service}.`
       },
     },
     {

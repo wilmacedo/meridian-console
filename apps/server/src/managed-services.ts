@@ -73,6 +73,76 @@ export function validateSpec(raw: unknown): ManagedSpec {
   return JSON.parse(JSON.stringify(spec)) as ManagedSpec
 }
 
+// An HTTP call the owner (or NOX) taught Meridian about a service: it becomes one more action of that service,
+// code or managed alike, so a service does not have to be edited and restarted to grow an endpoint.
+export interface EndpointSpec {
+  id: string
+  title: string
+  description: string
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  url: string
+  // Defaults to everything but GET.
+  mutating: boolean
+  // JSON Schema of what the action takes: query parameters for a GET, the JSON body otherwise.
+  input?: Record<string, unknown>
+}
+
+const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
+
+export function validateEndpoint(raw: unknown): EndpointSpec {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return fail('expected an object')
+  const r = raw as Record<string, unknown>
+  const allowed = ['id', 'title', 'description', 'method', 'url', 'mutating', 'input']
+  const unknown = Object.keys(r).filter((k) => !allowed.includes(k))
+  if (unknown.length) fail(`unknown field${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}`)
+  const id = text(r, 'id', 40, true)!
+  if (!ID_PATTERN.test(id)) fail('id must be kebab-case: lowercase letters and digits separated by single dashes')
+  const method = (text(r, 'method', 10) ?? 'GET').toUpperCase()
+  if (!(METHODS as readonly string[]).includes(method)) fail(`method must be one of ${METHODS.join(', ')}`)
+  if (r.mutating !== undefined && typeof r.mutating !== 'boolean') fail('mutating must be true or false')
+  if (r.input !== undefined && (typeof r.input !== 'object' || r.input === null || Array.isArray(r.input))) fail('input must be a JSON Schema object')
+  return JSON.parse(
+    JSON.stringify({
+      id,
+      title: text(r, 'title', 40, true),
+      description: text(r, 'description', 200) ?? '',
+      method,
+      url: httpUrl({ url: text(r, 'url', 300, true) }, 'url'),
+      mutating: r.mutating ?? method !== 'GET',
+      input: r.input,
+    }),
+  ) as EndpointSpec
+}
+
+const CALL_TIMEOUT_MS = 30_000
+
+// The action an endpoint adds to its service.
+export function buildEndpointAction(spec: EndpointSpec): NonNullable<ServerService['actions']>[number] {
+  return {
+    id: spec.id,
+    method: spec.method === 'GET' ? 'GET' : 'POST',
+    path: `/${spec.id}`,
+    title: spec.title,
+    description: spec.description,
+    mutating: spec.mutating,
+    ...(spec.input ? { input: spec.input as never } : {}),
+    run: async (input: Record<string, unknown> | undefined) => {
+      const url = new URL(spec.url)
+      const init: RequestInit = { method: spec.method, signal: AbortSignal.timeout(CALL_TIMEOUT_MS) }
+      if (spec.method === 'GET') for (const [k, v] of Object.entries(input ?? {})) url.searchParams.set(k, String(v))
+      else if (input && Object.keys(input).length) Object.assign(init, { body: JSON.stringify(input), headers: { 'Content-Type': 'application/json' } })
+      const res = await fetch(url, init)
+      const body = await res.text()
+      if (!res.ok) throw new Error(`${spec.method} ${url.pathname} responded ${res.status}: ${body.slice(0, 300)}`)
+      try {
+        return JSON.parse(body)
+      } catch {
+        return body.slice(0, 4000)
+      }
+    },
+  } as never
+}
+
 export class ManagedServiceStore {
   constructor(private db: DatabaseSync) {
     db.exec(`CREATE TABLE IF NOT EXISTS managed_services (
@@ -80,6 +150,30 @@ export class ManagedServiceStore {
       spec TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`)
+    db.exec(`CREATE TABLE IF NOT EXISTS service_endpoints (
+      service_id TEXT NOT NULL,
+      id TEXT NOT NULL,
+      spec TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (service_id, id)
+    )`)
+  }
+
+  endpoints(serviceId?: string): { serviceId: string; spec: EndpointSpec }[] {
+    const rows = (serviceId === undefined
+      ? this.db.prepare('SELECT service_id, spec FROM service_endpoints ORDER BY service_id, id').all()
+      : this.db.prepare('SELECT service_id, spec FROM service_endpoints WHERE service_id = ? ORDER BY id').all(serviceId)) as { service_id: string; spec: string }[]
+    return rows.map((r) => ({ serviceId: r.service_id, spec: JSON.parse(r.spec) as EndpointSpec }))
+  }
+
+  putEndpoint(serviceId: string, spec: EndpointSpec): void {
+    this.db
+      .prepare('INSERT INTO service_endpoints (service_id, id, spec, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(service_id, id) DO UPDATE SET spec = excluded.spec, updated_at = excluded.updated_at')
+      .run(serviceId, spec.id, JSON.stringify(spec), new Date().toISOString())
+  }
+
+  deleteEndpoint(serviceId: string, id: string): boolean {
+    return Number(this.db.prepare('DELETE FROM service_endpoints WHERE service_id = ? AND id = ?').run(serviceId, id).changes) > 0
   }
 
   list(): ManagedSpec[] {
@@ -98,6 +192,7 @@ export class ManagedServiceStore {
   }
 
   delete(id: string): boolean {
+    this.db.prepare('DELETE FROM service_endpoints WHERE service_id = ?').run(id)
     return Number(this.db.prepare('DELETE FROM managed_services WHERE id = ?').run(id).changes) > 0
   }
 }

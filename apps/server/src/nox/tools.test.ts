@@ -25,6 +25,7 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   const started: unknown[][] = []
   const managedSpecs = new Map<string, ManagedSpec>()
   const sentToAnywh: unknown[][] = []
+  const endpointCalls: unknown[][] = []
   const announced: unknown[][] = []
   let resolveReply!: (r: { text: string; stopped: boolean; failed: boolean }) => void
   let rejectReply!: (e: Error) => void
@@ -38,6 +39,7 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   const registry = {
     summaries: () => [...services, ...[...managedSpecs.values()].map((m) => ({ ...summary(m.id, []), name: m.name, managed: true }))],
     run: async (s: string, a: string) => (ran.push(`${s}/${a}`), { ms: 1, result: { ok: true } }),
+    endpoints: { upsert: (service: string, spec: unknown) => void endpointCalls.push([service, spec]), remove: (_s: string, id: string) => id === 'known' },
     managed: {
       get: (id: string) => managedSpecs.get(id),
       upsert: async (spec: ManagedSpec) => void managedSpecs.set(spec.id, spec),
@@ -53,7 +55,7 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
     return tool.handler(args)
   }
   const commands = () => sent.filter((m) => m.type === 'command').map((m) => (m as { command: unknown }).command)
-  return { call, commands, bus, ran, tools, asked, started, managedSpecs, others, sentToAnywh, announced, resolveReply, rejectReply }
+  return { call, commands, bus, ran, tools, asked, started, managedSpecs, others, sentToAnywh, endpointCalls, announced, resolveReply, rejectReply }
 }
 
 describe('NOX tools', () => {
@@ -247,6 +249,18 @@ describe('NOX tools', () => {
     const { call } = setup([summary('aqw-idle', [])])
     expect(JSON.parse(await call('get_status'))).toMatchObject({ host: 'box', telemetry: { cpuPercent: 23, memoryGb: 4.2 }, services: [{ id: 'aqw-idle', state: 'online' }] })
   })
+  describe('endpoints', () => {
+    it('validates and adds one to any service, and removes only added ones', async () => {
+      const { call, endpointCalls } = setup()
+      expect(await call('add_endpoint', { service: 'aqw-idle', id: 'area', title: 'Area', url: 'http://localhost:8787/area' })).toContain('Added GET area')
+      expect(endpointCalls[0][0]).toBe('aqw-idle')
+      expect(await call('add_endpoint', { service: 'aqw-idle', id: 'kick', title: 'Kick', method: 'POST', url: 'http://localhost:8787/kick' })).toContain('asks for confirmation')
+      await expect(call('add_endpoint', { service: 'aqw-idle', id: 'x', title: 'X', url: 'nope' })).rejects.toThrow('http')
+      expect(await call('remove_endpoint', { service: 'aqw-idle', id: 'known' })).toContain('Removed')
+      await expect(call('remove_endpoint', { service: 'aqw-idle', id: 'login' })).rejects.toThrow('no added endpoint')
+    })
+  })
+
   describe('anywh', () => {
     it('lists sessions newest first and reads with a default of ten turns', async () => {
       const { call } = setup()

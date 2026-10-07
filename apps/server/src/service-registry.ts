@@ -5,7 +5,7 @@ import type { ServiceActionInfo, ServiceStatus, ServiceSummary } from '@meridian
 import type { ServerService } from '@meridian/service-sdk/server'
 import type { DockerApi } from './docker.js'
 import type { EventBus } from './event-bus.js'
-import { buildManagedService, ID_PATTERN, type ManagedServiceStore, type ManagedSpec } from './managed-services.js'
+import { buildEndpointAction, buildManagedService, ID_PATTERN, type EndpointSpec, type ManagedServiceStore, type ManagedSpec } from './managed-services.js'
 
 const SERVICES_DIR = process.env.SERVICES_DIR ?? fileURLToPath(new URL('../../../services', import.meta.url))
 const STATUS_TIMEOUT_MS = 3000
@@ -85,6 +85,13 @@ export interface Registry {
     upsert(spec: ManagedSpec): Promise<void>
     remove(id: string): boolean
   }
+  // HTTP calls added to any service, code or managed, as extra actions.
+  endpoints: {
+    list(serviceId: string): EndpointSpec[]
+    // Adds or replaces. Throws for an unknown service or an id that is one of the service's own actions.
+    upsert(serviceId: string, spec: EndpointSpec): void
+    remove(serviceId: string, id: string): boolean
+  }
   run(serviceId: string, actionId: string, input: unknown): Promise<{ ms: number; result: unknown }>
   // Fires when a service's status changes.
   onChange(listener: () => void): () => void
@@ -93,7 +100,13 @@ export interface Registry {
 export async function registerServices(app: FastifyInstance, bus: EventBus, managed: { store: ManagedServiceStore; docker: DockerApi }): Promise<Registry> {
   const codeServices = await discover(app)
   const managedServices = new Map<string, ServerService>()
-  const everyService = (): ServerService[] => [...codeServices, ...managedServices.values()]
+  const ownServices = (): ServerService[] => [...codeServices, ...managedServices.values()]
+  // Each service with the endpoints added to it as further actions.
+  const everyService = (): ServerService[] =>
+    ownServices().map((service) => {
+      const extra = managed.store.endpoints(service.manifest.id).map((e) => buildEndpointAction(e.spec))
+      return extra.length ? { ...service, actions: [...(service.actions ?? []), ...extra] } : service
+    })
   const statuses = new Map<string, ServiceStatus>()
   const listeners = new Set<() => void>()
 
@@ -142,7 +155,7 @@ export async function registerServices(app: FastifyInstance, bus: EventBus, mana
   // services above are more specific and win.
   app.post<{ Params: { id: string; action: string } }>('/api/services/:id/actions/:action', async (request, reply) => {
     const { id, action } = request.params
-    if (!managedServices.has(id)) return reply.code(404).send({ ok: false, ms: 0, error: `no action "${id}/${action}"` })
+    if (!everyService().some((s) => s.manifest.id === id && s.actions?.some((a) => a.id === action))) return reply.code(404).send({ ok: false, ms: 0, error: `no action "${id}/${action}"` })
     try {
       return { ok: true, ...(await run(id, action, request.body)) }
     } catch (err) {
@@ -180,6 +193,21 @@ export async function registerServices(app: FastifyInstance, bus: EventBus, mana
 
   return {
     run,
+    endpoints: {
+      list: (serviceId) => managed.store.endpoints(serviceId).map((e) => e.spec),
+      upsert(serviceId, spec) {
+        const service = ownServices().find((x) => x.manifest.id === serviceId)
+        if (!service) throw new Error(`no service "${serviceId}"`)
+        if (service.actions?.some((a) => a.id === spec.id)) throw new Error(`"${spec.id}" is already an action of ${serviceId} built into it; pick another id`)
+        managed.store.putEndpoint(serviceId, spec)
+        notify()
+      },
+      remove(serviceId, id) {
+        const removed = managed.store.deleteEndpoint(serviceId, id)
+        if (removed) notify()
+        return removed
+      },
+    },
     managed: {
       list: () => managed.store.list(),
       get: (id) => managed.store.get(id),
