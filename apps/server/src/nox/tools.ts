@@ -10,6 +10,7 @@ import type { Approvals } from './approvals.js'
 import type { Tasks } from './tasks.js'
 import { validateDoc } from './doc-validation.js'
 import type { McpTool } from './mcp.js'
+import type { AnywhApi } from './anywh.js'
 
 interface ToolDeps {
   bus: EventBus
@@ -21,6 +22,9 @@ interface ToolDeps {
   tasks: Pick<Tasks, 'start' | 'stop' | 'list'>
   containers: () => Promise<ContainerSummary[]>
   docker: Pick<DockerApi, 'inspect'>
+  anywh: AnywhApi
+  // Starts a turn of NOX on its own, outside any request of the owner.
+  announce: (text: string, workspace: string, screen?: string) => void
   hostName: () => string
   // The workspace of the screen NOX is answering; tools act there unless told otherwise.
   currentWorkspace: () => string
@@ -37,6 +41,10 @@ const PALETTES: readonly PaletteId[] = ['mono', 'blue', 'meridian']
 const MAX_RESULT_CHARS = 8000
 const MIN_LIVE_SECONDS = 5
 const MAX_LIVE_SECONDS = 3600
+const DEFAULT_ANYWH_TURNS = 10
+const MAX_ANYWH_TURNS = 50
+const ANYWH_SESSIONS_SHOWN = 20
+const MAX_ANYWH_REPLY_CHARS = 6000
 
 const workspaceProperty = { type: 'string', description: 'Workspace id. Defaults to the workspace of the screen you are answering.' }
 const windowProperty = {
@@ -57,7 +65,9 @@ const windowArg = (args: Record<string, unknown>): string => {
   throw new Error(`window must be one of ${MODULE_WINDOWS.join(', ')} or "<service>:<window>"`)
 }
 
-const clip = (s: string): string => (s.length > MAX_RESULT_CHARS ? `${s.slice(0, MAX_RESULT_CHARS)}… [truncated]` : s)
+const cut = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max)}… [truncated]` : s)
+
+const clip = (s: string): string => cut(s, MAX_RESULT_CHARS)
 
 export function buildTools(d: ToolDeps): McpTool[] {
   const workspaceOf = (args: Record<string, unknown>): string => {
@@ -335,6 +345,69 @@ export function buildTools(d: ToolDeps): McpTool[] {
         properties: { service: { type: 'string' }, action: { type: 'string' }, input: { type: 'object', description: "The action's input, when it takes any." } },
       },
       handler: (a) => invoke(text(a, 'service') ?? '', text(a, 'action') ?? '', a.input !== null && typeof a.input === 'object' && !Array.isArray(a.input) ? (a.input as Record<string, unknown>) : {}),
+    },
+    {
+      name: 'anywh_list_profiles',
+      description: 'Lists the profiles of anywh, the app the owner uses to run coding agents (Claude Code, Codex) on this machine. Each profile is a separate agent login with its own sessions.',
+      inputSchema: { type: 'object', properties: {} },
+      handler: async () => JSON.stringify((await d.anywh.profiles()).map(({ id, label }) => ({ id, label }))),
+    },
+    {
+      name: 'anywh_list_sessions',
+      description: `Lists the anywh conversations (sessions) with id, title and last activity time in epoch milliseconds, newest first, the latest ${ANYWH_SESSIONS_SHOWN} per profile. Give a profile to list only its sessions; without one, every profile is listed.`,
+      inputSchema: { type: 'object', properties: { profile: { type: 'string', description: 'Profile id from anywh_list_profiles.' } } },
+      handler: async (a) => {
+        const only = text(a, 'profile')
+        const profiles = only ? [only] : (await d.anywh.profiles()).map((p) => p.id)
+        const out = await Promise.all(profiles.map(async (profile) => ({ profile, sessions: (await d.anywh.sessions(profile)).sort((x, y) => y.lastActiveAt - x.lastActiveAt).slice(0, ANYWH_SESSIONS_SHOWN).map((s) => ({ ...s, title: s.title.slice(0, 120) })) })))
+        return clip(JSON.stringify(out))
+      },
+    },
+    {
+      name: 'anywh_read_session',
+      description: `Reads the most recent turns of an anywh session as plain text: what the owner asked, what the agent answered and which tools it ran. The last ${DEFAULT_ANYWH_TURNS} turns by default; ask for more only when the owner needs more context.`,
+      inputSchema: {
+        type: 'object',
+        required: ['profile', 'session'],
+        properties: { profile: { type: 'string' }, session: { type: 'string', description: 'Session id from anywh_list_sessions.' }, turns: { type: 'integer', description: `How many recent turns, up to ${MAX_ANYWH_TURNS}.` } },
+      },
+      handler: (a) => {
+        const turns = typeof a.turns === 'number' ? Math.min(Math.max(Math.trunc(a.turns), 1), MAX_ANYWH_TURNS) : DEFAULT_ANYWH_TURNS
+        return d.anywh.read(text(a, 'profile') ?? '', text(a, 'session') ?? '', turns)
+      },
+    },
+    {
+      name: 'anywh_send_message',
+      description:
+        'Sends a message to anywh: starts a new conversation in a profile, or, with a session id, continues an existing one. The agent then works on its own, on this machine. You do not wait: when it finishes you are woken with its last message to summarize for the owner. Set destructive to true when the task asks the agent to delete, overwrite, reset or otherwise destroy anything, so the owner confirms on the screen first.',
+      inputSchema: {
+        type: 'object',
+        required: ['profile', 'text'],
+        properties: {
+          profile: { type: 'string' },
+          text: { type: 'string', description: 'The message, written as the owner would write it to the agent.' },
+          session: { type: 'string', description: 'An existing session to continue; omit to start a new conversation.' },
+          cwd: { type: 'string', description: 'Working directory for a new conversation.' },
+          destructive: { type: 'boolean', description: 'True when the task involves destroying or overwriting anything.' },
+        },
+      },
+      handler: async (a) => {
+        const profile = text(a, 'profile') ?? ''
+        const message = text(a, 'text') ?? ''
+        if (!message.trim()) throw new Error('text must not be empty')
+        if (a.destructive === true && !(await d.approvals.ask(d.currentWorkspace(), 'anywh message', { command: `${profile}: ${message}` }))) throw new Error('The owner did not confirm this, so it was not sent.')
+        const workspace = d.currentWorkspace()
+        const screen = d.currentScreen()
+        const { session, reply } = await d.anywh.send(profile, message, { session: text(a, 'session'), cwd: text(a, 'cwd') })
+        d.bus.emit('nox', 'info', `sent a message to anywh ${profile}/${session}`)
+        // The agent works on its own; when its turn ends NOX is woken with what it said, to tell the owner.
+        const title = async (): Promise<string> => (await d.anywh.sessions(profile).catch(() => [])).find((x) => x.id === session)?.title.slice(0, 80) || 'a new conversation'
+        reply.then(
+          async (r) => d.announce(`[anywhere update] The agent in profile "${profile}" (session ${session}, "${await title()}") ${r.stopped ? 'was stopped' : r.failed ? 'failed' : 'finished'}. What it wrote last:\n\n${cut(r.text || '(nothing)', MAX_ANYWH_REPLY_CHARS)}`, workspace, screen),
+          (err) => d.announce(`[anywhere update] I lost track of the agent in profile "${profile}" (session ${session}): ${err instanceof Error ? err.message : 'unknown error'}.`, workspace, screen),
+        )
+        return `Sent to session ${session}. You will be told when the agent finishes; do not wait for it.`
+      },
     },
     {
       name: 'list_containers',

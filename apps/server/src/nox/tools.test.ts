@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { ServiceSummary, StreamMessage } from '@meridian/service-sdk'
 import { EventBus } from '../event-bus.js'
 import { ScreenRegistry } from '../screens.js'
@@ -24,6 +24,17 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   const asked: unknown[][] = []
   const started: unknown[][] = []
   const managedSpecs = new Map<string, ManagedSpec>()
+  const sentToAnywh: unknown[][] = []
+  const announced: unknown[][] = []
+  let resolveReply!: (r: { text: string; stopped: boolean; failed: boolean }) => void
+  let rejectReply!: (e: Error) => void
+  const replies = { promise: new Promise<{ text: string; stopped: boolean; failed: boolean }>((ok, fail) => ((resolveReply = ok), (rejectReply = fail))) }
+  const anywh = {
+    profiles: async () => [{ id: 'pessoal', label: 'pessoal', host: '127.0.0.1', port: 1 }],
+    sessions: async (profile: string) => (profile === 'pessoal' ? [{ id: 's1', title: 'old', lastActiveAt: 1 }, { id: 's2', title: 'new', lastActiveAt: 2 }] : Promise.reject(new Error(`no anywh profile "${profile}"`))),
+    read: async (...a: unknown[]) => `read ${a.join(' ')}`,
+    send: async (...a: unknown[]) => (sentToAnywh.push(a), { session: (a[2] as { session?: string }).session ?? 'new-id', reply: replies.promise }),
+  }
   const registry = {
     summaries: () => [...services, ...[...managedSpecs.values()].map((m) => ({ ...summary(m.id, []), name: m.name, managed: true }))],
     run: async (s: string, a: string) => (ran.push(`${s}/${a}`), { ms: 1, result: { ok: true } }),
@@ -35,14 +46,14 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   } as unknown as Registry
   const existingContainers = ['baixa-baixa-1']
   const telemetry = { samples: () => [{ cpu: 23.4, mem: 4.2, temp: 55, net: 0 }], containers: () => [], memTotalGb: 15.3 } as unknown as HostTelemetry
-  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const }), stop: (id: string) => id === 't1', list: () => [] }, containers: async () => existingContainers.map((name) => ({ name, image: 'img', state: 'running', status: 'Up', ports: [] })), docker: { inspect: async (name: string) => (existingContainers.includes(name) ? { state: 'running', startedAt: '', image: 'img' } : undefined) }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default', currentScreen: () => 'tab-a' })
+  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const }), stop: (id: string) => id === 't1', list: () => [] }, anywh, announce: (...a: unknown[]) => void announced.push(a), containers: async () => existingContainers.map((name) => ({ name, image: 'img', state: 'running', status: 'Up', ports: [] })), docker: { inspect: async (name: string) => (existingContainers.includes(name) ? { state: 'running', startedAt: '', image: 'img' } : undefined) }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default', currentScreen: () => 'tab-a' })
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const tool = tools.find((t) => t.name === name)
     if (!tool) throw new Error(`no tool ${name}`)
     return tool.handler(args)
   }
   const commands = () => sent.filter((m) => m.type === 'command').map((m) => (m as { command: unknown }).command)
-  return { call, commands, bus, ran, tools, asked, started, managedSpecs, others }
+  return { call, commands, bus, ran, tools, asked, started, managedSpecs, others, sentToAnywh, announced, resolveReply, rejectReply }
 }
 
 describe('NOX tools', () => {
@@ -235,5 +246,51 @@ describe('NOX tools', () => {
   it('summarises status for the model', async () => {
     const { call } = setup([summary('aqw-idle', [])])
     expect(JSON.parse(await call('get_status'))).toMatchObject({ host: 'box', telemetry: { cpuPercent: 23, memoryGb: 4.2 }, services: [{ id: 'aqw-idle', state: 'online' }] })
+  })
+  describe('anywh', () => {
+    it('lists sessions newest first and reads with a default of ten turns', async () => {
+      const { call } = setup()
+      const listed = JSON.parse(await call('anywh_list_sessions', { profile: 'pessoal' }))
+      expect(listed[0].sessions.map((s: { id: string }) => s.id)).toEqual(['s2', 's1'])
+      expect(await call('anywh_read_session', { profile: 'pessoal', session: 's1' })).toBe('read pessoal s1 10')
+      expect(await call('anywh_read_session', { profile: 'pessoal', session: 's1', turns: 500 })).toBe('read pessoal s1 50')
+    })
+
+    it('sends without asking, unless the task is destructive and the owner declines', async () => {
+      const calm = setup()
+      expect(await calm.call('anywh_send_message', { profile: 'pessoal', text: 'run the tests' })).toContain('new-id')
+      expect(calm.asked).toHaveLength(0)
+
+      const strict = setup([], false)
+      await expect(strict.call('anywh_send_message', { profile: 'pessoal', text: 'rm -rf the cache', destructive: true })).rejects.toThrow('did not confirm')
+      expect(strict.asked).toHaveLength(1)
+      expect(strict.sentToAnywh).toHaveLength(0)
+    })
+
+    it('wakes NOX with the agent\'s last message when it finishes', async () => {
+      const { call, announced, resolveReply } = setup()
+      expect(await call('anywh_send_message', { profile: 'pessoal', text: 'run the tests', session: 's2' })).toContain('do not wait')
+      expect(announced).toHaveLength(0)
+      resolveReply({ text: 'All 12 tests pass.', stopped: false, failed: false })
+      await vi.waitFor(() => expect(announced).toHaveLength(1))
+      expect(String(announced[0][0])).toContain('[anywhere update]')
+      expect(String(announced[0][0])).toContain('"new"')
+      expect(String(announced[0][0])).toContain('All 12 tests pass.')
+      expect(announced[0].slice(1)).toEqual(['default', 'tab-a'])
+    })
+
+    it('tells NOX when the agent was lost', async () => {
+      const { call, announced, rejectReply } = setup()
+      await call('anywh_send_message', { profile: 'pessoal', text: 'go' })
+      rejectReply(new Error('the connection to the anywh relay was lost'))
+      await vi.waitFor(() => expect(announced).toHaveLength(1))
+      expect(String(announced[0][0])).toContain('lost track')
+    })
+
+    it('continues an existing session', async () => {
+      const { call, sentToAnywh } = setup()
+      expect(await call('anywh_send_message', { profile: 'pessoal', text: 'go on', session: 's1' })).toContain('s1')
+      expect(sentToAnywh[0]).toEqual(['pessoal', 'go on', { session: 's1', cwd: undefined }])
+    })
   })
 })

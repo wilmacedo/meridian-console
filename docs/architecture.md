@@ -201,6 +201,23 @@ Meridian interface, talks to the owner's other services, and works on the owner'
 That rules out a locked-down tool list and makes **Claude Code itself** the engine, since it already is
 a general agent (shell, files, MCP, subagents, skills, memory, background work).
 
+### anywh
+
+NOX drives [anywh](https://anywh.sh) (the owner's app for running coding agents on this machine) through
+`apps/server/src/nox/anywh.ts`. Profiles are discovered from `~/.config/anywh` (`profiles.json` plus
+`env/<id>.env` for the relay's host and port); each profile is its own relay, which has no auth of its
+own (the tailnet is the boundary). Tools: `anywh_list_profiles`, `anywh_list_sessions` (`GET /sessions`),
+`anywh_read_session` (WebSocket history replay, last 10 turns by default) and `anywh_send_message` (new
+conversation or follow-up, over the same WebSocket). Session ids are checked against `/sessions` first,
+because connecting to an unknown id would create it. Sending asks the owner to confirm only when NOX
+marks the task `destructive`.
+
+NOX is a wrapper around anywh, not a relay: it writes the message itself and does not wait. The server keeps
+the WebSocket of the session open until the turn ends (30 minutes at most), then wakes NOX with a
+`[anywhere update]` turn carrying the agent's last message (`announce` in `nox/routes.ts`: it queues behind
+the owner's own turn and is spoken on the workspace's screens like any answer). NOX does the summarizing, so
+no second model is involved. There is no anywh UI in Meridian yet.
+
 ### Engine: headless Claude Code on the subscription
 
 The owner's constraint is no per-token API cost. `claude -p` (headless) runs on the **subscription

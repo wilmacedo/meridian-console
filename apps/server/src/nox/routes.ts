@@ -14,11 +14,20 @@ const MAX_UTTERANCE = 2000
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024
 // A screen that never reports it finished playing must not keep NOX "speaking" forever.
 const PLAYBACK_TIMEOUT_MS = 90_000
+// How long a spoken update waits for the owner's own turn to end before it goes ahead anyway.
+const ANNOUNCE_WAIT_MS = 5 * 60_000
 
 // Numbers each answer so a screen can tell one turn's speech from another's. It starts from the clock, not
 // from zero: a screen that stayed open across a server restart still remembers the last turn it played,
 // and would drop every new answer as an old one.
 let turns = Date.now()
+
+// Where a turn's events are written: an HTTP response, or nowhere for a turn NOX starts itself.
+interface Sink {
+  write: (chunk: string) => unknown
+  end: () => unknown
+  readonly writableEnded: boolean
+}
 
 interface Deps {
   nox: Nox
@@ -31,7 +40,7 @@ interface Deps {
 // The entry points to NOX. Both answer as newline-delimited JSON events (text, tool, done, error); when
 // voice is configured and a screen is showing the workspace, the answer is also spoken there, sentence
 // by sentence, while it is still being written.
-export function registerNox(app: FastifyInstance, { nox, bus, screens, registry, approvals }: Deps): { interrupt: () => void } {
+export function registerNox(app: FastifyInstance, { nox, bus, screens, registry, approvals }: Deps): { interrupt: () => void; announce: (text: string, workspace: string, screen?: string) => void } {
   // The turn whose answer is being written or spoken, for the owner to cut off.
   let active: { turn: number; speaker?: TurnSpeaker } | undefined
 
@@ -50,7 +59,11 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     reply.hijack()
     reply.raw.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' })
     if (heardLine) reply.raw.write(`${JSON.stringify({ type: 'heard', text: heardLine })}\n`)
+    await run(text, workspace, reply.raw, screen)
+  }
 
+  // One turn of NOX, written to `out` as it goes and spoken on the screens of the workspace.
+  async function run(text: string, workspace: string, out: Sink, screen?: string): Promise<void> {
     const turn = ++turns
     const voice = voiceConfig()
     let spent = 0
@@ -92,10 +105,10 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
         }
         if (event.type === 'command') bus.emit('nox', 'info', commandNote(event.command))
         if (event.type === 'error') bus.emit('nox', 'error', event.message)
-        reply.raw.write(`${JSON.stringify(event)}\n`)
+        out.write(`${JSON.stringify(event)}\n`)
       }
       // The text is complete: the caller has its answer, and the speech carries on after this.
-      reply.raw.end()
+      out.end()
       if (speaker) {
         // Listen for the screen's "done" before the last sentence can possibly reach it.
         const played = waitForPlayback(turn, PLAYBACK_TIMEOUT_MS)
@@ -106,7 +119,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     } finally {
       if (active?.turn === turn) active = undefined
       screens.setAgentMode('idle')
-      if (!reply.raw.writableEnded) reply.raw.end()
+      if (!out.writableEnded) out.end()
     }
 
     if (voice && spent > 0) {
@@ -155,5 +168,17 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     return answer(heard, workspace, reply, heard, request.query.screen)
   })
 
-  return { interrupt }
+  // NOX speaks first: something it was waiting for happened (an agent finished). It waits for the owner's own
+  // turn to end, and its text goes nowhere but the screens of the workspace.
+  let announcing: Promise<void> = Promise.resolve()
+  function announce(text: string, workspace: string, screen?: string): void {
+    announcing = announcing.then(async () => {
+      for (let waited = 0; active && waited < ANNOUNCE_WAIT_MS; waited += 500) await new Promise((resolve) => setTimeout(resolve, 500))
+      bus.emit('nox', 'info', `update: ${text.slice(0, 120)}`)
+      const sink = { write: () => true, end: () => undefined, writableEnded: false }
+      await run(text, workspace, sink, screen).catch((err: unknown) => bus.emit('nox', 'error', `announce: ${err instanceof Error ? err.message : 'failed'}`))
+    })
+  }
+
+  return { interrupt, announce }
 }
