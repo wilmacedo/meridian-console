@@ -117,6 +117,8 @@ export type ClientMessage =
   | { type: 'approval_answer'; id: string; allow: boolean }
   // The owner cut NOX off: stop the turn that is running and whatever it is still saying.
   | { type: 'interrupt' }
+  // Stop one background task of the watched workspace, or all of them when no id is given.
+  | { type: 'stop_tasks'; id?: string }
 
 export interface WorkspaceSummary {
   id: string

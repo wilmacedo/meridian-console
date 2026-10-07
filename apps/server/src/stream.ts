@@ -61,6 +61,8 @@ export function registerStream(app: FastifyInstance, { bus, registry, telemetry,
           playbackDone(message.turn)
         } else if (message.type === 'interrupt') {
           onInterrupt()
+        } else if (message.type === 'stop_tasks') {
+          if (watching) for (const t of tasks.running(watching)) if (!message.id || message.id === t.id) tasks.stop(t.id)
         } else if (message.type === 'approval_answer') {
           approvals.answer(message.id, message.allow === true, 'tapped')
         }
