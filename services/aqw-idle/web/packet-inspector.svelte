@@ -71,8 +71,8 @@
 
 <style>
   .inspector-col {
-    width: 254px;
-    flex: none;
+    flex: 1 1 254px;
+    max-width: 100%;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -80,15 +80,15 @@
   }
 
   .inspector {
-    border: 1px solid rgba(224, 123, 40, 0.28);
+    border: 1px solid rgba(255, 211, 77, 0.28);
   }
 
   .inspector-title {
     padding: 11px 13px;
-    border-bottom: 1px solid rgba(224, 123, 40, 0.2);
+    border-bottom: 1px solid rgba(255, 211, 77, 0.2);
     font: 600 9px/1 var(--font-mono);
     letter-spacing: 0.2em;
-    color: rgba(240, 185, 128, 0.9);
+    color: rgba(255, 211, 77, 0.9);
   }
 
   .inspector-body {
@@ -101,7 +101,7 @@
   .section-label {
     font: 600 7.5px/1.8 var(--font-mono);
     letter-spacing: 0.18em;
-    color: var(--text-muted);
+    color: rgba(var(--nx-ac), 0.55);
   }
 
   .raw,
@@ -114,15 +114,15 @@
   }
 
   .raw {
-    background: var(--bg-inset);
-    border: 1px solid var(--line-hairline);
-    color: rgba(140, 220, 196, 0.9);
+    background: rgba(var(--nx-mu), 0.06);
+    border: 1px solid rgba(var(--nx-ac), 0.16);
+    color: rgba(var(--nx-ac), 0.9);
   }
 
   .decoded {
-    background: rgba(224, 123, 40, 0.06);
-    border: 1px solid rgba(224, 123, 40, 0.2);
-    color: #f0d0b0;
+    background: rgba(255, 211, 77, 0.06);
+    border: 1px solid rgba(255, 211, 77, 0.2);
+    color: #ffd34d;
   }
 
   .fact-row {
@@ -133,15 +133,15 @@
   }
 
   .fact-key {
-    color: var(--text-muted);
+    color: rgba(var(--nx-ac), 0.55);
   }
 
   .fact-value {
-    color: rgba(214, 236, 229, 0.9);
+    color: rgba(var(--nx-ac), 0.9);
   }
 
   .fields {
-    border: 1px solid var(--line-hairline);
+    border: 1px solid rgba(var(--nx-ac), 0.16);
     padding: 12px 13px;
     flex: none;
   }
@@ -149,7 +149,7 @@
   .fields-title {
     font: 600 9px/1 var(--font-mono);
     letter-spacing: 0.2em;
-    color: rgba(200, 228, 220, 0.8);
+    color: rgba(var(--nx-ac), 0.8);
     margin-bottom: 8px;
   }
 
@@ -158,13 +158,13 @@
     justify-content: space-between;
     gap: 10px;
     padding: 4px 0;
-    border-bottom: 1px solid rgba(79, 214, 184, 0.06);
+    border-bottom: 1px solid rgba(var(--nx-ac), 0.06);
     font: 500 9px/1.6 var(--font-mono);
-    color: rgba(196, 220, 212, 0.75);
+    color: rgba(var(--nx-ac), 0.75);
   }
 
   .field-row.head {
-    color: #dff0eb;
+    color: rgb(var(--nx-fg));
   }
 
   .field-label {

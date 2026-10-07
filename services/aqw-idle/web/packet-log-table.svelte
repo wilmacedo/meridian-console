@@ -89,10 +89,11 @@
 
 <style>
   .log-panel {
-    flex: 1;
+    flex: 1 1 380px;
     min-width: 0;
-    border: 1px solid var(--line-hairline);
-    background: rgba(4, 8, 7, 0.55);
+    min-height: 280px;
+    border: 1px solid rgba(var(--nx-ac), 0.16);
+    background: rgba(var(--nx-sh), 0.55);
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -105,8 +106,8 @@
     padding: 8px 12px;
     font: 600 7.5px/1 var(--font-mono);
     letter-spacing: 0.18em;
-    color: rgba(150, 185, 175, 0.38);
-    border-bottom: 1px solid var(--line-hairline);
+    color: rgba(var(--nx-ac), 0.38);
+    border-bottom: 1px solid rgba(var(--nx-ac), 0.16);
   }
 
   .body {
@@ -125,28 +126,28 @@
     align-items: start;
     width: 100%;
     padding: 5px 12px;
-    border-bottom: 1px solid rgba(79, 214, 184, 0.05);
+    border-bottom: 1px solid rgba(var(--nx-ac), 0.05);
     cursor: pointer;
     background: transparent;
     transition: background 0.15s;
   }
 
   .row.tinted {
-    background: rgba(255, 255, 255, 0.012);
+    background: rgba(var(--nx-hi), 0.012);
   }
 
   .row.selected {
-    background: rgba(79, 214, 184, 0.09);
+    background: rgba(var(--nx-ac), 0.09);
   }
 
   .seq {
     font: 500 9px/1.7 var(--font-mono);
-    color: rgba(150, 185, 175, 0.35);
+    color: rgba(var(--nx-ac), 0.35);
   }
 
   .time {
     font: 500 9px/1.7 var(--font-mono);
-    color: rgba(160, 196, 187, 0.55);
+    color: rgba(var(--nx-ac), 0.55);
   }
 
   .lvl-chip {
@@ -158,28 +159,28 @@
   }
 
   .lvl-pkt {
-    border-color: color-mix(in srgb, var(--accent-teal) 33%, transparent);
-    color: var(--accent-teal);
+    border-color: color-mix(in srgb, rgb(var(--nx-ac)) 33%, transparent);
+    color: rgb(var(--nx-ac));
   }
 
   .lvl-info {
-    border-color: rgba(160, 196, 187, 0.33);
-    color: rgba(160, 196, 187, 0.85);
+    border-color: rgba(var(--nx-ac), 0.33);
+    color: rgba(var(--nx-ac), 0.85);
   }
 
   .lvl-warn {
-    border-color: color-mix(in srgb, var(--accent-amber) 33%, transparent);
-    color: var(--accent-amber);
+    border-color: color-mix(in srgb, #ffd34d 33%, transparent);
+    color: #ffd34d;
   }
 
   .lvl-err {
-    border-color: color-mix(in srgb, var(--state-err) 33%, transparent);
-    color: var(--state-err);
+    border-color: color-mix(in srgb, #ff6b8a 33%, transparent);
+    color: #ff6b8a;
   }
 
   .lvl-drop {
-    border-color: rgba(160, 196, 187, 0.18);
-    color: rgba(160, 196, 187, 0.45);
+    border-color: rgba(var(--nx-ac), 0.18);
+    color: rgba(var(--nx-ac), 0.45);
   }
 
   .dir {
@@ -188,15 +189,15 @@
   }
 
   .dir.in {
-    color: var(--accent-teal);
+    color: rgb(var(--nx-ac));
   }
 
   .dir.out {
-    color: var(--accent-amber);
+    color: #ffd34d;
   }
 
   .dir.local {
-    color: rgba(160, 196, 187, 0.3);
+    color: rgba(var(--nx-ac), 0.3);
   }
 
   .payload {
@@ -210,40 +211,40 @@
 
   .tok-sep {
     flex: none;
-    color: rgba(160, 196, 187, 0.28);
+    color: rgba(var(--nx-ac), 0.28);
   }
 
   .tok-proto {
     flex: none;
     padding: 0 4px;
-    background: color-mix(in srgb, var(--accent-teal) 13%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent-teal) 33%, transparent);
-    color: var(--accent-teal);
+    background: color-mix(in srgb, rgb(var(--nx-ac)) 13%, transparent);
+    border: 1px solid color-mix(in srgb, rgb(var(--nx-ac)) 33%, transparent);
+    color: rgb(var(--nx-ac));
     letter-spacing: 0.08em;
   }
 
   .tok-cmd {
     flex: none;
-    color: var(--text-primary);
+    color: rgb(var(--nx-fg));
     font-weight: 600;
   }
 
   .tok-num {
     flex: none;
-    color: var(--accent-amber);
+    color: #ffd34d;
   }
 
   .tok-word {
     flex: none;
-    color: var(--text-body);
+    color: rgba(var(--nx-ac), 0.85);
   }
 
   .tok-esc {
     flex: none;
     padding: 0 3px;
     margin: 0 1px;
-    color: var(--accent-amber);
-    background: rgba(224, 123, 40, 0.16);
+    color: #ffd34d;
+    background: rgba(255, 211, 77, 0.16);
     font-size: 8.5px;
   }
 
@@ -251,7 +252,7 @@
     padding: 0;
     margin: 0;
     background: transparent;
-    border-bottom: 1px dashed rgba(224, 123, 40, 0.55);
+    border-bottom: 1px dashed rgba(255, 211, 77, 0.55);
     font-size: 10px;
   }
 
@@ -264,37 +265,37 @@
   .chat-chan {
     flex: none;
     margin-right: 6px;
-    color: rgba(160, 196, 187, 0.55);
+    color: rgba(var(--nx-ac), 0.55);
   }
 
   .chat-user {
     flex: none;
     font-weight: 600;
-    color: var(--accent-teal);
+    color: rgb(var(--nx-ac));
   }
 
   .chat-arrow {
     flex: none;
     margin: 0 5px;
-    color: rgba(160, 196, 187, 0.4);
+    color: rgba(var(--nx-ac), 0.4);
   }
 
   .chat-colon {
     flex: none;
     margin-right: 5px;
-    color: rgba(160, 196, 187, 0.4);
+    color: rgba(var(--nx-ac), 0.4);
   }
 
   .chat-msg {
-    color: #dff0eb;
+    color: rgb(var(--nx-fg));
   }
 
   .chat-line.whisper .chat-user {
-    color: #c7a0f2;
+    color: #bfa8ff;
   }
 
   .chat-line.whisper .chat-msg {
-    color: #e4d4fb;
+    color: #bfa8ff;
   }
 
   .legend {
@@ -302,14 +303,14 @@
     align-items: center;
     gap: 10px;
     padding: 8px 12px;
-    border-top: 1px solid var(--line-hairline);
+    border-top: 1px solid rgba(var(--nx-ac), 0.16);
     flex: none;
   }
 
   .legend-title {
     font: 600 7.5px/1 var(--font-mono);
     letter-spacing: 0.18em;
-    color: rgba(150, 185, 175, 0.38);
+    color: rgba(var(--nx-ac), 0.38);
   }
 
   .legend-items {
@@ -344,8 +345,8 @@
 
   .swatch.tok-esc-raw {
     padding: 0 3px;
-    background: rgba(224, 123, 40, 0.16);
-    color: var(--accent-amber);
+    background: rgba(255, 211, 77, 0.16);
+    color: #ffd34d;
     font: 500 8.5px/1.5 var(--font-mono);
   }
 
@@ -356,6 +357,6 @@
   .legend-name {
     font: 500 8px/1 var(--font-mono);
     letter-spacing: 0.1em;
-    color: rgba(150, 185, 175, 0.45);
+    color: rgba(var(--nx-ac), 0.45);
   }
 </style>

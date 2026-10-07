@@ -2,12 +2,8 @@
   import { onMount } from 'svelte'
   import { consoleState, startPacketFeed, stopPacketFeed, clearFeed } from './console-state.svelte'
   import { filterFeed, findSelected } from './derived'
-  import { readFiltersFromUrl, writeFiltersToUrl } from './url-filters'
   import PacketLogTable from './packet-log-table.svelte'
   import PacketInspector from './packet-inspector.svelte'
-
-  readFiltersFromUrl()
-  $effect(() => writeFiltersToUrl())
 
   // Ticks once a second so the rate decays back to 0.0 when traffic stops, instead of freezing.
   let now = $state(Date.now())
@@ -70,7 +66,6 @@
   <div class="head">
     <div>
       <div class="title-row">
-        <div class="title">aqw-idle</div>
         <div class="socket-chip" class:down={!consoleState.connected}>
           {consoleState.connected ? 'SOCKET OPEN' : 'SOCKET CLOSED'}
         </div>
@@ -122,21 +117,21 @@
 
 <style>
   .panel {
-    padding: 6px 22px 22px;
     height: 100%;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    animation: rise 0.4s ease both;
+    animation: nx-sub 0.4s ease both;
   }
 
   .head {
     flex: none;
+    flex-wrap: wrap;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     gap: 20px;
-    border-bottom: 1px solid var(--line-hairline);
+    border-bottom: 1px solid rgba(var(--nx-ac), 0.16);
     padding-bottom: 12px;
   }
 
@@ -146,29 +141,24 @@
     gap: 9px;
   }
 
-  .title {
-    font: 600 16px/1.2 var(--font-mono);
-    letter-spacing: 0.1em;
-    color: var(--text-primary);
-  }
-
   .socket-chip {
+    white-space: nowrap;
     padding: 2px 7px;
-    border: 1px solid rgba(79, 214, 184, 0.4);
+    border: 1px solid rgba(var(--nx-ac), 0.4);
     font: 600 7.5px/1.6 var(--font-mono);
     letter-spacing: 0.16em;
-    color: #8fe8d4;
+    color: rgb(var(--nx-fg));
   }
 
   .socket-chip.down {
-    border-color: color-mix(in srgb, var(--state-err) 47%, transparent);
-    color: var(--state-err);
+    border-color: color-mix(in srgb, #ff6b8a 47%, transparent);
+    color: #ff6b8a;
   }
 
   .subtitle {
     font: 500 9px/1.8 var(--font-mono);
     letter-spacing: 0.12em;
-    color: var(--text-muted);
+    color: rgba(var(--nx-ac), 0.55);
   }
 
   .actions {
@@ -189,36 +179,36 @@
     cursor: pointer;
     transition: all 0.18s;
     box-sizing: border-box;
-    border: 1px solid rgba(160, 196, 187, 0.18);
-    color: rgba(160, 196, 187, 0.45);
+    border: 1px solid rgba(var(--nx-ac), 0.18);
+    color: rgba(var(--nx-ac), 0.45);
   }
 
   .decode.active {
-    border-color: rgba(79, 214, 184, 0.5);
-    background: rgba(79, 214, 184, 0.12);
-    color: var(--text-primary);
+    border-color: rgba(var(--nx-ac), 0.5);
+    background: rgba(var(--nx-ac), 0.12);
+    color: rgb(var(--nx-fg));
   }
 
   .follow.active {
-    border-color: rgba(224, 123, 40, 0.5);
-    background: rgba(224, 123, 40, 0.1);
-    color: #f0b980;
+    border-color: rgba(255, 211, 77, 0.5);
+    background: rgba(255, 211, 77, 0.1);
+    color: #ffd34d;
   }
 
   .follow-dot {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: rgba(160, 196, 187, 0.35);
+    background: rgba(var(--nx-ac), 0.35);
   }
 
   .follow-dot.active {
-    background: var(--accent-amber);
-    animation: blink-dot 1.2s ease-in-out infinite;
+    background: #ffd34d;
+    animation: nx-blink 1.2s ease-in-out infinite;
   }
 
   .clear:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(var(--nx-hi), 0.04);
   }
 
   .filter-bar {
@@ -236,13 +226,13 @@
     flex: 1;
     min-width: 220px;
     padding: 0 10px;
-    border: 1px solid rgba(79, 214, 184, 0.2);
-    background: rgba(79, 214, 184, 0.03);
+    border: 1px solid rgba(var(--nx-ac), 0.2);
+    background: rgba(var(--nx-ac), 0.03);
   }
 
   .search-glyph {
     font: 600 9px/1 var(--font-mono);
-    color: rgba(79, 214, 184, 0.6);
+    color: rgba(var(--nx-ac), 0.6);
   }
 
   .search input {
@@ -254,17 +244,17 @@
     padding: 9px 0;
     font: 500 10px/1 var(--font-mono);
     letter-spacing: 0.06em;
-    color: #dff0eb;
+    color: rgb(var(--nx-fg));
   }
 
   .search input::placeholder {
-    color: rgba(150, 185, 175, 0.35);
+    color: rgba(var(--nx-ac), 0.35);
   }
 
   .match-count {
     font: 500 8px/1 var(--font-mono);
     letter-spacing: 0.14em;
-    color: var(--text-muted);
+    color: rgba(var(--nx-ac), 0.55);
     white-space: nowrap;
   }
 
@@ -275,10 +265,10 @@
     align-items: center;
     gap: 6px;
     padding: 5px 9px;
-    border: 1px solid rgba(160, 196, 187, 0.16);
+    border: 1px solid rgba(var(--nx-ac), 0.16);
     font: 600 8.5px/1 var(--font-mono);
     letter-spacing: 0.12em;
-    color: rgba(160, 196, 187, 0.4);
+    color: rgba(var(--nx-ac), 0.4);
     cursor: pointer;
     transition: all 0.18s;
   }
@@ -289,62 +279,63 @@
   }
 
   .level-chip.on.lvl-pkt {
-    border-color: color-mix(in srgb, var(--accent-teal) 47%, transparent);
-    background: color-mix(in srgb, var(--accent-teal) 9%, transparent);
-    color: var(--accent-teal);
+    border-color: color-mix(in srgb, rgb(var(--nx-ac)) 47%, transparent);
+    background: color-mix(in srgb, rgb(var(--nx-ac)) 9%, transparent);
+    color: rgb(var(--nx-ac));
   }
 
   .level-chip.on.lvl-info {
-    border-color: rgba(160, 196, 187, 0.53);
-    background: rgba(160, 196, 187, 0.09);
-    color: rgba(160, 196, 187, 0.85);
+    border-color: rgba(var(--nx-ac), 0.53);
+    background: rgba(var(--nx-ac), 0.09);
+    color: rgba(var(--nx-ac), 0.85);
   }
 
   .level-chip.on.lvl-warn {
-    border-color: color-mix(in srgb, var(--accent-amber) 47%, transparent);
-    background: color-mix(in srgb, var(--accent-amber) 9%, transparent);
-    color: var(--accent-amber);
+    border-color: color-mix(in srgb, #ffd34d 47%, transparent);
+    background: color-mix(in srgb, #ffd34d 9%, transparent);
+    color: #ffd34d;
   }
 
   .level-chip.on.lvl-err {
-    border-color: color-mix(in srgb, var(--state-err) 47%, transparent);
-    background: color-mix(in srgb, var(--state-err) 9%, transparent);
-    color: var(--state-err);
+    border-color: color-mix(in srgb, #ff6b8a 47%, transparent);
+    background: color-mix(in srgb, #ff6b8a 9%, transparent);
+    color: #ff6b8a;
   }
 
   .level-chip.on.lvl-drop {
-    border-color: rgba(160, 196, 187, 0.3);
-    background: rgba(160, 196, 187, 0.06);
-    color: rgba(160, 196, 187, 0.45);
+    border-color: rgba(var(--nx-ac), 0.3);
+    background: rgba(var(--nx-ac), 0.06);
+    color: rgba(var(--nx-ac), 0.45);
   }
 
   .divider {
     width: 1px;
     height: 22px;
-    background: var(--line-hairline);
+    background: rgba(var(--nx-ac), 0.16);
   }
 
   .channel-chip {
     all: unset;
     box-sizing: border-box;
     padding: 5px 9px;
-    border: 1px solid rgba(160, 196, 187, 0.16);
+    border: 1px solid rgba(var(--nx-ac), 0.16);
     font: 500 8.5px/1 var(--font-mono);
     letter-spacing: 0.12em;
-    color: rgba(160, 196, 187, 0.4);
+    color: rgba(var(--nx-ac), 0.4);
     cursor: pointer;
     transition: all 0.18s;
   }
 
   .channel-chip.on {
-    border-color: rgba(79, 214, 184, 0.45);
-    color: #cfeae2;
+    border-color: rgba(var(--nx-ac), 0.45);
+    color: rgb(var(--nx-fg));
   }
 
   .body-grid {
     flex: 1;
     min-height: 0;
     display: flex;
+    flex-wrap: wrap;
     gap: 14px;
     align-items: flex-start;
   }
