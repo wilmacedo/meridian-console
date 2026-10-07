@@ -216,6 +216,36 @@ Headless Claude Code is accepted even though latency may end up somewhat higher;
 tuning it (time to first token and first spoken word, a slimmed system prompt versus the default, a
 persistent process versus one process per turn, daily plan consumption).
 
+#### Latency, measured
+
+`apps/server/scripts/nox-latency.ts` (`pnpm --filter @meridian/server nox:latency`) runs ten typical
+PT-BR voice requests through `claude -p` with `--output-format stream-json --include-partial-messages`
+and reports, from the moment the prompt is sent: first event, first token, first complete sentence (what
+TTS needs to start speaking) and total. Medians on Sonnet, October 2026, from one machine, one run each
+(expect some variance), with a two-sentence answer style and no tools:
+
+| Setup | First token | First sentence | Total | Context per turn |
+|---|---|---|---|---|
+| Default Claude Code, one process per turn (5 turns) | 6.6 s | 6.6 s | 6.6 s | ~45k tokens (cache reads) |
+| Slim (own system prompt, no tools, no user settings), one process per turn | 2.3 s | 2.5 s | 3.3 s | ~0.5k tokens |
+| Slim, **one persistent process** (`--input-format stream-json`), after the first turn | **0.9 s** | **1.2 s** | 1.8 s | grows ~0.15k per turn, cached |
+
+What it means for the design:
+
+- **Keep one persistent process.** Starting a process costs about 0.7 s before the first event and the
+  first turn of a session about 2.3 s to the first token; every later turn pays only the model. This is
+  why NOX runs as a long-lived process rather than one `claude -p` per request.
+- **Slim the context.** Claude Code's default prompt, tools and the user's own settings cost ~45k tokens
+  per turn and nearly 3x the latency. NOX's process uses its own system prompt, `--setting-sources` limited
+  to NOX's home and only the tools it needs (Meridian's MCP server will add some tool definitions on top
+  of the numbers above, kept cheap by prompt caching).
+- **Sonnet, default effort.** In the same persistent setup Haiku was slower (2.0 s to the first token,
+  and its short prompts were not cached) and `--effort low` made no clear difference (1.0 s). Not worth
+  tuning until real traffic shows otherwise.
+- **Plan usage.** Slim persistent turns are ~1k tokens of fresh input plus cached context, versus ~38k
+  cache-read tokens per default turn, so a normal day of voice use is a small fraction of what the owner's
+  own Claude Code sessions use. Re-measure once tools and the real persona are in.
+
 Hermes Agent was considered (a self-hosted assistant with memory, skills and chat gateways) and set
 aside: it needs its own model provider and can't run on the subscription, and everything needed from
 it has an equivalent in Claude Code. Its good ideas are worth borrowing over time: memory that grows
