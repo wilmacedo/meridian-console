@@ -1,6 +1,6 @@
 import { defineServerService, type FastifyPluginAsync, type ServiceStatus } from '@meridian/service-sdk/server'
 import { cameraRoutes } from './camera.js'
-import { feederRoutes, readStatus, type FeederStatus } from './feeder.js'
+import { deviceIdOrThrow, feedInputSchema, feederRoutes, issueFeed, readStatus, type FeederStatus } from './feeder.js'
 
 // The dashboard polls this, and every read costs Tuya API quota, so share one reading between polls.
 const STATUS_CACHE_MS = 30_000
@@ -41,4 +41,25 @@ export default defineServerService({
   },
   routes,
   status,
+  actions: [
+    {
+      id: 'feeder-status',
+      method: 'GET',
+      path: '/status',
+      title: 'Feeder status',
+      description: 'Last feeding, battery and food storage, read from the device shadow',
+      mutating: false,
+      run: async () => readStatus(deviceIdOrThrow()),
+    },
+    {
+      id: 'feed',
+      method: 'POST',
+      path: '/feed',
+      title: 'Dispense food',
+      description: 'Dispenses 1-99 portions right now. Real food comes out.',
+      mutating: true,
+      input: feedInputSchema,
+      run: async ({ portions }: { portions: number }) => issueFeed(portions),
+    },
+  ],
 })

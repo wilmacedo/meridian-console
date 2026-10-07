@@ -77,50 +77,61 @@ export async function readStatus(deviceId: string): Promise<FeederStatus> {
   }
 }
 
+export class FeedError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode: number,
+  ) {
+    super(message)
+  }
+}
+
+export const deviceIdOrThrow = (): string => {
+  const deviceId = process.env.TUYA_FEEDER_DEVICE_ID
+  if (!deviceId) throw new FeedError('TUYA_FEEDER_DEVICE_ID is not set', 503)
+  return deviceId
+}
+
+export async function issueFeed(portions: number): Promise<{ issued: number; at: string }> {
+  const deviceId = deviceIdOrThrow()
+  if (Date.now() - lastFeedIssuedAt < FEED_COOLDOWN_MS) throw new FeedError('a feeding was just issued, wait a few seconds', 429)
+  lastFeedIssuedAt = Date.now()
+
+  // The shadow API takes `properties` as a JSON string, not an object.
+  const res = await tuya('POST', `/v2.0/cloud/thing/${deviceId}/shadow/properties/issue`, {
+    properties: JSON.stringify({ feed_publish: portions }),
+  }, await getToken())
+  if (!res.success) {
+    lastFeedIssuedAt = 0
+    throw new FeedError(`feeder rejected the command (${res.code}: ${res.msg})`, 502)
+  }
+  return { issued: portions, at: new Date().toISOString() }
+}
+
+export const feedInputSchema = {
+  type: 'object',
+  required: ['portions'],
+  properties: { portions: { type: 'integer', minimum: MIN_PORTIONS, maximum: MAX_PORTIONS } },
+} as const
+
 export const feederRoutes: FastifyPluginAsync = async (app) => {
   app.get('/status', async (_request, reply) => {
-    const deviceId = process.env.TUYA_FEEDER_DEVICE_ID
-    if (!deviceId) return reply.code(503).send({ error: 'TUYA_FEEDER_DEVICE_ID is not set' })
-
     try {
-      return await readStatus(deviceId)
+      return await readStatus(deviceIdOrThrow())
     } catch (err) {
+      if (err instanceof FeedError) return reply.code(err.statusCode).send({ error: err.message })
       app.log.error(err, 'feeder status read failed')
       return reply.code(502).send({ error: 'feeder unavailable' })
     }
   })
 
-  app.post<{ Body: { portions: number } }>(
-    '/feed',
-    {
-      schema: {
-        body: {
-          type: 'object',
-          required: ['portions'],
-          properties: { portions: { type: 'integer', minimum: MIN_PORTIONS, maximum: MAX_PORTIONS } },
-        },
-      },
-    },
-    async (request, reply) => {
-      const deviceId = process.env.TUYA_FEEDER_DEVICE_ID
-      if (!deviceId) return reply.code(503).send({ error: 'TUYA_FEEDER_DEVICE_ID is not set' })
-
-      if (Date.now() - lastFeedIssuedAt < FEED_COOLDOWN_MS) {
-        return reply.code(429).send({ error: 'a feeding was just issued, wait a few seconds' })
-      }
-      lastFeedIssuedAt = Date.now()
-
-      // The shadow API takes `properties` as a JSON string, not an object.
-      const res = await tuya('POST', `/v2.0/cloud/thing/${deviceId}/shadow/properties/issue`, {
-        properties: JSON.stringify({ feed_publish: request.body.portions }),
-      }, await getToken())
-      if (!res.success) {
-        lastFeedIssuedAt = 0
-        app.log.error({ code: res.code, msg: res.msg }, 'feeder feed command failed')
-        return reply.code(502).send({ error: 'feeder rejected the command' })
-      }
-
-      return { issued: request.body.portions, at: new Date().toISOString() }
-    },
-  )
+  app.post<{ Body: { portions: number } }>('/feed', { schema: { body: feedInputSchema } }, async (request, reply) => {
+    try {
+      return await issueFeed(request.body.portions)
+    } catch (err) {
+      if (!(err instanceof FeedError)) throw err
+      if (err.statusCode === 502) app.log.error(err, 'feeder feed command failed')
+      return reply.code(err.statusCode).send({ error: err.message })
+    }
+  })
 }
