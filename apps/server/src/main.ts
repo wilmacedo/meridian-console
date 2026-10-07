@@ -12,6 +12,7 @@ import { ScreenRegistry } from './screens.js'
 import { registerServices } from './service-registry.js'
 import { hostName, registerStream } from './stream.js'
 import { HostTelemetry } from './telemetry.js'
+import { defaultWebRoot, registerWebApp } from './web-app.js'
 import { registerWorkspaces } from './workspaces.js'
 import { WorkspaceStore } from './workspace-store.js'
 
@@ -64,6 +65,9 @@ const nox = new Nox(
 )
 const noxRoutes = registerNox(app, { nox, bus, screens, registry, approvals })
 app.addHook('onClose', async () => nox.stop())
+
+if (await registerWebApp(app, defaultWebRoot())) app.log.info(`serving the web app from ${defaultWebRoot()}`)
+else app.log.info('no web build found (pnpm build); the Vite dev server serves the app')
 
 app.listen({ port, host: '0.0.0.0' }).catch((err) => {
   app.log.error(err)

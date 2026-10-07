@@ -13,6 +13,7 @@
     "nox": "tsx scripts/nox.ts"
   },
   "dependencies": {
+    "@fastify/static": "^10.1.5",
     "@fastify/websocket": "^11.3.0",
     "@meridian/service-sdk": "workspace:*",
     "fastify": "^5.12.1"
