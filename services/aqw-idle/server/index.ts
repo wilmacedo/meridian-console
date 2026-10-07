@@ -14,6 +14,13 @@ async function status(): Promise<ServiceStatus> {
   }
 }
 
+async function presenceCall(method: 'GET' | 'POST', path: string): Promise<unknown> {
+  const res = await fetch(`${SOURCE_URL}${path}`, { method, signal: AbortSignal.timeout(30_000) })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(`aqw-idle-presence ${path} responded ${res.status}: ${JSON.stringify(body)}`)
+  return body
+}
+
 export default defineServerService({
   manifest: {
     id: 'aqw-idle',
@@ -24,4 +31,33 @@ export default defineServerService({
   },
   routes: packetRoutes,
   status,
+  actions: [
+    {
+      id: 'presence-status',
+      method: 'GET',
+      path: '/presence-status',
+      title: 'Presence status',
+      description: 'Connection state and current area of aqw-idle-presence',
+      mutating: false,
+      run: async () => presenceCall('GET', '/status'),
+    },
+    {
+      id: 'login',
+      method: 'POST',
+      path: '/login',
+      title: 'Login',
+      description: 'Connects aqw-idle-presence to the game',
+      mutating: true,
+      run: async () => presenceCall('POST', '/login'),
+    },
+    {
+      id: 'logout',
+      method: 'POST',
+      path: '/logout',
+      title: 'Logout',
+      description: 'Logs aqw-idle-presence out and disconnects',
+      mutating: true,
+      run: async () => presenceCall('POST', '/logout'),
+    },
+  ],
 })
