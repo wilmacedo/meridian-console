@@ -156,3 +156,24 @@ export function clearAgentWidgets(): number {
   ids.forEach((id, i) => closeWidget(id, i * CLEAR_STAGGER_MS))
   return ids.length
 }
+
+export interface PersistedWidget {
+  def: WidgetDef
+  collapsed: boolean
+}
+
+export const snapshotDock = (): { rails: Record<RailId, string[]>; widgets: Record<string, PersistedWidget> } => {
+  const rails = {
+    L: dock.rails.L.filter((id) => !dock.widgets[id]?.closing),
+    R: dock.rails.R.filter((id) => !dock.widgets[id]?.closing),
+  }
+  const widgets: Record<string, PersistedWidget> = {}
+  for (const id of [...rails.L, ...rails.R]) widgets[id] = { def: $state.snapshot(dock.widgets[id].def) as WidgetDef, collapsed: dock.widgets[id].collapsed }
+  return { rails, widgets }
+}
+
+export function restoreDock(rails: Record<RailId, string[]>, widgets: Record<string, PersistedWidget>): void {
+  dock.widgets = Object.fromEntries(Object.entries(widgets).map(([id, w]) => [id, { id, def: w.def, collapsed: w.collapsed, closing: false, landed: false, exitHeight: 0, exitDx: 0 }]))
+  dock.rails = { L: rails.L.filter((id) => widgets[id]), R: rails.R.filter((id) => widgets[id]) }
+  nextId = Math.max(1, ...Object.keys(widgets).map((id) => Number(id.slice(1)) || 0))
+}

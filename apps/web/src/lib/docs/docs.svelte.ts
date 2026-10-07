@@ -25,4 +25,11 @@ export function openDoc(spec: DocSpec): void {
   }, BLOCK_INTERVAL_MS)
 }
 
+// A document that was already on screen when the workspace was saved shows whole, not streamed in again.
+export function restoreDoc(spec: DocSpec | null): void {
+  clearInterval(timer)
+  docs.current = spec
+  docs.shown = spec?.blocks.length ?? 0
+}
+
 if (import.meta.env.DEV) Object.assign(window, { noxDocs: { openDoc } })

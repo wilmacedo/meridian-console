@@ -14,6 +14,7 @@
   import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
   import { startStream } from './lib/live/stream.svelte'
+  import { deviceWorkspaceId, loadWorkspace, receiveWorkspace, startWorkspaceSync } from './lib/workspace/workspace-sync.svelte'
   import { activeVariant, applyTheme, darkVariant } from './lib/theme/theme.svelte'
 
   let settingsOpen = $state(false)
@@ -30,11 +31,20 @@
 
   onMount(() => {
     const stopClock = startClock()
-    const stopStream = startStream()
     finishBoot()
+    let stopStream: (() => void) | undefined
+    let stopSync: (() => void) | undefined
+    let stopped = false
+    void loadWorkspace(deviceWorkspaceId()).then((id) => {
+      if (stopped) return
+      stopSync = startWorkspaceSync()
+      stopStream = startStream(id, receiveWorkspace)
+    })
     return () => {
+      stopped = true
       stopClock()
-      stopStream()
+      stopSync?.()
+      stopStream?.()
     }
   })
 </script>

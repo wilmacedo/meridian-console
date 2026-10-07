@@ -1,4 +1,4 @@
-import type { ContainerInfo, HostInfo, MeridianEvent, ServiceSummary, StreamMessage, TelemetrySample } from '@meridian/service-sdk'
+import type { ClientMessage, ContainerInfo, HostInfo, MeridianEvent, ServiceSummary, StreamMessage, TelemetrySample } from '@meridian/service-sdk'
 
 // The events window keeps the 120 most recent.
 const EVENT_BUFFER = 120
@@ -39,7 +39,8 @@ function apply(message: StreamMessage): void {
   }
 }
 
-export function startStream(): () => void {
+// `onWorkspace` receives the state of the workspace this screen shows, on connect and when it changes.
+export function startStream(workspaceId: string, onWorkspace: (version: number, state: unknown) => void): () => void {
   let socket: WebSocket | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   let delay = RECONNECT_MIN_MS
@@ -51,8 +52,13 @@ export function startStream(): () => void {
     socket.onopen = () => {
       live.connected = true
       delay = RECONNECT_MIN_MS
+      socket?.send(JSON.stringify({ type: 'watch', workspace: workspaceId } satisfies ClientMessage))
     }
-    socket.onmessage = (e) => apply(JSON.parse(e.data as string) as StreamMessage)
+    socket.onmessage = (e) => {
+      const message = JSON.parse(e.data as string) as StreamMessage
+      if (message.type === 'workspace') onWorkspace(message.version, message.state)
+      else apply(message)
+    }
     socket.onclose = () => {
       live.connected = false
       if (stopped) return

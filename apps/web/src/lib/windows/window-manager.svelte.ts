@@ -180,3 +180,24 @@ export function openModule(id: ModuleId): void {
   if (id === 'core') closeAll()
   else open(id)
 }
+
+export interface PersistedWindow {
+  id: WindowId
+  z: number
+  frac: Frac
+  prev: Frac | null
+}
+
+// Puts back a saved layout; the windows play their open animation as they appear.
+export function restoreWindows(list: PersistedWindow[], custom: boolean, active: string): void {
+  wm.wins = list.map((w) => ({ ...w, closing: false }))
+  wm.custom = custom
+  wm.active = wm.wins.some((w) => w.id === active) ? active : (wm.wins.at(-1)?.id ?? 'core')
+  zTop = Math.max(10, ...list.map((w) => w.z))
+}
+
+export const snapshotWindows = (): { list: PersistedWindow[]; custom: boolean; active: string } => ({
+  list: live().map(({ id, z, frac, prev }) => ({ id, z, frac: { ...frac }, prev: prev && { ...prev } })),
+  custom: wm.custom,
+  active: wm.active,
+})
