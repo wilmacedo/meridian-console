@@ -759,8 +759,10 @@ Decided for the project; drawn from the design's own tokens, kept minimal.
   `Services`, lists every service with a check; unchecking one retires it from the Services window, the
   dock widget and the header count (the setting is stored with the workspace). It replaces the
   prototype's "edit nix.config.json" footnote mechanism.
-- **Voice input is feature-detected**: if a microphone is unavailable or not permitted the mic button
-  is shown as inert, and NOX remains reachable through the dev CLI (see architecture).
+- **Voice input is feature-detected**: if the page is not in a secure context (no HTTPS) or the browser has
+  no recorder, the mic button is dimmed and does nothing, and NOX remains reachable through the dev CLI
+  (see architecture). `Space`, the mic button and a click on the orb all start and stop listening, and
+  `Esc` drops a recording.
 
 ## Out of scope for now
 

@@ -283,6 +283,33 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   steady amplitude while speaking.
 - **Logging:** every UI command and request is written to the event stream under `nox`.
 
+### Voice, as built (phase 7)
+
+- **Output:** `voice/speaker.ts` cuts NOX's streaming text into sentences (`voice/sentences.ts`) and sends
+  each to ElevenLabs TTS as soon as it is complete (`eleven_flash_v2_5`, Portuguese pinned, mp3 64 kbps).
+  The mp3s go, in order, as `speech` messages (base64) over `/api/stream` to the newest screen of the
+  workspace that is talking; nothing is spoken when no screen is showing it. The key never leaves the server.
+  The screen decodes and chains the sentences with Web Audio and drives the orb from an `AnalyserNode` on
+  what is actually playing (`agent.amplitude`). The agent mode follows reality: `thinking` until the first
+  audio is ready, `speaking` while it plays, `idle` when the screen reports (`speech_done`) it finished, or
+  after 90 s.
+- **Input:** tap the mic button, `Space` or the orb (tap again to send now, `Esc` to drop it); a pause of
+  1.3 s after speech sends it by itself, and 7 s of silence or 30 s of talking ends it. The browser's
+  `MediaRecorder` clip goes to `POST /api/voice/ask`, which transcribes it with ElevenLabs Scribe
+  (`scribe_v2`, Portuguese) and answers like `/api/nox/say`; the first line of the stream is
+  `{type:'heard', text}`. Scribe is given the service names as `keyterms`, because without them it hears
+  "aqw-idle" as "Aquedol". Talking while NOX speaks interrupts it. Needs a secure context
+  (`docs/https.md`); without one the mic button is shown inert.
+- **Audio autoplay:** browsers play audio only after a gesture, so the first click or key on the page
+  unlocks the audio context; speech that arrives earlier waits for it.
+- **Cost:** TTS bills per character; every spoken turn logs `voice: N of LIMIT characters used this period`
+  to the event stream under `nox`. The free plan's 10,000 characters is only a few dozen answers.
+- **Configuration:** `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` turn voice on; `ELEVENLABS_MODEL` and
+  `ELEVENLABS_STT_MODEL` override the models. Without them the server runs text-only.
+- **Measured:** from the end of a spoken request to the first sound, roughly 7 s with two tool calls
+  (VAD wait 1.3 s, upload and transcription ~2 s, NOX ~3 s, TTS ~1 s); a text request with one tool call
+  takes about 2.7 s. Realtime transcription and a shorter silence window are the next levers.
+
 ### Shape
 
 - **One global NOX session** (not per workspace), a long-lived headless process run by the server and
