@@ -142,11 +142,13 @@ export async function switchWorkspace(target: string): Promise<void> {
   location.assign(target === DEFAULT_ID ? location.pathname : `${location.pathname}?workspace=${encodeURIComponent(target)}`)
 }
 
-// A new empty workspace, named by number (there is no text input in the UI), and straight onto it.
-export async function createWorkspace(): Promise<void> {
-  const name = `Workspace ${(await listWorkspaces()).length + 1}`
-  const res = await fetch('/api/workspaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
-  if (res.ok) await switchWorkspace(((await res.json()) as Workspace).id)
+// A new workspace with the name given, and straight onto it. Returns what is wrong when it could not be made.
+export async function createWorkspace(name: string): Promise<string | undefined> {
+  const res = await fetch('/api/workspaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim() }) })
+  if (res.status === 409) return 'ALREADY EXISTS'
+  if (!res.ok) return 'COULD NOT CREATE'
+  await switchWorkspace(((await res.json()) as Workspace).id)
+  return undefined
 }
 
 // Watches every part of the workspace and sends it to the server whenever it changes.

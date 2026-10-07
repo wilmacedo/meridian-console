@@ -4,6 +4,8 @@ import { closeActive, openModule } from '../windows/window-manager.svelte'
 
 // Esc closes an open overlay (settings menu, pending pin) before it closes a window.
 export function handleShortcut(e: KeyboardEvent, closeOverlay: () => boolean): void {
+  // Typing in a field is not a shortcut (a space or a digit in a name); only Esc still gets out.
+  if (e.key !== 'Escape' && (e.target as Element | null)?.closest?.('input, textarea')) return
   if (e.key === ' ') {
     e.preventDefault()
     void toggleListening()

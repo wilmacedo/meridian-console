@@ -39,4 +39,4 @@ Read [`docs/conventions.md`](docs/conventions.md) for the full detail behind the
   is the spec to follow; never port the prototype's inline-style/runtime scaffolding directly. The
   prototype's assistant is called NIX; in this project it is **NOX**.
 - Don't port the prototype's dead state (subtitles: `hasSub`/`subText`; text input: `showInput`);
-  the UI has neither subtitles nor a text input.
+  the UI has neither subtitles nor a text input to talk to NOX (the one field is the name of a new workspace).

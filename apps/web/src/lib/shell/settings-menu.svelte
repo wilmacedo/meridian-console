@@ -5,11 +5,9 @@
   import { hasLightVariant, theme } from '../theme/theme.svelte'
   import { MODULES } from '../modules'
   import { close } from '../windows/window-manager.svelte'
-  import type { WorkspaceSummary } from '@meridian/service-sdk'
   import { layout } from '../workspace/layout.svelte'
   import { LAYOUT_MODES, type LayoutMode } from '../workspace/layout-mode'
   import { isHidden, isModuleHidden, toggleHidden, toggleModuleHidden } from '../workspace/prefs.svelte'
-  import { createWorkspace, listWorkspaces, switchWorkspace, workspaceId } from '../workspace/workspace-sync.svelte'
 
   let { open = $bindable(false) }: { open: boolean } = $props()
 
@@ -20,11 +18,6 @@
     { id: 'low', label: 'Low' },
   ]
   const layoutLabels: Record<LayoutMode, string> = { auto: 'Auto · by screen shape', side: 'Side rails', stacked: 'Top and bottom' }
-  let workspaces = $state<WorkspaceSummary[]>([])
-  // The list is read each time the menu opens, so a workspace made on another screen shows up.
-  $effect(() => {
-    if (open) void listWorkspaces().then((list) => (workspaces = list))
-  })
   const modeLocked = $derived(!hasLightVariant(theme.palette))
 </script>
 
@@ -55,17 +48,6 @@
             <i class="dot"></i>{PALETTE_LABELS[p]}
           </button>
         {/each}
-      </div>
-      <div class="group">
-        <span class="title">WORKSPACE</span>
-        {#each workspaces as w (w.id)}
-          <button role="menuitemradio" aria-checked={w.id === workspaceId()} class:on={w.id === workspaceId()} onclick={() => w.id !== workspaceId() && void switchWorkspace(w.id)}>
-            <i class="dot"></i>{w.name}
-          </button>
-        {/each}
-        <button role="menuitem" onclick={() => void createWorkspace()}>
-          <i class="dot plus"></i>New workspace
-        </button>
       </div>
       <div class="group">
         <span class="title">LAYOUT</span>
@@ -198,17 +180,6 @@
     height: 5px;
     border: 1px solid rgba(var(--nx-ac), 0.7);
     transform: rotate(45deg);
-  }
-  .dot.plus {
-    width: auto;
-    height: auto;
-    border: none;
-    transform: none;
-    font-size: 12px;
-    line-height: 5px;
-  }
-  .dot.plus::before {
-    content: '+';
   }
   .on .dot {
     background: rgb(var(--nx-ac));

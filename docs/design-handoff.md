@@ -44,7 +44,8 @@ styles only). Treat all of that as scaffolding:
 - Subtitles: `hasSub`, `subText`, `subKey`, `subSize`, `subTop`/`subBottom`, the `subtitle()` chunker,
   `nixLine`/`nixShown`/`userLine`. There is **no transcript on screen**.
 - Text input: `showInput`, `input`, `inputRef`, `onInput`, `onKey`, `submit`, `toggleInput`. There is
-  **no text input in the UI**.
+  **no text input in the UI** for talking to NOX; the one field there is names a new workspace (see the
+  workspace menu).
 - Leftovers of the earlier single-panel design: `panelOpen`, `panelKey`, `panelW`, `panelFootL`,
   `panel`, `goHome`, `pinCurrent`, `isDoc`/`isServices`/… at top level.
 - Widget types `summary` and `table` (`statusSummary()`, `containerTable()`): defined but never
@@ -782,15 +783,22 @@ widget docked, service action run) is also written to the event stream under sou
 
 Decided for the project; drawn from the design's own tokens, kept minimal.
 
+- **Workspace menu**: a `+` button just left of the settings icon (same 28px square) opens a dropdown
+  with the workspaces by name (the current one marked) and `+ New workspace`. Picking one saves the
+  current workspace and loads the page at that workspace's address. `New workspace` turns into a name
+  field with a `CREATE` button (Enter also creates): a name that already exists, ignoring case, is
+  refused inline (`ALREADY EXISTS`, button disabled; the server refuses it too, and a name that would make
+  the id of another one). A new workspace starts with the **default workspace's theme** (Meridian
+  palette, mode by clock unless the default was changed) and nothing else. The tab's address decides the
+  workspace: `?workspace=<id>`, and the default one when there is none; nothing is remembered between
+  tabs. Typing in the field does not trigger the keyboard shortcuts (space, 1-9); Esc closes the menu.
 - **Settings dropdown**: a small icon in the header opens a dropdown with mode (`Auto by clock` /
   `Light` / `Dark`) and palette (`Mono` / `Blue` / `Meridian`). With Blue selected the mode choice is
   disabled (Blue has a single, dark variant). The stored theme is per workspace. A third group,
   `Services`, lists every service with a check; unchecking one retires it from the Services window, the
   dock widget and the header count (the setting is stored with the workspace). It replaces the
   prototype's "edit nix.config.json" footnote mechanism. Three more groups follow the same pattern:
-  `Workspace` (the workspaces, one marked; picking another saves the current one and reloads the page
-  onto it, and `+ New workspace` makes "Workspace N" and goes there, because the UI has no text input;
-  the choice is a device preference), `Orb` (`High` / `Low`, a device preference: Low draws half the
+  `Layout` (`Auto` / `Side rails` / `Top and bottom`, stored with the workspace), `Orb` (`High` / `Low`, a device preference: Low draws half the
   strands, drops the wide glow and renders at 1x, for the tablet and the Echo Show tiers) and `Dock`
   (Services, Telemetry, Events and Cameras can each be taken off the dock, stored with the workspace;
   Core stays; hiding one closes its window and the 1-9 shortcuts count what is left).

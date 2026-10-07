@@ -13,6 +13,7 @@
   import Header from './lib/shell/header.svelte'
   import { handleShortcut } from './lib/shell/keyboard'
   import SettingsMenu from './lib/shell/settings-menu.svelte'
+  import WorkspaceMenu from './lib/shell/workspace-menu.svelte'
   import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
   import { sendToServer, startStream } from './lib/live/stream.svelte'
@@ -23,10 +24,12 @@
   import { activeVariant, applyTheme, darkVariant } from './lib/theme/theme.svelte'
 
   let settingsOpen = $state(false)
+  let workspacesOpen = $state(false)
 
   function closeOverlay(): boolean {
-    if (settingsOpen) {
+    if (settingsOpen || workspacesOpen) {
       settingsOpen = false
+      workspacesOpen = false
       return true
     }
     return denyApproval() || cancelListening() || cancelPending()
@@ -76,6 +79,7 @@
   <Rail rail="R" />
   <BottomDock />
   <SettingsMenu bind:open={settingsOpen} />
+  <WorkspaceMenu bind:open={workspacesOpen} />
   <ApprovalCard />
   <DragGhost />
 </div>
