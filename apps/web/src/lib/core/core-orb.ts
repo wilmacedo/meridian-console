@@ -45,6 +45,12 @@ const THINK_RGB = '255,205,80'
 const DPR_CAP = 1.75
 const BOOT_DELAY_MS = 150
 const BOOT_RISE_MS = 2600
+// While windows cover it the orb is blurred and darkened, so 15fps is invisible; every redraw would also force the
+// windows' backdrop blur and the canvas filter to be recomputed.
+const DIMMED_FRAME_MS = 1000 / 15
+// Receded, the orb is drawn at this fraction of the resolution and the browser's upscale does the blurring, which
+// is far cheaper than a CSS blur filter over a full-viewport canvas that changes every frame.
+const DIMMED_SCALE = 0.3
 
 const ENERGY_TARGET: Record<AgentMode, number> = { speaking: 0.6, thinking: 0.9, listening: 0.45, boot: 0.5, idle: 0.15 }
 
@@ -165,7 +171,8 @@ export class CoreOrb {
   private frame(now: number): void {
     const c = this.canvas
     const input = this.inputs()
-    const dpr = input.lowQuality ? 1 : Math.min(window.devicePixelRatio || 1, DPR_CAP)
+    if (input.dimmed && now - this.last < DIMMED_FRAME_MS - 2) return
+    const dpr = input.dimmed ? DIMMED_SCALE : input.lowQuality ? 1 : Math.min(window.devicePixelRatio || 1, DPR_CAP)
     const w = c.clientWidth
     const h = c.clientHeight
     if (!w || !h) return

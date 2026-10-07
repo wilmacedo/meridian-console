@@ -14,7 +14,7 @@
   const dimmed = $derived(wm.active !== 'core')
   const filter = $derived.by(() => {
     const invert = isLight() ? 'invert(1) hue-rotate(180deg)' : ''
-    const recede = dimmed ? (isLight() ? 'blur(6px) opacity(.45)' : 'blur(6px) brightness(.55) saturate(1.2)') : ''
+    const recede = dimmed ? (isLight() ? 'opacity(.45)' : 'brightness(.55) saturate(1.2)') : ''
     return `${invert} ${recede}`.trim() || 'none'
   })
 
