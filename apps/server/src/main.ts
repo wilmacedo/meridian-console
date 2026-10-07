@@ -78,7 +78,9 @@ else app.log.info('no web build found (pnpm build); the Vite dev server serves t
 // allowed to take the whole server, and every screen with it, down.
 process.on('unhandledRejection', (reason) => app.log.error(reason, 'unhandled rejection'))
 
-app.listen({ port, host: '0.0.0.0' }).catch((err) => {
+// Loopback only: NOX has a shell on this machine and Meridian has no login, so the only way in from another
+// device is `tailscale serve` (docs/https.md), which reaches this port from the machine itself.
+app.listen({ port, host: '127.0.0.1' }).catch((err) => {
   app.log.error(err)
   process.exit(1)
 })

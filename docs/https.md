@@ -1,8 +1,9 @@
-# HTTPS on the LAN
+# HTTPS on the tailnet
 
 Browsers expose the microphone only in a **secure context**: `https://…`, or `http://localhost`. Voice
 needs the mic, so a screen on another machine must reach Meridian over HTTPS. Meridian uses Tailscale for
-that: it already is the network boundary (no auth, see `architecture.md`), and `tailscale serve` gives the
+that: it already is the network boundary (no auth, see `architecture.md`; the server listens on
+127.0.0.1 only, so this is the **only** way in from another device), and `tailscale serve` gives the
 host a real certificate and a name like `https://<machine>.<tailnet>.ts.net`, with no certificate to
 generate or install on any device.
 

@@ -452,9 +452,13 @@ point voice will use.
 
 ## Security
 
-There is **no auth**. Meridian is reachable only on the owner's LAN through Tailscale; that network is
-the boundary, including for NOX's SSH reach. Auth is designed only when Meridian is exposed beyond it.
-Because NOX can act on other machines, it runs with allow rules, UI approvals and full logging.
+There is **no auth**, so the boundary is who can reach the port. The server (and the Vite dev server) listen
+on **127.0.0.1 only**: NOX has a shell and file tools on this machine, and anything that can call
+`/api/nox/say` can drive it, so nothing on the LAN may reach the port directly. The way in from another
+device is `tailscale serve`, which connects from this machine, and only devices on the owner's tailnet can
+reach that. Auth is designed only if Meridian is ever exposed beyond that. Because NOX can act on this
+machine and others, it runs with the auto mode classifier, UI approvals for what changes services, and full
+logging.
 
 ## Known risks
 

@@ -10,7 +10,7 @@ the API, so there is one process, one origin and one `tailscale serve`.
 pnpm start        # builds apps/web, then starts the server on :4000 (PORT overrides it)
 ```
 
-Open `http://<host>:4000`. If there is no build the server says so in its log and only the API is served;
+Open `http://localhost:4000` on this machine. The server listens on 127.0.0.1 only (NOX has a shell here and Meridian has no login), so other devices come in through `tailscale serve` (below). If there is no build the server says so in its log and only the API is served;
 `MERIDIAN_WEB_DIST` points it at a build somewhere else. The page is always revalidated and the hashed
 assets are cached for good, so a new build shows up on the next load.
 
