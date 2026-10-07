@@ -3,6 +3,7 @@
   import { eventsFor } from '../live/events-view.svelte'
   import { clockTime, LEVEL_COLOR } from '../live/format'
   import { live } from '../live/stream.svelte'
+  import { visibleServices } from '../workspace/prefs.svelte'
   import Sparkline from '../module-windows/sparkline.svelte'
   import { contributedWidget } from '../services/service-ui'
   import type { WidgetDef } from './widgets'
@@ -16,7 +17,7 @@
   <DocBlocks blocks={def.blocks} compact />
 {:else if def.type === 'services'}
   <div class="svcs">
-    {#each live.services as s (s.id)}
+    {#each visibleServices() as s (s.id)}
       {@const [label, color] = STATUS[s.status.state]}
       <div class="svc">
         <span class="dot" style:background={color} style:box-shadow="0 0 6px {color}"></span>

@@ -5,6 +5,7 @@
   import { uptime } from '../live/format'
   import { windowsOf } from '../services/service-ui'
   import { live } from '../live/stream.svelte'
+  import { visibleServices } from '../workspace/prefs.svelte'
   import { open, openModule } from '../windows/window-manager.svelte'
 
   const STATUS: Record<ServiceState, { label: string; color: string }> = {
@@ -34,7 +35,7 @@
 </script>
 
 <div class="grid">
-  {#each live.services as s, i (s.id)}
+  {#each visibleServices() as s, i (s.id)}
     {@const st = STATUS[s.status.state]}
     <div class="card glass-card" class:offline={s.status.state === 'offline'} style:animation-delay="{0.16 + i * 0.06}s">
       <div class="head">

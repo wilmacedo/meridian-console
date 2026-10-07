@@ -1,10 +1,11 @@
 <script lang="ts">
   import { clock } from '../clock.svelte'
   import { live } from '../live/stream.svelte'
+  import { visibleServices } from '../workspace/prefs.svelte'
 
   const pad = (n: number): string => String(n).padStart(2, '0')
   const time = $derived(`${pad(clock.now.getHours())}:${pad(clock.now.getMinutes())}:${pad(clock.now.getSeconds())}`)
-  const online = $derived(live.services.filter((s) => s.status.state === 'online').length)
+  const online = $derived(visibleServices().filter((s) => s.status.state === 'online').length)
 </script>
 
 <header>
@@ -12,7 +13,7 @@
   <span class="sep"></span>
   <span>{live.host.name.toUpperCase()}</span>
   <span class="sep"></span>
-  <span>SVC {online}/{live.services.length}</span>
+  <span>SVC {online}/{visibleServices().length}</span>
   <span class="sep"></span>
   <span class="clock">{time}</span>
 </header>

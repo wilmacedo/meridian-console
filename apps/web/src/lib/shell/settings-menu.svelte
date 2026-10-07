@@ -1,6 +1,8 @@
 <script lang="ts">
   import { MODE_LABELS, PALETTE_LABELS, type PaletteId, type ThemeMode } from '../theme/palettes'
+  import { live } from '../live/stream.svelte'
   import { hasLightVariant, theme } from '../theme/theme.svelte'
+  import { isHidden, toggleHidden } from '../workspace/prefs.svelte'
 
   let { open = $bindable(false) }: { open: boolean } = $props()
 
@@ -37,6 +39,16 @@
           </button>
         {/each}
       </div>
+      {#if live.services.length}
+        <div class="group">
+          <span class="title">SERVICES</span>
+          {#each live.services as svc (svc.id)}
+            <button role="menuitemcheckbox" aria-checked={!isHidden(svc.id)} class:on={!isHidden(svc.id)} onclick={() => toggleHidden(svc.id)}>
+              <i class="dot"></i>{svc.name}
+            </button>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -70,6 +82,8 @@
     top: 36px;
     right: 0;
     width: 190px;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
     padding: 10px;
     display: flex;
     flex-direction: column;
