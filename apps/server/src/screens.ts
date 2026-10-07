@@ -3,11 +3,15 @@ import type { AgentMode, DocSpec, ScreenCommand, StreamMessage } from '@meridian
 interface Screen {
   send: (message: StreamMessage) => void
   workspace?: string
+  // The id the tab gave itself, so a request made there can be answered there.
+  client?: string
   // When it started showing that workspace; the newest screen of a workspace runs its commands.
   since: number
 }
 
 let nextId = 1
+// Orders screens by when they started showing their workspace; a clock can tie, a counter cannot.
+let watchOrder = 0
 const MAX_KEPT_DOCS = 50
 
 // The screens connected right now, and which workspace each shows. NOX acts on a workspace by
@@ -16,6 +20,8 @@ export class ScreenRegistry {
   private screens = new Map<number, Screen>()
   private mode: AgentMode = 'idle'
   private docs = new Map<string, DocSpec>()
+  // Where a live document first appeared: its updates follow it there.
+  private docHome = new Map<string, string>()
 
   add(send: (message: StreamMessage) => void): number {
     const key = nextId++
@@ -28,9 +34,9 @@ export class ScreenRegistry {
     this.screens.delete(key)
   }
 
-  watch(key: number, workspace: string): void {
+  watch(key: number, workspace: string, client?: string): void {
     const screen = this.screens.get(key)
-    if (screen) Object.assign(screen, { workspace, since: Date.now() })
+    if (screen) Object.assign(screen, { workspace, client, since: ++watchOrder })
   }
 
   // How many screens show each workspace.
@@ -40,10 +46,15 @@ export class ScreenRegistry {
     return counts
   }
 
-  // Sends to the newest screen of the workspace (the one that spoke, in practice). Returns false when
-  // none is showing it.
-  sendTo(workspace: string, message: StreamMessage): boolean {
-    const target = [...this.screens.values()].filter((s) => s.workspace === workspace).sort((a, b) => b.since - a.since)[0]
+  private pick(workspace: string, preferred?: string): Screen | undefined {
+    const shown = [...this.screens.values()].filter((s) => s.workspace === workspace)
+    return shown.find((s) => preferred !== undefined && s.client === preferred) ?? shown.sort((a, b) => b.since - a.since)[0]
+  }
+
+  // Sends to the screen that asked (`preferred`, the id it gave itself), or failing that the newest screen
+  // of the workspace. Returns false when none is showing it.
+  sendTo(workspace: string, message: StreamMessage, preferred?: string): boolean {
+    const target = this.pick(workspace, preferred)
     target?.send(message)
     return target !== undefined
   }
@@ -60,13 +71,23 @@ export class ScreenRegistry {
     return this.docs.get(id)
   }
 
-  dispatch(workspace: string, command: ScreenCommand): boolean {
+  dispatch(workspace: string, command: ScreenCommand, preferred?: string): boolean {
+    let target = preferred
     if (command.name === 'compose_doc' && command.doc.id) {
-      this.docs.delete(command.doc.id)
-      this.docs.set(command.doc.id, command.doc)
-      if (this.docs.size > MAX_KEPT_DOCS) this.docs.delete(this.docs.keys().next().value!)
+      const id = command.doc.id
+      this.docs.delete(id)
+      this.docs.set(id, command.doc)
+      if (this.docs.size > MAX_KEPT_DOCS) {
+        const oldest = this.docs.keys().next().value!
+        this.docs.delete(oldest)
+        this.docHome.delete(oldest)
+      }
+      // A live document stays on the screen it appeared on, so its updates are not split across tabs.
+      const home = this.docHome.get(id)
+      if (home !== undefined && this.pick(workspace, home)?.client === home) target = home
+      else if (target !== undefined) this.docHome.set(id, target)
     }
-    return this.sendTo(workspace, { type: 'command', command })
+    return this.sendTo(workspace, { type: 'command', command }, target)
   }
 
   setAgentMode(mode: AgentMode): void {

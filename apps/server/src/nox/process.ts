@@ -107,7 +107,7 @@ const TURN_TIMEOUT_MS = 120_000
 
 interface Hooks {
   // Called with the workspace a turn is for, so tools default to it.
-  setWorkspace: (id: string) => void
+  setTurn: (workspace: string, screen: string | undefined) => void
   log: (message: string) => void
 }
 
@@ -165,13 +165,13 @@ export class Nox {
   }
 
   // Answers one request, streaming what NOX says. Requests are served one at a time.
-  async *say(text: string, workspace: string): AsyncGenerator<NoxEvent> {
+  async *say(text: string, workspace: string, screen?: string): AsyncGenerator<NoxEvent> {
     const previous = this.tail
     let release!: () => void
     this.tail = new Promise<void>((resolve) => (release = resolve))
     await previous
     try {
-      this.hooks.setWorkspace(workspace)
+      this.hooks.setTurn(workspace, screen)
       const child = (this.child ??= this.spawnProcess())
 
       const pending: NoxEvent[] = []

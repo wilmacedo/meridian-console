@@ -290,8 +290,10 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   `service_<id>_<action>` per service action. Read-only ones run at once; ones marked `mutating` wait for the
   confirmation card (see below) and do nothing if the owner declines, whatever the permission mode.
 - **Acting on a screen:** the server tracks which workspace each connected screen shows
-  (`ScreenRegistry`). A UI tool sends a `command` message over `/api/stream` to the **newest screen of the
-  workspace** (the workspace of whoever is talking, unless the tool names another); that screen runs it
+  (`ScreenRegistry`). A UI tool sends a `command` message over `/api/stream` to **the screen that made the
+  request** (every tab gives itself an id, sent with `watch` and with the voice request; with no id, as from
+  the dev CLI, or when that tab is gone, it falls back to the newest screen of the workspace). The workspace
+  is the one being talked in, unless the tool names another; that screen runs it
   with its own window manager and dock, and the resulting layout reaches the other screens through the
   workspace like any manual change. With no screen showing the workspace the tool fails and NOX says so.
   `pin_widget` only starts the pin: the pin card appears and the owner drops it on a rail.
@@ -344,7 +346,8 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   `/mcp/gate/<workspace>`, so its cards go to the workspace that asked. At most 2 run at once, 15 minutes
   each, and they use the owner's Claude subscription like any turn. A worker that fails, times out or is
   stopped (`stop_task`) replaces its document with the reason; one that finishes wrote its own outcome.
-  Tasks live in memory: a server restart ends them. NOX does not announce a finished task by itself.
+  A task's document appears on the tab that asked for it and its updates stay there (a live document
+  stays on the screen it first appeared on). Tasks live in memory: a server restart ends them. NOX does not announce a finished task by itself.
 
 ### Link state, as built (phase 9)
 
@@ -360,8 +363,8 @@ freezing the server process. Cards on screen are cleared when the link drops.
 
 - **Output:** `voice/speaker.ts` cuts NOX's streaming text into sentences (`voice/sentences.ts`) and sends
   each to ElevenLabs TTS as soon as it is complete (`eleven_flash_v2_5`, Portuguese pinned, mp3 64 kbps).
-  The mp3s go, in order, as `speech` messages (base64) over `/api/stream` to the newest screen of the
-  workspace that is talking; nothing is spoken when no screen is showing it. The key never leaves the server.
+  The mp3s go, in order, as `speech` messages (base64) over `/api/stream` to the screen that made the
+  request (the newest of its workspace when it can't be told); nothing is spoken when no screen is showing it. The key never leaves the server.
   The screen decodes and chains the sentences with Web Audio and drives the orb from an `AnalyserNode` on
   what is actually playing (`agent.amplitude`). The agent mode follows reality: `thinking` until the first
   audio is ready, `speaking` while it plays, `idle` when the screen reports (`speech_done`) it finished, or

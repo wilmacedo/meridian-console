@@ -1,6 +1,6 @@
 import { agent, kick } from '../agent/agent-state.svelte'
 import { workspaceId } from '../workspace/workspace-sync.svelte'
-import { live, sendToServer } from '../live/stream.svelte'
+import { live, screenId, sendToServer } from '../live/stream.svelte'
 import { audioContext, interruptPlayback } from './voice-player.svelte'
 
 export const mic = $state({ phase: 'idle' as 'idle' | 'recording' | 'sending' })
@@ -48,7 +48,7 @@ async function ask(blob: Blob): Promise<void> {
   agent.mode = 'thinking'
   const controller = (asking = new AbortController())
   try {
-    const res = await fetch(`/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}`, {
+    const res = await fetch(`/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}`, {
       method: 'POST',
       headers: { 'Content-Type': blob.type.split(';')[0] },
       body: blob,

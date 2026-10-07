@@ -106,7 +106,8 @@ export type StreamMessage =
 
 // Messages a client sends on the same socket.
 export type ClientMessage =
-  | { type: 'watch'; workspace: string }
+  // `screen` names this tab, so what NOX says and does for a request made here is shown here.
+  | { type: 'watch'; workspace: string; screen?: string }
   // The screen finished playing a turn's speech.
   | { type: 'speech_done'; turn: number }
   | { type: 'approval_answer'; id: string; allow: boolean }

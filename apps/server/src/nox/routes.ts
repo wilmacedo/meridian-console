@@ -45,7 +45,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     playbackDone(active.turn)
   }
 
-  async function answer(text: string, workspace: string, reply: FastifyReply, heardLine?: string): Promise<void> {
+  async function answer(text: string, workspace: string, reply: FastifyReply, heardLine?: string, screen?: string): Promise<void> {
     bus.emit('nox', 'info', `request: ${text.slice(0, 120)}`)
     reply.hijack()
     reply.raw.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' })
@@ -58,7 +58,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     const speaker =
       voice && (screens.counts()[workspace] ?? 0) > 0
         ? new TurnSpeaker(voice, turn, {
-            send: (message) => screens.sendTo(workspace, message),
+            send: (message) => screens.sendTo(workspace, message, screen),
             onFirstAudio: () => {
               spoke = true
               screens.setAgentMode('speaking')
@@ -73,7 +73,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     let typing = false
     let saidSomething = false
     try {
-      for await (const event of nox.say(text, workspace)) {
+      for await (const event of nox.say(text, workspace, screen)) {
         if (event.type === 'text') {
           saidSomething = true
           if (speaker) speaker.push(event.text)
@@ -118,16 +118,16 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
   }
 
   // Text in: the dev CLI.
-  app.post<{ Body: { text: string; workspace?: string } }>(
+  app.post<{ Body: { text: string; workspace?: string; screen?: string } }>(
     '/api/nox/say',
-    { schema: { body: { type: 'object', required: ['text'], properties: { text: { type: 'string', minLength: 1, maxLength: MAX_UTTERANCE }, workspace: { type: 'string' } } } } },
-    async (request, reply) => answer(request.body.text, request.body.workspace ?? 'default', reply),
+    { schema: { body: { type: 'object', required: ['text'], properties: { text: { type: 'string', minLength: 1, maxLength: MAX_UTTERANCE }, workspace: { type: 'string' }, screen: { type: 'string' } } } } },
+    async (request, reply) => answer(request.body.text, request.body.workspace ?? 'default', reply, undefined, request.body.screen),
   )
 
   // A recording in: transcribed first, with the service names as hints, then answered like any other
   // request. The first line of the stream tells the caller what was heard.
   app.addContentTypeParser(/^audio\/.*/, { parseAs: 'buffer', bodyLimit: MAX_AUDIO_BYTES }, (_request, body, done) => done(null, body))
-  app.post<{ Querystring: { workspace?: string } }>('/api/voice/ask', async (request, reply) => {
+  app.post<{ Querystring: { workspace?: string; screen?: string } }>('/api/voice/ask', async (request, reply) => {
     const voice = voiceConfig()
     if (!voice) return reply.code(503).send({ error: 'voice is not configured (ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID)' })
     const audio = request.body as Buffer
@@ -152,7 +152,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
       if (allow !== undefined) approvals.answerLatest(workspace, allow)
       return reply.send({ heard, answeredCard: allow !== undefined })
     }
-    return answer(heard, workspace, reply, heard)
+    return answer(heard, workspace, reply, heard, request.query.screen)
   })
 
   return { interrupt }

@@ -16,7 +16,10 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   const screens = new ScreenRegistry()
   const workspaces = new WorkspaceStore(new DatabaseSync(':memory:'))
   const sent: StreamMessage[] = []
-  screens.watch(screens.add((m) => sent.push(m)), 'default')
+  const others: StreamMessage[] = []
+  screens.watch(screens.add((m) => sent.push(m)), 'default', 'tab-a')
+  // Newer than the tab that is talking: the one a command used to go to.
+  screens.watch(screens.add((m) => others.push(m)), 'default', 'tab-b')
   const ran: string[] = []
   const asked: unknown[][] = []
   const started: unknown[][] = []
@@ -32,14 +35,14 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   } as unknown as Registry
   const existingContainers = ['baixa-baixa-1']
   const telemetry = { samples: () => [{ cpu: 23.4, mem: 4.2, temp: 55, net: 0 }], containers: () => [], memTotalGb: 15.3 } as unknown as HostTelemetry
-  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const }), stop: (id: string) => id === 't1', list: () => [] }, containers: async () => existingContainers.map((name) => ({ name, image: 'img', state: 'running', status: 'Up', ports: [] })), docker: { inspect: async (name: string) => (existingContainers.includes(name) ? { state: 'running', startedAt: '', image: 'img' } : undefined) }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default' })
+  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const }), stop: (id: string) => id === 't1', list: () => [] }, containers: async () => existingContainers.map((name) => ({ name, image: 'img', state: 'running', status: 'Up', ports: [] })), docker: { inspect: async (name: string) => (existingContainers.includes(name) ? { state: 'running', startedAt: '', image: 'img' } : undefined) }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default', currentScreen: () => 'tab-a' })
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const tool = tools.find((t) => t.name === name)
     if (!tool) throw new Error(`no tool ${name}`)
     return tool.handler(args)
   }
   const commands = () => sent.filter((m) => m.type === 'command').map((m) => (m as { command: unknown }).command)
-  return { call, commands, bus, ran, tools, asked, started, managedSpecs }
+  return { call, commands, bus, ran, tools, asked, started, managedSpecs, others }
 }
 
 describe('NOX tools', () => {
@@ -54,6 +57,13 @@ describe('NOX tools', () => {
       { name: 'open_window', window: 'aqw-idle:console' },
     ])
     expect(bus.recent().every((e) => e.source === 'nox')).toBe(true)
+  })
+
+  it('shows what it does on the tab that asked, not the newest one', async () => {
+    const { call, commands, others } = setup()
+    await call('open_window', { window: 'telemetry' })
+    expect(commands()).toEqual([{ name: 'open_window', window: 'telemetry' }])
+    expect(others.filter((m) => m.type === 'command')).toEqual([])
   })
 
   it('rejects an unknown window and an unknown workspace', async () => {
@@ -82,7 +92,7 @@ describe('NOX tools', () => {
 
   it('lists workspaces with the screens showing them', async () => {
     const { call } = setup()
-    expect(JSON.parse(await call('list_workspaces'))).toEqual([{ id: 'default', name: 'Default', screens: 1 }])
+    expect(JSON.parse(await call('list_workspaces'))).toEqual([{ id: 'default', name: 'Default', screens: 2 }])
   })
 
   it('filters events and limits them', async () => {
@@ -125,7 +135,7 @@ describe('NOX tools', () => {
   it('starts a background task on the current workspace and stops it by id', async () => {
     const { call, started } = setup()
     expect(await call('start_task', { title: 'Disk audit', goal: 'Check the disks on both machines' })).toContain('task-t1')
-    expect(started).toEqual([['default', 'Disk audit', 'Check the disks on both machines']])
+    expect(started).toEqual([['default', 'Disk audit', 'Check the disks on both machines', 'tab-a']])
     await expect(call('start_task', { title: 'No goal' })).rejects.toThrow('give a title and a goal')
     expect(await call('stop_task', { id: 't1' })).toBe('Stopped.')
     expect(await call('stop_task', { id: 'nope' })).toBe('No such running task.')

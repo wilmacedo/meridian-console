@@ -47,7 +47,9 @@ app.get<{ Params: { id: string } }>('/api/docs/:id', async (request, reply) => s
 // NOX: its tools are served as an MCP server on this same process, and it answers whoever asks over
 // /api/nox/say. While it answers, its tools act on the workspace of the screen that asked.
 let turnWorkspace = 'default'
-registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, hostName, currentWorkspace: () => turnWorkspace })))
+// The tab that spoke: what NOX shows and says for the request goes to it, not to whichever tab is newest.
+let turnScreen: string | undefined
+registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, hostName, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen })))
 // Claude Code asks this server before anything its classifier doesn't settle. It is a separate MCP
 // server so that NOX, who only gets the Meridian one, can never approve its own actions. NOX's turns
 // ask on the workspace being answered; a background task has its own URL naming the workspace it serves.
@@ -64,7 +66,7 @@ registerMcp(app, '/mcp/gate', gate(() => turnWorkspace, 'turn'))
 registerMcp(app, '/mcp/gate/:workspace', (params) => gate(() => params.workspace, 'task'))
 const nox = new Nox(
   { port },
-  { setWorkspace: (id) => (turnWorkspace = id), log: (message) => app.log.info(message) },
+  { setTurn: (workspace, screen) => ((turnWorkspace = workspace), (turnScreen = screen)), log: (message) => app.log.info(message) },
 )
 const noxRoutes = registerNox(app, { nox, bus, screens, registry, approvals })
 app.addHook('onClose', async () => nox.stop())

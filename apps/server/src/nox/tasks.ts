@@ -15,6 +15,8 @@ export interface Task {
   id: string
   title: string
   workspace: string
+  // The tab that asked for it, where its document appears.
+  screen?: string
   state: 'running' | 'done' | 'failed' | 'stopped'
 }
 
@@ -76,9 +78,9 @@ export class Tasks {
     return () => this.listeners.delete(listener)
   }
 
-  start(workspace: string, title: string, goal: string): Task {
+  start(workspace: string, title: string, goal: string, screen?: string): Task {
     if (this.running_.size >= MAX_RUNNING) throw new Error(`${MAX_RUNNING} tasks are already running; wait for one to finish or stop one`)
-    const task: Task = { id: randomUUID().slice(0, 8), title: title.slice(0, 80), workspace, state: 'running' }
+    const task: Task = { id: randomUUID().slice(0, 8), title: title.slice(0, 80), workspace, screen, state: 'running' }
     this.all.push(task)
 
     const { port, home, model, bus, screens } = this.options
@@ -100,7 +102,7 @@ export class Tasks {
     this.running_.set(task.id, { task, process, timer })
     this.changed()
     bus.emit('nox', 'info', `task ${task.id} started: ${task.title}`)
-    screens.dispatch(workspace, { name: 'compose_doc', doc: doc(task, [{ t: 'callout', tone: 'accent', title: 'STARTING', text: goal.slice(0, 400) }]) })
+    screens.dispatch(workspace, { name: 'compose_doc', doc: doc(task, [{ t: 'callout', tone: 'accent', title: 'STARTING', text: goal.slice(0, 400) }]) }, screen)
 
     let said = ''
     createInterface({ input: process.stdout }).on('line', (line) => {
@@ -144,7 +146,7 @@ export class Tasks {
     bus.emit('nox', state === 'done' ? 'info' : 'warn', `task ${task.id} ${state}${note ? `: ${note}` : ''}`)
     // A task that ended well wrote its own outcome; one that didn't can't be trusted to have.
     if (state !== 'done') {
-      screens.dispatch(task.workspace, { name: 'compose_doc', doc: doc(task, [{ t: 'callout', tone: state === 'stopped' ? 'warn' : 'bad', title: state.toUpperCase(), text: note || 'The task ended without a result.' }]) })
+      screens.dispatch(task.workspace, { name: 'compose_doc', doc: doc(task, [{ t: 'callout', tone: state === 'stopped' ? 'warn' : 'bad', title: state.toUpperCase(), text: note || 'The task ended without a result.' }]) }, task.screen)
     }
   }
 }

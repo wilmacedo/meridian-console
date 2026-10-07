@@ -24,6 +24,8 @@ interface ToolDeps {
   hostName: () => string
   // The workspace of the screen NOX is answering; tools act there unless told otherwise.
   currentWorkspace: () => string
+  // The tab that made the request being answered, when there is one.
+  currentScreen: () => string | undefined
 }
 
 const MODULE_WINDOWS = ['services', 'telemetry', 'events', 'cameras'] as const
@@ -67,7 +69,9 @@ export function buildTools(d: ToolDeps): McpTool[] {
   // Asks the workspace's screen to do something, and logs it as NOX's doing.
   const command = (args: Record<string, unknown>, cmd: ScreenCommand, note: string): string => {
     const workspace = workspaceOf(args)
-    if (!d.screens.dispatch(workspace, cmd)) throw new Error(`no screen is showing workspace "${workspace}" right now`)
+    // Only when NOX acts on the workspace it is talking in: another workspace has no "the screen that asked".
+    const preferred = workspace === d.currentWorkspace() ? d.currentScreen() : undefined
+    if (!d.screens.dispatch(workspace, cmd, preferred)) throw new Error(`no screen is showing workspace "${workspace}" right now`)
     d.bus.emit('nox', 'info', note)
     return `Done on workspace "${workspace}".`
   }
@@ -221,7 +225,8 @@ export function buildTools(d: ToolDeps): McpTool[] {
         const title = text(a, 'title')
         const goal = text(a, 'goal')
         if (!title || !goal) throw new Error('give a title and a goal')
-        const task = d.tasks.start(workspaceOf(a), title, goal)
+        const workspace = workspaceOf(a)
+        const task = d.tasks.start(workspace, title, goal, workspace === d.currentWorkspace() ? d.currentScreen() : undefined)
         return `Task ${task.id} started. It reports in the document "task-${task.id}" on the screen.`
       },
     },

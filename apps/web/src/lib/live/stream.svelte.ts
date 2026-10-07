@@ -70,6 +70,10 @@ interface Handlers {
   onCommand: (command: ScreenCommand) => void
 }
 
+// Names this tab to the server, so what NOX says and does for a request made here is shown here and not
+// on whichever tab connected last. Not crypto.randomUUID: that needs HTTPS, and the page may be on plain http.
+export const screenId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+
 let current: WebSocket | undefined
 
 export function sendToServer(message: ClientMessage): void {
@@ -91,7 +95,7 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
     socket.onopen = () => {
       live.link = 'online'
       delay = RECONNECT_MIN_MS
-      socket?.send(JSON.stringify({ type: 'watch', workspace: workspaceId } satisfies ClientMessage))
+      socket?.send(JSON.stringify({ type: 'watch', workspace: workspaceId, screen: screenId } satisfies ClientMessage))
     }
     socket.onmessage = (e) => {
       lastHeard = Date.now()

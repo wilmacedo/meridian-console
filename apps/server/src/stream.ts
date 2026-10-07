@@ -54,7 +54,7 @@ export function registerStream(app: FastifyInstance, { bus, registry, telemetry,
         const message = JSON.parse(raw.toString()) as ClientMessage
         if (message.type === 'watch') {
           watching = message.workspace
-          screens.watch(screenKey, watching)
+          screens.watch(screenKey, watching, message.screen)
           sendWorkspace(watching)
           sendTasks()
         } else if (message.type === 'speech_done') {
