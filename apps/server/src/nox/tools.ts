@@ -1,6 +1,7 @@
 import { renderTemplate, type DocBlock, type PaletteId, type ScreenCommand, type ThemeMode } from '@meridian/service-sdk'
 import type { EventBus } from '../event-bus.js'
 import type { ScreenRegistry } from '../screens.js'
+import type { ActionContext } from '@meridian/service-sdk/server'
 import type { Registry } from '../service-registry.js'
 import type { HostTelemetry } from '../telemetry.js'
 import type { WorkspaceStore } from '../workspace-store.js'
@@ -169,7 +170,7 @@ export function buildTools(d: ToolDeps): McpTool[] {
         if (!service) throw new Error(`no service "${String(a.service)}"; get_status lists them`)
         const action = service.actions.find((x) => x.id === text(a, 'action'))
         if (!action) throw new Error(`service ${service.id} has no action "${String(a.action)}"; its actions are ${service.actions.map((x) => x.id).join(', ') || 'none'}`)
-        if (action.mutating) throw new Error('a live widget re-runs its action on a timer, so only read-only actions can be bound')
+        if (action.mutating || action.gated) throw new Error('a live widget re-runs its action on a timer, so only read-only actions can be bound')
         const params = a.params !== undefined && typeof a.params === 'object' && a.params !== null && !Array.isArray(a.params) ? (a.params as Record<string, unknown>) : undefined
         const title = text(a, 'title')
         if (!title) throw new Error('give a title')
@@ -304,12 +305,16 @@ export function buildTools(d: ToolDeps): McpTool[] {
     const action = service.actions.find((x) => x.id === actionId)
     if (!action) throw new Error(`service ${service.id} has no action "${actionId}"; its actions are ${service.actions.map((x) => x.id).join(', ') || 'none'}`)
     const input = action.input ? a : undefined
+    // An action that is `gated` asks about its own particular call, with this, while it runs.
+    const ctx: ActionContext = { confirm: (detail) => d.approvals.ask(d.currentWorkspace(), service.name, { command: detail }) }
     if (action.mutating) {
       const what = `${service.name}: ${action.title}${input && Object.keys(input).length ? ` ${JSON.stringify(input)}` : ''}`
       if (!(await d.approvals.ask(d.currentWorkspace(), 'Service action', { command: what }))) throw new Error('The owner did not confirm this, so it was not done.')
       d.bus.emit('nox', 'info', `ran ${service.id}/${action.id} after confirmation`)
     }
-    return clip(JSON.stringify((await d.registry.run(service.id, action.id, input)).result ?? null))
+    // Text an action already wrote for reading (a page outline) goes through as it is, not as an escaped JSON string.
+    const result = (await d.registry.run(service.id, action.id, input, ctx)).result ?? null
+    return clip(typeof result === 'string' ? result : JSON.stringify(result))
   }
 
   // One tool per action for the services that exist when the server starts. A tool added later would not
@@ -318,7 +323,7 @@ export function buildTools(d: ToolDeps): McpTool[] {
     for (const action of service.actions) {
       tools.push({
         name: `service_${service.id}_${action.id}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64),
-        description: `${service.name}: ${action.title}. ${action.description}${action.mutating ? ' Changes something, so the owner is asked to confirm on the screen first.' : ''}`,
+        description: `${service.name}: ${action.title}. ${action.description}${action.mutating ? ' Changes something, so the owner is asked to confirm on the screen first.' : action.gated ? ' The owner is asked to confirm on the screen first when this particular call could change something.' : ''}`,
         inputSchema: action.input ?? { type: 'object', properties: {} },
         handler: (a) => invoke(service.id, action.id, a),
       })
@@ -333,7 +338,7 @@ export function buildTools(d: ToolDeps): McpTool[] {
       handler: (a) => {
         const service = d.registry.summaries().find((x) => x.id === text(a, 'id'))
         if (!service) throw new Error(`no service "${String(a.id)}"; get_status lists them`)
-        return JSON.stringify({ ...service, actions: service.actions.map(({ id, title, description, mutating, input }) => ({ id, title, description, mutating, input })) })
+        return JSON.stringify({ ...service, actions: service.actions.map(({ id, title, description, mutating, gated, input }) => ({ id, title, description, mutating, gated, input })) })
       },
     },
     {

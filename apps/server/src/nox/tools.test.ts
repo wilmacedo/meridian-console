@@ -21,6 +21,8 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   // Newer than the tab that is talking: the one a command used to go to.
   screens.watch(screens.add((m) => others.push(m)), 'default', 'tab-b')
   const ran: string[] = []
+  const ranWith: unknown[] = []
+  const runResult: { value: unknown } = { value: { ok: true } }
   const asked: unknown[][] = []
   const started: unknown[][] = []
   const managedSpecs = new Map<string, ManagedSpec>()
@@ -38,7 +40,7 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   }
   const registry = {
     summaries: () => [...services, ...[...managedSpecs.values()].map((m) => ({ ...summary(m.id, []), name: m.name, managed: true }))],
-    run: async (s: string, a: string) => (ran.push(`${s}/${a}`), { ms: 1, result: { ok: true } }),
+    run: async (s: string, a: string, _input?: unknown, ctx?: unknown) => (ran.push(`${s}/${a}`), ranWith.push(ctx), { ms: 1, result: runResult.value }),
     endpoints: { upsert: (service: string, spec: unknown) => void endpointCalls.push([service, spec]), remove: (_s: string, id: string) => id === 'known' },
     managed: {
       get: (id: string) => managedSpecs.get(id),
@@ -55,7 +57,7 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
     return tool.handler(args)
   }
   const commands = () => sent.filter((m) => m.type === 'command').map((m) => (m as { command: unknown }).command)
-  return { call, commands, bus, ran, tools, asked, started, managedSpecs, others, sentToAnywh, endpointCalls, announced, resolveReply, rejectReply }
+  return { call, commands, bus, ran, ranWith, runResult, tools, asked, started, managedSpecs, others, sentToAnywh, endpointCalls, announced, resolveReply, rejectReply }
 }
 
 describe('NOX tools', () => {
@@ -142,6 +144,45 @@ describe('NOX tools', () => {
       const { call, ran } = setup([summary('pet-feeder', [read, write])], false)
       await expect(call('service_pet-feeder_feed')).rejects.toThrow('did not confirm')
       expect(ran).toEqual([])
+    })
+
+    describe('a gated action', () => {
+      const click = { id: 'click', method: 'POST' as const, path: '/click', title: 'Click', description: 'Clicks', mutating: false, gated: true }
+
+      it('runs at once, and hands the action a way to ask the owner about this very call', async () => {
+        const { call, ran, asked, ranWith } = setup([summary('browser', [click])])
+        await call('service_browser_click')
+        expect(ran).toEqual(['browser/click'])
+        expect(asked).toEqual([])
+        const ctx = ranWith[0] as { confirm: (detail: string) => Promise<boolean> }
+        expect(await ctx.confirm('click button "Send"')).toBe(true)
+        expect(asked).toEqual([['default', 'browser', { command: 'click button "Send"' }]])
+      })
+
+      it('lets the action be told no', async () => {
+        const { call, ranWith } = setup([summary('browser', [click])], false)
+        await call('service_browser_click')
+        expect(await (ranWith[0] as { confirm: (d: string) => Promise<boolean> }).confirm('x')).toBe(false)
+      })
+
+      it('says in the tool description that the owner may be asked', () => {
+        const { tools } = setup([summary('browser', [click])])
+        expect(tools.find((t) => t.name === 'service_browser_click')?.description).toContain('asked to confirm')
+        expect(tools.find((t) => t.name === 'service_browser_click')?.description).toContain('could change something')
+      })
+
+      it('is never bound to a timer', async () => {
+        const { call } = setup([summary('browser', [click])])
+        await expect(call('pin_live_widget', { service: 'browser', action: 'click', title: 'x', template: [] })).rejects.toThrow('only read-only actions')
+      })
+    })
+
+    it('hands text an action wrote for reading through as it is, and anything else as JSON', async () => {
+      const { call, runResult } = setup([summary('browser', [read])])
+      runResult.value = 'Page: a.com\n[k-1] button "Go"'
+      expect(await call('service_browser_status')).toBe('Page: a.com\n[k-1] button "Go"')
+      runResult.value = { ok: true }
+      expect(await call('service_browser_status')).toBe('{"ok":true}')
     })
   })
 

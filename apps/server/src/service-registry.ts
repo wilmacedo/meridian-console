@@ -2,7 +2,7 @@ import { readdir, stat } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { FastifyInstance } from 'fastify'
 import type { ServiceActionInfo, ServiceStatus, ServiceSummary } from '@meridian/service-sdk'
-import type { ServerService } from '@meridian/service-sdk/server'
+import type { ActionContext, ServerService } from '@meridian/service-sdk/server'
 import type { DockerApi } from './docker.js'
 import type { EventBus } from './event-bus.js'
 import { buildEndpointAction, buildManagedService, ID_PATTERN, type EndpointSpec, type ManagedServiceStore, type ManagedSpec } from './managed-services.js'
@@ -66,6 +66,9 @@ const monoOf = (name: string): string => name.replace(/[^a-z0-9]/gi, '').slice(0
 
 const LEVEL_OF_STATE = { online: 'info', degraded: 'warn', offline: 'error' } as const
 
+// Whoever has no screen to ask on (a REST call, a timer) is told no to anything that needs the owner.
+const NO_CONFIRMATION: ActionContext = { confirm: async () => false }
+
 export class ActionFailed extends Error {
   constructor(
     readonly ms: number,
@@ -92,7 +95,8 @@ export interface Registry {
     upsert(serviceId: string, spec: EndpointSpec): void
     remove(serviceId: string, id: string): boolean
   }
-  run(serviceId: string, actionId: string, input: unknown): Promise<{ ms: number; result: unknown }>
+  // `ctx` is how the action may ask the owner to confirm; without one it is refused every time.
+  run(serviceId: string, actionId: string, input: unknown, ctx?: ActionContext): Promise<{ ms: number; result: unknown }>
   // Fires when a service's status changes.
   onChange(listener: () => void): () => void
 }
@@ -165,13 +169,13 @@ export async function registerServices(app: FastifyInstance, bus: EventBus, mana
   })
 
   // Runs a service action and logs it to the event stream, whoever asked (a RUN button, NOX).
-  async function run(serviceId: string, actionId: string, input: unknown): Promise<{ ms: number; result: unknown }> {
+  async function run(serviceId: string, actionId: string, input: unknown, ctx: ActionContext = NO_CONFIRMATION): Promise<{ ms: number; result: unknown }> {
     const action = everyService().find((s) => s.manifest.id === serviceId)?.actions?.find((a) => a.id === actionId)
     if (!action) throw new ActionFailed(0, `no action "${serviceId}/${actionId}"`)
     const started = performance.now()
     const label = `${action.method} ${action.path}`
     try {
-      const result = await (action.run as (input: unknown) => Promise<unknown>)(input)
+      const result = await (action.run as (input: unknown, ctx: ActionContext) => Promise<unknown>)(input, ctx)
       const ms = Math.round(performance.now() - started)
       bus.emit(serviceId, 'info', `${label} 200 · ${ms}ms`)
       return { ms, result }

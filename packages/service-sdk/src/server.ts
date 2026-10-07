@@ -5,10 +5,17 @@ export type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 export type { EventLevel, ServiceActionInfo, ServiceManifest, ServiceState, ServiceStatus } from './index.js'
 export type { WebSocket } from '@fastify/websocket'
 
+// What the core hands an action while it runs.
+export interface ActionContext {
+  // Asks the owner, on screen, to confirm something this very call is about to do, and resolves true only
+  // if they said yes. Callers with no screen to ask on (a REST client, a timer) always get false.
+  confirm: (detail: string) => Promise<boolean>
+}
+
 // An operation the service exposes. The same list feeds the RUN buttons in the Services window and
 // NOX's tools.
 export interface ServiceAction<Input = never> extends ServiceActionInfo {
-  run: (input: Input) => Promise<unknown>
+  run: (input: Input, ctx: ActionContext) => Promise<unknown>
 }
 
 export type Emit = (level: EventLevel, message: string) => void

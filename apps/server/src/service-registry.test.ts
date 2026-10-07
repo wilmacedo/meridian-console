@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
-import { mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Fastify from 'fastify'
@@ -26,6 +26,40 @@ async function setup(state: { state: string } = { state: 'running' }) {
   await app.ready()
   return { app, bus, store, registry, calls }
 }
+
+describe('an action that asks the owner', () => {
+  async function withGatedService() {
+    const dir = mkdtempSync(join(tmpdir(), 'meridian-services-'))
+    mkdirSync(join(dir, 'asker', 'server'), { recursive: true })
+    writeFileSync(
+      join(dir, 'asker', 'server', 'index.ts'),
+      `export default { manifest: { id: 'asker', name: 'asker', desc: 'd' }, actions: [{ id: 'ask', method: 'POST', path: '/ask', title: 'Ask', description: 'd', mutating: false, gated: true, run: async (_input, ctx) => ({ allowed: await ctx.confirm('do it') }) }] }\n`,
+    )
+    vi.stubEnv('SERVICES_DIR', dir)
+    vi.resetModules()
+    const { registerServices } = await import('./service-registry.js')
+    const app = Fastify()
+    const registry = await registerServices(app, new EventBus(), { store: new ManagedServiceStore(new DatabaseSync(':memory:')), docker: { inspect: async () => undefined, logs: async () => '', control: async () => undefined } })
+    await app.ready()
+    return { app, registry }
+  }
+
+  it('is refused whenever nobody is there to ask: a REST caller, or a call with no context', async () => {
+    const { app, registry } = await withGatedService()
+    expect((await app.inject({ method: 'POST', url: '/api/services/asker/actions/ask' })).json()).toMatchObject({ ok: true, result: { allowed: false } })
+    expect((await registry.run('asker', 'ask', undefined)).result).toEqual({ allowed: false })
+  })
+
+  it('gets the owner\'s answer when the caller can ask, and the listing says it is gated', async () => {
+    const { registry } = await withGatedService()
+    const asked: string[] = []
+    const yes = await registry.run('asker', 'ask', undefined, { confirm: async (d) => (asked.push(d), true) })
+    expect(yes.result).toEqual({ allowed: true })
+    expect(asked).toEqual(['do it'])
+    expect((await registry.run('asker', 'ask', undefined, { confirm: async () => false })).result).toEqual({ allowed: false })
+    expect(registry.summaries().find((s) => s.id === 'asker')?.actions[0]).toMatchObject({ mutating: false, gated: true })
+  })
+})
 
 describe('endpoints added to a service', () => {
   async function target() {

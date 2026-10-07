@@ -37,6 +37,10 @@ export interface ServiceActionInfo {
   title: string
   description: string
   mutating: boolean
+  // Not `mutating` as a whole, but it may ask the owner to confirm a particular call while it runs (see
+  // ActionContext.confirm): what it does depends on what it finds, such as which button a click lands on.
+  // Never bound to a timer, and what a caller without a screen runs, it runs without the risky part.
+  gated?: boolean
   // JSON Schema of the input, if any.
   input?: Record<string, unknown>
 }
