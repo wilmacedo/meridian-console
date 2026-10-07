@@ -90,6 +90,8 @@ export type StreamMessage =
   | { type: 'services'; services: ServiceSummary[] }
   | { type: 'telemetry'; sample: TelemetrySample; containers: ContainerInfo[] }
   | { type: 'agent'; mode: AgentMode }
+  // The background tasks running for the workspace this screen shows, whenever they change.
+  | { type: 'tasks'; tasks: { id: string; title: string }[] }
   // One spoken sentence of a NOX answer, as base64 mp3; `seq` orders them within a turn.
   | { type: 'speech'; turn: number; seq: number; mime: 'audio/mpeg'; audio: string }
   | { type: 'speech_end'; turn: number }
@@ -139,6 +141,18 @@ export type DocBlock =
   | { t: 'tags'; items: { label: string; tone?: Tone }[] }
   | { t: 'divider' }
 
+// A widget bound to a read-only service action: every `everySec` seconds the action runs and its result
+// fills the template (see renderTemplate), so the widget keeps updating after a reload.
+export interface LiveWidgetSpec {
+  title: string
+  kicker: string
+  service: string
+  action: string
+  params?: Record<string, unknown>
+  everySec: number
+  template: DocBlock[]
+}
+
 export interface DocSpec {
   // A document with an id is live: composing it again with the same id updates it in place.
   id?: string
@@ -159,3 +173,7 @@ export type ScreenCommand =
   | { name: 'clear_agent_widgets' }
   | { name: 'set_theme'; mode?: ThemeMode; palette?: PaletteId }
   | { name: 'compose_doc'; doc: DocSpec }
+  // Offers a widget that redraws itself from a service action (the user drops it on a rail).
+  | { name: 'pin_live_widget'; widget: LiveWidgetSpec }
+
+export { renderTemplate } from './template.js'
