@@ -262,3 +262,20 @@ button {
     border-color: rgba(var(--nx-ac), 0.55);
   }
 }
+
+@keyframes nx-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Frosted card used inside windows (service card, telemetry tile, automation card). */
+.glass-card {
+  background: linear-gradient(145deg, rgba(var(--nx-hi), 0.09), rgba(var(--nx-hi), 0.025) 55%, rgba(var(--nx-hi), 0.05));
+  backdrop-filter: blur(22px) saturate(1.6);
+  border: 1px solid rgba(var(--nx-hi), 0.13);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(var(--nx-ac), 0.1),
+    0 10px 30px rgba(var(--nx-sh), 0.35);
+}

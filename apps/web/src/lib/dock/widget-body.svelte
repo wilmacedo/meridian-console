@@ -1,5 +1,7 @@
 <script lang="ts">
   import DocBlocks from '../docs/doc-blocks.svelte'
+  import { eventsFor } from '../live/events-view.svelte'
+  import { clockTime, LEVEL_COLOR } from '../live/format'
   import { live } from '../live/stream.svelte'
   import type { WidgetDef } from './widgets'
 
@@ -21,8 +23,21 @@
       </div>
     {/each}
   </div>
+{:else if def.type === 'logs'}
+  {@const rows = eventsFor(def.svc ?? 'all').slice(0, 6)}
+  <div class="logs">
+    {#each rows as e (e.id)}
+      <div class="log">
+        <span class="ts">{clockTime(e.ts)}</span>
+        <span class="lvl" style:color={LEVEL_COLOR[e.level]}>{e.level.toUpperCase()}</span>
+        <span class="msg">{def.svc === 'all' ? `${e.source} · ${e.message}` : e.message}</span>
+      </div>
+    {:else}
+      <div class="empty">NO EVENTS YET</div>
+    {/each}
+  </div>
 {:else}
-  <!-- tele, feeder and logs bodies come with their data sources. -->
+  <!-- tele and feeder bodies come with their data sources. -->
   <div class="empty">NO DATA SOURCE CONNECTED YET</div>
 {/if}
 
@@ -54,6 +69,33 @@
   .state {
     font-size: 9px;
     letter-spacing: 0.12em;
+  }
+  .logs {
+    display: flex;
+    flex-direction: column;
+    font: 400 10.5px/1.3 var(--font-mono);
+  }
+  .log {
+    display: grid;
+    grid-template-columns: 54px 32px minmax(0, 1fr);
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(var(--nx-ac), 0.07);
+    animation: nx-sub 0.4s ease both;
+  }
+  .ts {
+    color: rgba(var(--nx-ac), 0.45);
+  }
+  .lvl {
+    font-size: 8.5px;
+    letter-spacing: 0.1em;
+    padding-top: 1px;
+  }
+  .msg {
+    color: rgb(var(--nx-ac));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .empty {
     padding: 14px 0;

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { eventsFor, eventsView } from '../live/events-view.svelte'
+  import EventsWindow from '../module-windows/events-window.svelte'
   import DocWindowBody from '../docs/doc-window-body.svelte'
   import { docs } from '../docs/docs.svelte'
   import { railsShown } from '../dock/dock.svelte'
@@ -21,6 +23,7 @@
   function footLeft(id: WindowId): string {
     if (id === 'services') return `${live.services.filter((s) => s.status.state === 'online').length}/${live.services.length} SERVICES ONLINE`
     if (id === 'doc') return `COMPOSED BY NOX · ${docs.current?.blocks.length ?? 0} BLOCKS`
+    if (id === 'logs') return `${eventsFor(eventsView.filter).length} EVENTS BUFFERED`
     if (id === 'telemetry') return `${live.host.name.toUpperCase()} · LIVE`
     return ''
   }
@@ -46,7 +49,7 @@
     <!-- A new document replaces the old one with a fresh open animation, hence the title in the key. -->
     {#each wm.wins as win (win.id === 'doc' ? `doc:${docs.current?.title}` : win.id)}
       <WindowFrame {win} footLeft={footLeft(win.id)}>
-        {#if win.id === 'doc'}<DocWindowBody />{:else}<WindowPlaceholder />{/if}
+        {#if win.id === 'doc'}<DocWindowBody />{:else if win.id === 'logs'}<EventsWindow />{:else}<WindowPlaceholder />{/if}
       </WindowFrame>
     {/each}
   {/if}
