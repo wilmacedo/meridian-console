@@ -48,6 +48,8 @@ export interface ServiceSummary extends ServiceManifest {
   actions: ServiceActionInfo[]
   // True when the service emits events, so the card can link to its log.
   emitsEvents: boolean
+  // Described as data and changeable at runtime (by NOX), unlike a service made of code.
+  managed?: boolean
 }
 
 export interface MeridianEvent {

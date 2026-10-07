@@ -1,6 +1,8 @@
 import Fastify from 'fastify'
 import websocket from '@fastify/websocket'
 import { openDatabase } from './database.js'
+import { docker } from './docker.js'
+import { ManagedServiceStore } from './managed-services.js'
 import { McpServer, registerMcp } from './nox/mcp.js'
 import { Approvals, verdict } from './nox/approvals.js'
 import { Nox, noxHome } from './nox/process.js'
@@ -20,14 +22,15 @@ const port = Number(process.env.PORT ?? 4000)
 const app = Fastify({ logger: true })
 const bus = new EventBus()
 const telemetry = new HostTelemetry(app.log)
-const workspaces = new WorkspaceStore(openDatabase())
+const db = openDatabase()
+const workspaces = new WorkspaceStore(db)
 const screens = new ScreenRegistry()
 
 await app.register(websocket)
 
 app.get('/health', async () => ({ status: 'ok' }))
 
-const registry = await registerServices(app, bus)
+const registry = await registerServices(app, bus, { store: new ManagedServiceStore(db), docker })
 await telemetry.start()
 
 app.get('/api/services', async () => registry.summaries())

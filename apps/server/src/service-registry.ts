@@ -3,12 +3,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { FastifyInstance } from 'fastify'
 import type { ServiceActionInfo, ServiceStatus, ServiceSummary } from '@meridian/service-sdk'
 import type { ServerService } from '@meridian/service-sdk/server'
+import type { DockerApi } from './docker.js'
 import type { EventBus } from './event-bus.js'
+import { buildManagedService, ID_PATTERN, type ManagedServiceStore, type ManagedSpec } from './managed-services.js'
 
 const SERVICES_DIR = process.env.SERVICES_DIR ?? fileURLToPath(new URL('../../../services', import.meta.url))
 const STATUS_TIMEOUT_MS = 3000
 const STATUS_POLL_MS = 10_000
-const ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
 const exists = (path: string) =>
   stat(path).then(
@@ -76,17 +77,27 @@ export class ActionFailed extends Error {
 
 export interface Registry {
   summaries(): ServiceSummary[]
+  // Services described as data, which can change while the server runs (the code ones cannot).
+  managed: {
+    list(): ManagedSpec[]
+    get(id: string): ManagedSpec | undefined
+    // Adds or replaces. Throws when the id belongs to a service made of code.
+    upsert(spec: ManagedSpec): Promise<void>
+    remove(id: string): boolean
+  }
   run(serviceId: string, actionId: string, input: unknown): Promise<{ ms: number; result: unknown }>
   // Fires when a service's status changes.
   onChange(listener: () => void): () => void
 }
 
-export async function registerServices(app: FastifyInstance, bus: EventBus): Promise<Registry> {
-  const services = await discover(app)
+export async function registerServices(app: FastifyInstance, bus: EventBus, managed: { store: ManagedServiceStore; docker: DockerApi }): Promise<Registry> {
+  const codeServices = await discover(app)
+  const managedServices = new Map<string, ServerService>()
+  const everyService = (): ServerService[] => [...codeServices, ...managedServices.values()]
   const statuses = new Map<string, ServiceStatus>()
   const listeners = new Set<() => void>()
 
-  for (const service of services) {
+  for (const service of codeServices) {
     const { id } = service.manifest
     if (service.routes) await app.register(service.routes, { prefix: `/api/services/${id}` })
 
@@ -106,25 +117,43 @@ export async function registerServices(app: FastifyInstance, bus: EventBus): Pro
     app.log.info(`service "${id}" registered`)
   }
 
-  async function poll(): Promise<void> {
-    let changed = false
-    await Promise.all(
-      services.map(async (service) => {
-        const { id } = service.manifest
-        const next = await readStatus(app, service)
-        const prev = statuses.get(id)
-        statuses.set(id, next)
-        if (prev?.state === next.state && prev.message === next.message) return
-        changed = true
-        if (prev && prev.state !== next.state) bus.emit(id, LEVEL_OF_STATE[next.state], `status ${prev.state} → ${next.state}${next.message ? ` · ${next.message}` : ''}`)
-      }),
-    )
-    if (changed) for (const listener of listeners) listener()
+  // Reads one service's status and logs a change of state; true when something changed.
+  async function check(service: ServerService): Promise<boolean> {
+    const { id } = service.manifest
+    const next = await readStatus(app, service)
+    const prev = statuses.get(id)
+    statuses.set(id, next)
+    if (prev?.state === next.state && prev.message === next.message) return false
+    if (prev && prev.state !== next.state) bus.emit(id, LEVEL_OF_STATE[next.state], `status ${prev.state} → ${next.state}${next.message ? ` · ${next.message}` : ''}`)
+    return true
   }
+
+  const notify = (): void => {
+    for (const listener of listeners) listener()
+  }
+
+  async function poll(): Promise<void> {
+    const changed = await Promise.all(everyService().map(check))
+    if (changed.some(Boolean)) notify()
+  }
+
+  // Managed services are added after the server is listening, and Fastify takes no routes by then, so
+  // their actions share one route that looks the action up when it is called. The routes of the code
+  // services above are more specific and win.
+  app.post<{ Params: { id: string; action: string } }>('/api/services/:id/actions/:action', async (request, reply) => {
+    const { id, action } = request.params
+    if (!managedServices.has(id)) return reply.code(404).send({ ok: false, ms: 0, error: `no action "${id}/${action}"` })
+    try {
+      return { ok: true, ...(await run(id, action, request.body)) }
+    } catch (err) {
+      const { ms, error } = err instanceof ActionFailed ? err : { ms: 0, error: 'action failed' }
+      return reply.code(500).send({ ok: false, ms, error })
+    }
+  })
 
   // Runs a service action and logs it to the event stream, whoever asked (a RUN button, NOX).
   async function run(serviceId: string, actionId: string, input: unknown): Promise<{ ms: number; result: unknown }> {
-    const action = services.find((s) => s.manifest.id === serviceId)?.actions?.find((a) => a.id === actionId)
+    const action = everyService().find((s) => s.manifest.id === serviceId)?.actions?.find((a) => a.id === actionId)
     if (!action) throw new ActionFailed(0, `no action "${serviceId}/${actionId}"`)
     const started = performance.now()
     const label = `${action.method} ${action.path}`
@@ -141,6 +170,8 @@ export async function registerServices(app: FastifyInstance, bus: EventBus): Pro
     }
   }
 
+  for (const spec of managed.store.list()) managedServices.set(spec.id, buildManagedService(spec, managed.docker))
+
   await poll()
   setInterval(poll, STATUS_POLL_MS).unref()
 
@@ -149,13 +180,34 @@ export async function registerServices(app: FastifyInstance, bus: EventBus): Pro
 
   return {
     run,
+    managed: {
+      list: () => managed.store.list(),
+      get: (id) => managed.store.get(id),
+      async upsert(spec) {
+        if (codeServices.some((x) => x.manifest.id === spec.id)) throw new Error(`"${spec.id}" is a service made of code and cannot be changed from here`)
+        managed.store.put(spec)
+        const service = buildManagedService(spec, managed.docker)
+        managedServices.set(spec.id, service)
+        statuses.delete(spec.id)
+        await check(service)
+        notify()
+      },
+      remove(id) {
+        if (!managedServices.delete(id)) return false
+        managed.store.delete(id)
+        statuses.delete(id)
+        notify()
+        return true
+      },
+    },
     summaries: () =>
-      services.map((service) => ({
+      everyService().map((service) => ({
         ...service.manifest,
         mono: service.manifest.mono ?? monoOf(service.manifest.name),
         status: statuses.get(service.manifest.id) ?? { state: 'offline' },
         actions: infoOf(service),
         emitsEvents: service.events !== undefined,
+        ...(managedServices.has(service.manifest.id) ? { managed: true } : {}),
       })),
     onChange(listener) {
       listeners.add(listener)
