@@ -1,5 +1,6 @@
 <script lang="ts">
   import { eventsFor, eventsView } from '../live/events-view.svelte'
+  import ServicesWindow from '../module-windows/services-window.svelte'
   import EventsWindow from '../module-windows/events-window.svelte'
   import DocWindowBody from '../docs/doc-window-body.svelte'
   import { docs } from '../docs/docs.svelte'
@@ -49,7 +50,7 @@
     <!-- A new document replaces the old one with a fresh open animation, hence the title in the key. -->
     {#each wm.wins as win (win.id === 'doc' ? `doc:${docs.current?.title}` : win.id)}
       <WindowFrame {win} footLeft={footLeft(win.id)}>
-        {#if win.id === 'doc'}<DocWindowBody />{:else if win.id === 'logs'}<EventsWindow />{:else}<WindowPlaceholder />{/if}
+        {#if win.id === 'doc'}<DocWindowBody />{:else if win.id === 'logs'}<EventsWindow />{:else if win.id === 'services'}<ServicesWindow />{:else}<WindowPlaceholder />{/if}
       </WindowFrame>
     {/each}
   {/if}
