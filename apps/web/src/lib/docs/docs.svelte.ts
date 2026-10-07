@@ -12,9 +12,16 @@ export const docs = $state({
 
 let timer: ReturnType<typeof setInterval> | undefined
 
-// Shows a document in its window, streaming it in block by block while NOX "composes" it.
+// Shows a document in its window, streaming it in block by block while NOX "composes" it. A live
+// document (same id as the one on screen) is updated where it is: no animation, and its window is left as
+// the owner has it, so a task reporting progress doesn't pull a closed window back open.
 export function openDoc(spec: DocSpec): void {
   clearInterval(timer)
+  if (spec.id && docs.current?.id === spec.id) {
+    docs.current = spec
+    docs.shown = spec.blocks.length
+    return
+  }
   kick(1)
   docs.current = spec
   docs.shown = 0

@@ -136,10 +136,15 @@ export function buildTools(d: ToolDeps): McpTool[] {
       inputSchema: {
         type: 'object',
         required: ['title', 'blocks'],
-        properties: { title: { type: 'string' }, kicker: { type: 'string', description: 'Small line above the title, e.g. "Generated 12:04 · snapshot".' }, blocks: { type: 'array', items: { type: 'object' } }, workspace: workspaceProperty },
+        properties: {
+          id: { type: 'string', description: 'Makes the document live: composing again with the same id updates it in place instead of replacing it with a new one. Lowercase letters, digits and dashes.' },
+          title: { type: 'string' },
+          kicker: { type: 'string', description: 'Small line above the title, e.g. "Generated 12:04 · snapshot".' }, blocks: { type: 'array', items: { type: 'object' } },
+          workspace: workspaceProperty,
+        },
       },
       handler: (a) => {
-        const doc = validateDoc({ title: a.title, kicker: a.kicker, blocks: a.blocks })
+        const doc = validateDoc({ id: a.id, title: a.title, kicker: a.kicker, blocks: a.blocks })
         return command(a, { name: 'compose_doc', doc }, `composed document "${doc.title}"`)
       },
     },

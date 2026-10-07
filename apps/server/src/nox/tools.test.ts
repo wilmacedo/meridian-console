@@ -64,6 +64,8 @@ describe('NOX tools', () => {
     expect(commands()).toEqual([])
     await call('compose_doc', { title: 'T', blocks: [{ t: 'p', text: 'x' }] })
     expect(commands()).toEqual([{ name: 'compose_doc', doc: { title: 'T', kicker: '', blocks: [{ t: 'p', text: 'x' }] } }])
+    await call('compose_doc', { id: 'task-1', title: 'T', blocks: [{ t: 'p', text: 'y' }] })
+    expect(commands().at(-1)).toMatchObject({ name: 'compose_doc', doc: { id: 'task-1' } })
   })
 
   it('lists workspaces with the screens showing them', async () => {

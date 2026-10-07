@@ -23,6 +23,12 @@ describe('validateDoc', () => {
     expect(out.blocks).toHaveLength(11)
   })
 
+  it('keeps a valid id and rejects a malformed one', () => {
+    expect(validateDoc({ ...doc({ t: 'p', text: 'x' }), id: 'task-1' }).id).toBe('task-1')
+    expect(validateDoc(doc({ t: 'p', text: 'x' }))).not.toHaveProperty('id')
+    expect(() => validateDoc({ ...doc({ t: 'p', text: 'x' }), id: 'Task 1' })).toThrow('id: use lowercase')
+  })
+
   it('drops undefined keys so the result is plain JSON', () => {
     const out = validateDoc(doc({ t: 'p', text: 'x' }))
     expect(out.blocks[0]).toEqual({ t: 'p', text: 'x' })

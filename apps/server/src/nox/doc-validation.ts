@@ -3,6 +3,7 @@ import type { DocBlock, DocSpec, Tone } from '@meridian/service-sdk'
 const TONES = ['ok', 'warn', 'bad', 'accent', 'fg', 'dim'] as const
 const MAX_BLOCKS = 60
 const MAX_TEXT = 4000
+const ID = /^[a-z0-9][a-z0-9-]{0,39}$/
 
 type Obj = Record<string, unknown>
 
@@ -98,6 +99,8 @@ export function validateDoc(raw: unknown): DocSpec {
   const d = obj(raw, 'doc')
   const blocks = arr(d.blocks, 'blocks')
   if (blocks.length === 0 || blocks.length > MAX_BLOCKS) fail('blocks', `needs between 1 and ${MAX_BLOCKS} blocks`)
-  const doc: DocSpec = { title: str(d.title, 'title'), kicker: str(d.kicker ?? '', 'kicker'), blocks: blocks.map((b, i) => block(b, `blocks[${i}]`)) }
+  const id = optStr(d.id, 'id')
+  if (id !== undefined && !ID.test(id)) fail('id', 'use lowercase letters, digits and dashes, up to 40 characters')
+  const doc: DocSpec = { id, title: str(d.title, 'title'), kicker: str(d.kicker ?? '', 'kicker'), blocks: blocks.map((b, i) => block(b, `blocks[${i}]`)) }
   return JSON.parse(JSON.stringify(doc)) as DocSpec
 }

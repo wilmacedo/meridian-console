@@ -140,6 +140,8 @@ export type DocBlock =
   | { t: 'divider' }
 
 export interface DocSpec {
+  // A document with an id is live: composing it again with the same id updates it in place.
+  id?: string
   title: string
   kicker: string
   blocks: DocBlock[]
