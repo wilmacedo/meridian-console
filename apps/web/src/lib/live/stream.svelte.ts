@@ -32,6 +32,8 @@ function apply(message: StreamMessage): void {
     case 'agent':
       // The orb is still rising on load; BOOTING ends on its own schedule.
       if (agent.mode === 'boot' && message.mode === 'idle') break
+      // The turn the owner just cut off reports idle a moment after the mic has already started listening.
+      if (agent.mode === 'listening' && message.mode === 'idle') break
       agent.mode = message.mode
       // With voice, the player drives the level from the audio it plays; without it, speaking uses a
       // steady one so the orb still moves.

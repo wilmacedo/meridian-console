@@ -1,5 +1,6 @@
 import { agent, kick } from '../agent/agent-state.svelte'
 import { workspaceId } from '../workspace/workspace-sync.svelte'
+import { live, sendToServer } from '../live/stream.svelte'
 import { audioContext, interruptPlayback } from './voice-player.svelte'
 
 export const mic = $state({ phase: 'idle' as 'idle' | 'recording' | 'sending' })
@@ -10,7 +11,7 @@ export const micAvailable = (): boolean => isSecureContext && !!navigator.mediaD
 
 // Tuning for the end-of-utterance detector.
 const SPEECH_LEVEL = 0.02
-const SILENCE_MS = 1300
+const SILENCE_MS = 1000
 const NO_SPEECH_MS = 7000
 const MAX_MS = 30_000
 const TICK_MS = 50
@@ -39,22 +40,37 @@ function idle(): void {
   agent.mode = 'idle'
 }
 
+// The request in flight, so the owner can cut it off.
+let asking: AbortController | undefined
+
 async function ask(blob: Blob): Promise<void> {
   mic.phase = 'sending'
   agent.mode = 'thinking'
+  const controller = (asking = new AbortController())
   try {
     const res = await fetch(`/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}`, {
       method: 'POST',
       headers: { 'Content-Type': blob.type.split(';')[0] },
       body: blob,
+      signal: controller.signal,
     })
     if (!res.ok || !res.body) return idle()
     // The answer is spoken and acted on by the server; the stream just has to run to its end.
     for await (const _chunk of res.body) void _chunk
     mic.phase = 'idle'
   } catch {
-    idle()
+    // Cut off by the owner, who is already starting to talk: not ours to reset.
+    if (!controller.signal.aborted) idle()
+  } finally {
+    if (asking === controller) asking = undefined
   }
+}
+
+// The owner talks over NOX, whether it is still thinking or already speaking: stop what it is doing.
+function cutOff(): void {
+  asking?.abort()
+  asking = undefined
+  sendToServer({ type: 'interrupt' })
 }
 
 // Stops recording. `send` false throws the recording away.
@@ -112,10 +128,11 @@ async function begin(): Promise<void> {
 }
 
 // Tap to talk, tap again to send now; a pause in the speech sends it by itself. Tapping while NOX is
-// speaking interrupts it.
+// speaking or thinking interrupts it, for real: the server stops the turn and the voice.
 export async function toggleListening(): Promise<void> {
-  if (!micAvailable() || mic.phase === 'sending') return
+  if (!micAvailable() || live.link === 'offline') return
   if (mic.phase === 'recording') return stopEarly?.()
+  if (mic.phase === 'sending' || agent.mode === 'thinking' || agent.mode === 'speaking') cutOff()
   interruptPlayback()
   await begin()
 }
