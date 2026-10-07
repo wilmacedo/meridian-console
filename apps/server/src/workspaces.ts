@@ -6,10 +6,10 @@ export function registerWorkspaces(app: FastifyInstance, store: WorkspaceStore):
 
   app.get<{ Params: { id: string } }>('/api/workspaces/:id', async (request, reply) => store.get(request.params.id) ?? reply.code(404).send({ error: 'no such workspace' }))
 
-  app.post<{ Body: { name: string } }>(
+  app.post<{ Body: { name: string; id?: string } }>(
     '/api/workspaces',
-    { schema: { body: { type: 'object', required: ['name'], properties: { name: { type: 'string', minLength: 1, maxLength: 60 } } } } },
-    async (request, reply) => reply.code(201).send(store.create(request.body.name)),
+    { schema: { body: { type: 'object', required: ['name'], properties: { name: { type: 'string', minLength: 1, maxLength: 60 }, id: { type: 'string', pattern: '^[a-z0-9]+(-[a-z0-9]+)*$', maxLength: 60 } } } } },
+    async (request, reply) => reply.code(201).send(store.create(request.body.name, request.body.id)),
   )
 
   // The body carries the version it was based on; a stale one is rejected with the current workspace,

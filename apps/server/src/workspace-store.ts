@@ -53,7 +53,10 @@ export class WorkspaceStore {
     return row && toWorkspace(row)
   }
 
-  create(name: string): Workspace {
+  // With `wantedId` (what an address asked for), an existing workspace of that id is returned as it is, so two
+  // screens opening the same new address end up on one workspace, not two.
+  create(name: string, wantedId?: string): Workspace {
+    if (wantedId !== undefined) return this.get(wantedId) ?? this.insert(wantedId, name)
     const base = slug(name)
     let id = base
     for (let n = 2; this.get(id); n++) id = `${base}-${n}`

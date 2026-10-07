@@ -37,6 +37,14 @@ describe('WorkspaceStore', () => {
     expect(() => store().update('nope', 1, {})).toThrow(WorkspaceNotFoundError)
   })
 
+  it('creates a workspace with the id asked for once, and returns it as it is afterwards', () => {
+    const s = new WorkspaceStore(new DatabaseSync(':memory:'))
+    const first = s.create('1', '1')
+    expect(first.id).toBe('1')
+    expect(s.create('1', '1')).toEqual(first)
+    expect(s.list().map((w) => w.id).sort()).toEqual(['1', 'default'])
+  })
+
   it('creates further workspaces with unique kebab-case ids', () => {
     const s = store()
     expect(s.create('Left Monitor').id).toBe('left-monitor')

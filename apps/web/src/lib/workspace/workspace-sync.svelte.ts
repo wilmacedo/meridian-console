@@ -50,11 +50,13 @@ function restore(state: WorkspaceState): void {
   layout.mode = state.layout ?? 'auto'
 }
 
-// Which workspace this device opens is a device preference, not workspace state.
+// Which workspace this tab opens. An address naming one (?workspace=) wins and sticks to the tab, so a bookmark
+// per monitor keeps each tab on its own workspace across reloads; the tabs of a browser share localStorage, which
+// therefore only holds what the settings menu last picked, for a tab opened without an address.
 export function deviceWorkspaceId(): string {
   const requested = new URLSearchParams(location.search).get('workspace')
-  if (requested) localStorage.setItem(DEVICE_KEY, requested)
-  return requested ?? localStorage.getItem(DEVICE_KEY) ?? DEFAULT_ID
+  if (requested) sessionStorage.setItem(DEVICE_KEY, requested)
+  return requested ?? sessionStorage.getItem(DEVICE_KEY) ?? localStorage.getItem(DEVICE_KEY) ?? DEFAULT_ID
 }
 
 let id = DEFAULT_ID
@@ -79,6 +81,16 @@ export async function loadWorkspace(workspaceId: string): Promise<string> {
   try {
     let res = await fetch(`/api/workspaces/${id}`)
     if (res.status === 404 && id !== DEFAULT_ID) {
+      // An address naming a workspace that does not exist yet (?workspace=vertical) makes it, so a bookmark per
+      // screen is all it takes to set one up. The server makes it once, whoever asks first.
+      const created = await fetch('/api/workspaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: id.slice(0, 60), id }) })
+      if (created.ok) {
+        const workspace = (await created.json()) as Workspace
+        id = workspace.id
+        sessionStorage.setItem(DEVICE_KEY, id)
+        adopt(workspace)
+        return id
+      }
       id = DEFAULT_ID
       res = await fetch(`/api/workspaces/${id}`)
     }
@@ -132,6 +144,7 @@ export async function listWorkspaces(): Promise<WorkspaceSummary[]> {
 export async function switchWorkspace(target: string): Promise<void> {
   clearTimeout(timer)
   await flush()
+  sessionStorage.setItem(DEVICE_KEY, target)
   localStorage.setItem(DEVICE_KEY, target)
   location.assign(location.pathname)
 }
