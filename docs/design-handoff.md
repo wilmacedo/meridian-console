@@ -888,6 +888,59 @@ amber circle (900ms) and dims the bars. Tooltips: `Talk` / `Stop & send` / `Stop
 There is no text under the button; the state shows in the glyph, the ring and the tooltip.
 Tapping while listening **sends**; Esc drops the recording.
 
+## v10 additions (calendar)
+
+A `calendar` dock module (appended after Cameras) with its own window, and a `cal` dock widget. Source:
+`NIX v10.dc.html` (`calVals`, `wItem` for the widget).
+
+### Calendar colour
+
+Each source (a calendar) has a hue; `calTone`: `color oklch(0.78 0.12 hue)`, fill `oklch(0.78 0.12 hue / .16)`,
+line `oklch(0.78 0.12 hue / .6)`. A source without a hue uses the accent (`ac`, fill `.12`, line `.5`).
+
+### Calendar window
+
+Two columns when wide (`214px minmax(0,1fr)`), one when narrow (the side column goes away).
+
+- **Side column.** Month mini-calendar: label (`MONTH YYYY`, mono 9, `.18em`), `‹ ›` buttons, weekday letters
+  `M T W T F S S`, day cells (today filled `ac` with `pn` text, the visible range tinted `mu/.16`, a dot under days
+  with events, days outside the month at `ac/.3`). Under it `SOURCES` with a count `x/y`: one row per calendar
+  with a swatch (glows in its colour when on, empty when hidden), name, `GOOGLE · account` and a status
+  (`SYNCING` blinking `fg`, `SYNCED`, `HIDDEN`) on the right; a click toggles it, hidden rows sit at `.5`
+  opacity. Last, a dashed `+ CONNECT CALENDAR` button (the prototype opens a provider chooser; the build has only
+  Google, so it goes straight to the sign-in).
+- **Toolbar.** Range kicker (`TODAY · 04 EVENTS` in day view, `WEEK 41 · 2026 · 23 EVENTS` in week view) and label,
+  `‹ TODAY ›`, and a `DAY / WEEK / AGENDA` segmented control.
+- **Grid (day, week).** Header cells `MON / 07` with a dot on today; a timezone label in the corner. Hours 06-24,
+  44px each, the current hour scrolled into view. Events are absolute blocks (fill and 1px line in the calendar's
+  tone, title mono 11, the time range when at least 40 minutes tall, minimum height 20px); overlapping events share
+  the width in lanes; past events at `.5` opacity; the selected one gets a `fg` ring and glow; hover lifts it 1px.
+  A now-line crosses today's column.
+- **Agenda.** One block per day of the week: a head `MON 07 OCT · TODAY` with the count, then rows
+  `time · swatch · title / place · tag`, the tag being `NOW` for a live event and the calendar name otherwise;
+  `Nothing scheduled.` for an empty day.
+- **Selected event.** A card with the calendar's colour bar, `NAME · PROVIDER`, relative time (`NOW`, `IN 25M`,
+  `IN 2H 05M`, `IN 3D`, `ENDED`), the title, a `WHEN / LENGTH / WHERE` list and two buttons: `JOIN CALL` (only with a
+  conference link) and `OPEN IN <PROVIDER> ↗`.
+- **Footer.** `N EVENTS THIS WEEK · x/y CALENDARS`.
+
+### Calendar widget (`cal`)
+
+Kicker `CALENDAR · NN LEFT TODAY`. The current event (`NOW`, `NNM LEFT`, blinking dot) or the next one (`NEXT`,
+`IN …`) with its time and place and, when live, a progress bar; a day strip (07-23h) with each event a segment in
+its colour (past ones `.3`) and a now marker; up to four more events as `time · swatch · title`; and
+`Clear for the rest of today. Tomorrow opens at HH:MM with Title.` when nothing is left. Clicking opens the window.
+A system widget, one per workspace, seeded once on first load.
+
+### As built (not in the prototype)
+
+- **All-day events** are chips like any other, in a strip between the day headers and the grid (20px high, in the
+  calendar's tone), repeated on every day they cover; in the agenda the time reads `ALL DAY`.
+- **`PENDING`** is a fourth source status (warning token `--nx-wn`) for an account whose sign-in expired; clicking
+  the row signs in again instead of toggling.
+- **Same invitation in two accounts** is shown once.
+- The window is read-only: events are created, changed and deleted by asking NOX.
+
 ## Additions not in the prototype
 
 Decided for the project; drawn from the design's own tokens, kept minimal.
