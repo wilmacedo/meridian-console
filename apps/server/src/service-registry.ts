@@ -65,8 +65,18 @@ const monoOf = (name: string): string => name.replace(/[^a-z0-9]/gi, '').slice(0
 
 const LEVEL_OF_STATE = { online: 'info', degraded: 'warn', offline: 'error' } as const
 
+export class ActionFailed extends Error {
+  constructor(
+    readonly ms: number,
+    readonly error: string,
+  ) {
+    super(error)
+  }
+}
+
 export interface Registry {
   summaries(): ServiceSummary[]
+  run(serviceId: string, actionId: string, input: unknown): Promise<{ ms: number; result: unknown }>
   // Fires when a service's status changes.
   onChange(listener: () => void): () => void
 }
@@ -81,20 +91,12 @@ export async function registerServices(app: FastifyInstance, bus: EventBus): Pro
     if (service.routes) await app.register(service.routes, { prefix: `/api/services/${id}` })
 
     for (const action of service.actions ?? []) {
-      const run = action.run as (input: unknown) => Promise<unknown>
       app.post(`/api/services/${id}/actions/${action.id}`, { schema: action.input ? { body: action.input } : undefined }, async (request, reply) => {
-        const started = performance.now()
-        const label = `${action.method} ${action.path}`
         try {
-          const result = await run(request.body)
-          const ms = Math.round(performance.now() - started)
-          bus.emit(id, 'info', `${label} 200 · ${ms}ms`)
-          return { ok: true, ms, result }
+          return { ok: true, ...(await run(id, action.id, request.body)) }
         } catch (err) {
-          const ms = Math.round(performance.now() - started)
-          app.log.error(err, `action "${id}/${action.id}" failed`)
-          bus.emit(id, 'error', `${label} 500 · ${ms}ms`)
-          return reply.code(500).send({ ok: false, ms, error: err instanceof Error ? err.message : 'action failed' })
+          const { ms, error } = err instanceof ActionFailed ? err : { ms: 0, error: 'action failed' }
+          return reply.code(500).send({ ok: false, ms, error })
         }
       })
     }
@@ -120,6 +122,25 @@ export async function registerServices(app: FastifyInstance, bus: EventBus): Pro
     if (changed) for (const listener of listeners) listener()
   }
 
+  // Runs a service action and logs it to the event stream, whoever asked (a RUN button, NOX).
+  async function run(serviceId: string, actionId: string, input: unknown): Promise<{ ms: number; result: unknown }> {
+    const action = services.find((s) => s.manifest.id === serviceId)?.actions?.find((a) => a.id === actionId)
+    if (!action) throw new ActionFailed(0, `no action "${serviceId}/${actionId}"`)
+    const started = performance.now()
+    const label = `${action.method} ${action.path}`
+    try {
+      const result = await (action.run as (input: unknown) => Promise<unknown>)(input)
+      const ms = Math.round(performance.now() - started)
+      bus.emit(serviceId, 'info', `${label} 200 · ${ms}ms`)
+      return { ms, result }
+    } catch (err) {
+      const ms = Math.round(performance.now() - started)
+      app.log.error(err, `action "${serviceId}/${actionId}" failed`)
+      bus.emit(serviceId, 'error', `${label} 500 · ${ms}ms`)
+      throw new ActionFailed(ms, err instanceof Error ? err.message : 'action failed')
+    }
+  }
+
   await poll()
   setInterval(poll, STATUS_POLL_MS).unref()
 
@@ -127,6 +148,7 @@ export async function registerServices(app: FastifyInstance, bus: EventBus): Pro
     (service.actions ?? []).map(({ run: _run, ...info }) => info)
 
   return {
+    run,
     summaries: () =>
       services.map((service) => ({
         ...service.manifest,
