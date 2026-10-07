@@ -166,14 +166,22 @@ stored as `{type:'feeder'}` and re-renders with live data; an agent doc as its b
 agent widget as a binding (`action` + params + refresh interval + a block template) so it refreshes
 after a reload instead of freezing.
 
-- Table `workspaces (id, name, state JSON, version, updated_at)`; one `default` row on first start.
-  Nothing may assume a single workspace.
-- `GET /api/workspaces`, `GET /api/workspaces/:id`, `PUT /api/workspaces/:id` — the PUT carries the
-  version it was based on, and a stale version is rejected so two screens can't silently overwrite each
-  other.
-- A WebSocket channel per workspace broadcasts changes from any client or from the agent.
-- The client updates optimistically; writes are debounced during drags.
-- Which workspace a device opens is a per-device preference (local storage), not workspace state.
+- Table `workspaces (id, name, state JSON, version, updated_at)` in `meridian.db` (under
+  `MERIDIAN_DATA_DIR`, default `~/.meridian`, WAL mode); one `default` row on first start. The server
+  treats `state` as opaque JSON; its shape belongs to the web app (theme, windows, dock, document,
+  retired services). Nothing may assume a single workspace.
+- `GET /api/workspaces`, `POST /api/workspaces {name}`, `GET /api/workspaces/:id`,
+  `PUT /api/workspaces/:id {version, state}` — the PUT carries the version it was based on; a stale one
+  is rejected with `409` and the current workspace, so two screens can't silently overwrite each other.
+  The client then adopts the server's state: the first writer wins.
+- Change notification rides the existing `/api/stream` socket: a screen sends `{type:'watch', workspace}`
+  and hears about that workspace only, on connect and on every accepted change, including ones made by
+  the agent. A screen ignores versions it already holds, which is how it recognises its own writes.
+- The client updates optimistically and sends the whole state, debounced (400 ms) so a drag is one write.
+  Unchanged state is never sent.
+- Which workspace a device opens is a per-device preference (local storage, set with
+  `?workspace=<id>` on the URL), not workspace state; an unknown id falls back to `default`.
+- SQLite is `better-sqlite3`, pinned to 12.x: 13 needs Node 22, and the project supports Node 20.
 - NOX knows every workspace and which screens show each. By default it acts on the workspace of the
   screen that spoke to it, and can target another by name.
 - Conversation history is **not** workspace state.

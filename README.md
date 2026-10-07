@@ -25,6 +25,9 @@ Today: `aqw-idle` (a packet console) and `tuya-feeder` (a Tuya pet feeder with a
 
 ## Getting started
 
+`better-sqlite3` is a native module: `pnpm install` compiles it (a C++ toolchain and Python are needed
+when no prebuilt binary matches your Node).
+
 ```sh
 pnpm install
 pnpm dev:web      # http://localhost:5173
