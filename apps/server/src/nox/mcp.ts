@@ -71,14 +71,16 @@ export class McpServer {
   }
 }
 
-export function registerMcp(app: FastifyInstance, path: string, server: McpServer): void {
+// A route can serve one server, or pick one from the URL parameters (the gate knows its workspace that way).
+export function registerMcp(app: FastifyInstance, path: string, server: McpServer | ((params: Record<string, string>) => McpServer)): void {
   app.post(path, async (request, reply) => {
+    const mcp = typeof server === 'function' ? server(request.params as Record<string, string>) : server
     const body = request.body as unknown
     if (Array.isArray(body)) {
-      const responses = (await Promise.all(body.map((r) => server.handle(r)))).filter((r) => r !== null)
+      const responses = (await Promise.all(body.map((r) => mcp.handle(r)))).filter((r) => r !== null)
       return responses.length ? responses : reply.code(202).send()
     }
-    const response = await server.handle(body)
+    const response = await mcp.handle(body)
     return response ?? reply.code(202).send()
   })
   // No server-initiated messages: the optional SSE stream and session teardown are not offered.

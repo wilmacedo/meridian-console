@@ -40,6 +40,9 @@ export interface NoxConfig {
   gateUrl: string
   // Owner's notes appended to the persona.
   notes: string
+  // Replaces the persona (background tasks are not the voice), and tools it may not use at all.
+  persona?: string
+  deny?: string[]
   sessionId: string
   resume: boolean
 }
@@ -65,18 +68,31 @@ export function buildArgs(c: NoxConfig): string[] {
     '--include-partial-messages',
     '--verbose',
     '--model', c.model,
-    '--system-prompt', c.notes ? `${PERSONA}\n\nOwner's notes\n${c.notes}` : PERSONA,
+    '--system-prompt', c.notes ? `${c.persona ?? PERSONA}\n\nOwner's notes\n${c.notes}` : (c.persona ?? PERSONA),
     '--tools', 'Bash',
     '--setting-sources', '',
     '--disable-slash-commands',
     '--strict-mcp-config',
     '--mcp-config', JSON.stringify({ mcpServers: { meridian: { type: 'http', url: c.mcpUrl }, gate: { type: 'http', url: c.gateUrl } } }),
     '--allowedTools', 'mcp__meridian',
+    ...(c.deny?.length ? ['--disallowedTools', ...c.deny] : []),
     '--permission-mode', 'auto',
     '--permission-prompt-tool', 'mcp__gate__approve',
     '--settings', JSON.stringify({ autoMode: { environment: AUTO_MODE_ENVIRONMENT } }),
     ...(c.resume ? ['--resume', c.sessionId] : ['--session-id', c.sessionId]),
   ]
+}
+
+// Where NOX lives: its notes, and the working directory of its processes.
+export const noxHome = (override?: string): string => override ?? process.env.NOX_HOME ?? join(homedir(), '.meridian', 'nox')
+
+// The owner's notes for NOX: machines, house rules. Empty when there are none.
+export function readNotes(home: string): string {
+  try {
+    return readFileSync(join(home, 'CLAUDE.md'), 'utf8').trim()
+  } catch {
+    return ''
+  }
 }
 
 const TURN_TIMEOUT_MS = 120_000
@@ -100,7 +116,7 @@ export class Nox {
   ) {}
 
   private get home(): string {
-    return this.options.home ?? process.env.NOX_HOME ?? join(homedir(), '.meridian', 'nox')
+    return noxHome(this.options.home)
   }
 
   private config(): NoxConfig {
@@ -115,12 +131,7 @@ export class Nox {
     const resume = sessionId !== undefined
     sessionId ??= randomUUID()
     if (!resume) writeFileSync(sessionFile, sessionId)
-    let notes = ''
-    try {
-      notes = readFileSync(join(this.home, 'CLAUDE.md'), 'utf8').trim()
-    } catch {
-      // No notes.
-    }
+    const notes = readNotes(this.home)
     return { home: this.home, model: this.options.model ?? process.env.NOX_MODEL ?? 'sonnet', mcpUrl: `http://127.0.0.1:${this.options.port}/mcp`, gateUrl: `http://127.0.0.1:${this.options.port}/mcp/gate`, notes, sessionId, resume }
   }
 

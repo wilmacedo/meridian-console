@@ -18,6 +18,13 @@ describe('buildArgs (what NOX may do)', () => {
     expect(after(args, '--allowedTools')).not.toContain('gate')
   })
 
+  it('swaps the persona and blocks tools for a background task', () => {
+    const args = buildArgs({ ...config, persona: 'You are a worker.', deny: ['mcp__meridian__start_task'] })
+    expect(after(args, '--system-prompt')).toBe('You are a worker.')
+    expect(after(args, '--disallowedTools')).toBe('mcp__meridian__start_task')
+    expect(buildArgs(config)).not.toContain('--disallowedTools')
+  })
+
   it('tells the classifier which machines are trusted', () => {
     const { autoMode } = JSON.parse(after(buildArgs(config), '--settings')) as { autoMode: { environment: string[] } }
     for (const host of SSH_HOSTS) expect(autoMode.environment.join(' ')).toContain(host)

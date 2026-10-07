@@ -18,16 +18,17 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   screens.watch(screens.add((m) => sent.push(m)), 'default')
   const ran: string[] = []
   const asked: unknown[][] = []
+  const started: unknown[][] = []
   const registry = { summaries: () => services, run: async (s: string, a: string) => (ran.push(`${s}/${a}`), { ms: 1, result: { ok: true } }) } as unknown as Registry
   const telemetry = { samples: () => [{ cpu: 23.4, mem: 4.2, temp: 55, net: 0 }], containers: () => [], memTotalGb: 15.3 } as unknown as HostTelemetry
-  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default' })
+  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const }), stop: (id: string) => id === 't1', list: () => [] }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default' })
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const tool = tools.find((t) => t.name === name)
     if (!tool) throw new Error(`no tool ${name}`)
     return tool.handler(args)
   }
   const commands = () => sent.filter((m) => m.type === 'command').map((m) => (m as { command: unknown }).command)
-  return { call, commands, bus, ran, tools, asked }
+  return { call, commands, bus, ran, tools, asked, started }
 }
 
 describe('NOX tools', () => {
@@ -108,6 +109,15 @@ describe('NOX tools', () => {
       await expect(call('service_pet-feeder_feed')).rejects.toThrow('did not confirm')
       expect(ran).toEqual([])
     })
+  })
+
+  it('starts a background task on the current workspace and stops it by id', async () => {
+    const { call, started } = setup()
+    expect(await call('start_task', { title: 'Disk audit', goal: 'Check the disks on both machines' })).toContain('task-t1')
+    expect(started).toEqual([['default', 'Disk audit', 'Check the disks on both machines']])
+    await expect(call('start_task', { title: 'No goal' })).rejects.toThrow('give a title and a goal')
+    expect(await call('stop_task', { id: 't1' })).toBe('Stopped.')
+    expect(await call('stop_task', { id: 'nope' })).toBe('No such running task.')
   })
 
   it('summarises status for the model', async () => {

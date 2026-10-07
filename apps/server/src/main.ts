@@ -2,9 +2,10 @@ import Fastify from 'fastify'
 import websocket from '@fastify/websocket'
 import { openDatabase } from './database.js'
 import { McpServer, registerMcp } from './nox/mcp.js'
-import { Nox } from './nox/process.js'
 import { Approvals, verdict } from './nox/approvals.js'
+import { Nox, noxHome } from './nox/process.js'
 import { registerNox } from './nox/routes.js'
+import { Tasks } from './nox/tasks.js'
 import { buildTools } from './nox/tools.js'
 import { EventBus } from './event-bus.js'
 import { ScreenRegistry } from './screens.js'
@@ -38,21 +39,23 @@ registerStream(app, { bus, registry, telemetry, workspaces, screens, approvals }
 // NOX: its tools are served as an MCP server on this same process, and it answers whoever asks over
 // /api/nox/say. While it answers, its tools act on the workspace of the screen that asked.
 let turnWorkspace = 'default'
-registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, hostName, currentWorkspace: () => turnWorkspace })))
+const tasks = new Tasks({ port, home: noxHome(), model: process.env.NOX_MODEL ?? 'sonnet', bus, screens })
+app.addHook('onClose', async () => tasks.stopAll())
+registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, hostName, currentWorkspace: () => turnWorkspace })))
 // Claude Code asks this server before anything its classifier doesn't settle. It is a separate MCP
-// server so that NOX, who only gets the Meridian one, can never approve its own actions.
-registerMcp(
-  app,
-  '/mcp/gate',
+// server so that NOX, who only gets the Meridian one, can never approve its own actions. NOX's turns
+// ask on the workspace being answered; a background task has its own URL naming the workspace it serves.
+const gate = (workspace: () => string): McpServer =>
   new McpServer('gate', [
     {
       name: 'approve',
       description: 'Asks the owner on the screen to confirm an action.',
       inputSchema: { type: 'object', properties: { tool_name: { type: 'string' }, input: { type: 'object' } }, required: ['tool_name'] },
-      handler: async (args) => verdict(await approvals.ask(turnWorkspace, String(args.tool_name), args.input), args.input),
+      handler: async (args) => verdict(await approvals.ask(workspace(), String(args.tool_name), args.input), args.input),
     },
-  ]),
-)
+  ])
+registerMcp(app, '/mcp/gate', gate(() => turnWorkspace))
+registerMcp(app, '/mcp/gate/:workspace', (params) => gate(() => params.workspace))
 const nox = new Nox(
   { port },
   { setWorkspace: (id) => (turnWorkspace = id), log: (message) => app.log.info(message) },

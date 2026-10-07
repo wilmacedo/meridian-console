@@ -5,6 +5,7 @@ import type { Registry } from '../service-registry.js'
 import type { HostTelemetry } from '../telemetry.js'
 import type { WorkspaceStore } from '../workspace-store.js'
 import type { Approvals } from './approvals.js'
+import type { Tasks } from './tasks.js'
 import { validateDoc } from './doc-validation.js'
 import type { McpTool } from './mcp.js'
 
@@ -15,6 +16,7 @@ interface ToolDeps {
   workspaces: WorkspaceStore
   screens: ScreenRegistry
   approvals: Pick<Approvals, 'ask'>
+  tasks: Pick<Tasks, 'start' | 'stop' | 'list'>
   hostName: () => string
   // The workspace of the screen NOX is answering; tools act there unless told otherwise.
   currentWorkspace: () => string
@@ -147,6 +149,35 @@ export function buildTools(d: ToolDeps): McpTool[] {
         const doc = validateDoc({ id: a.id, title: a.title, kicker: a.kicker, blocks: a.blocks })
         return command(a, { name: 'compose_doc', doc }, `composed document "${doc.title}"`)
       },
+    },
+    {
+      name: 'start_task',
+      description:
+        'Hands a long job to a background worker so you can keep talking: investigations across the machines, anything that takes more than a few seconds. The worker shows its progress in a live document on the screen and stops by itself. Describe the goal completely, because the worker cannot ask you anything. At most 2 run at once. After starting one, tell the owner in a short sentence that it is running and where to watch it.',
+      inputSchema: {
+        type: 'object',
+        required: ['title', 'goal'],
+        properties: { title: { type: 'string', description: 'Short, shown as the document title.' }, goal: { type: 'string', description: 'What to do and what the owner wants to know at the end.' }, workspace: workspaceProperty },
+      },
+      handler: (a) => {
+        const title = text(a, 'title')
+        const goal = text(a, 'goal')
+        if (!title || !goal) throw new Error('give a title and a goal')
+        const task = d.tasks.start(workspaceOf(a), title, goal)
+        return `Task ${task.id} started. It reports in the document "task-${task.id}" on the screen.`
+      },
+    },
+    {
+      name: 'list_tasks',
+      description: 'The background tasks started since the server came up, with their state (running, done, failed, stopped).',
+      inputSchema: { type: 'object', properties: {} },
+      handler: () => JSON.stringify(d.tasks.list()),
+    },
+    {
+      name: 'stop_task',
+      description: 'Stops a running background task.',
+      inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } },
+      handler: (a) => (d.tasks.stop(text(a, 'id') ?? '') ? 'Stopped.' : 'No such running task.'),
     },
     {
       name: 'get_status',
