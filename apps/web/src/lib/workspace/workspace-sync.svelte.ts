@@ -40,7 +40,7 @@ function snapshot(): WorkspaceState {
 // Missing parts of a stored state (a fresh workspace has none) fall back to the defaults.
 function restore(state: WorkspaceState): void {
   theme.mode = state.theme?.mode ?? 'auto'
-  theme.palette = state.theme?.palette ?? 'mono'
+  theme.palette = state.theme?.palette ?? 'meridian'
   restoreWindows(state.windows?.list ?? [], state.windows?.custom ?? false, state.windows?.active ?? 'core')
   if (state.dock) restoreDock(state.dock.rails, state.dock.widgets)
   restoreDoc(state.doc ?? null)

@@ -3,7 +3,7 @@ import { isDaytime, PALETTES, type PaletteId, type PaletteVariant, type ThemeMod
 
 export const theme = $state({
   mode: 'auto' as ThemeMode,
-  palette: 'mono' as PaletteId,
+  palette: 'meridian' as PaletteId,
 })
 
 // A palette without a light variant (blue) stays dark whatever the mode is.
