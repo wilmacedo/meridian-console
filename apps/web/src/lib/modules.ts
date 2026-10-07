@@ -1,4 +1,4 @@
-export type ModuleId = 'core' | 'services' | 'telemetry' | 'logs' | 'cameras'
+export type ModuleId = 'core' | 'services' | 'telemetry' | 'logs' | 'cameras' | 'calendar'
 
 export interface ModuleDef {
   id: ModuleId
@@ -12,4 +12,5 @@ export const MODULES: readonly ModuleDef[] = [
   { id: 'telemetry', label: 'Telemetry' },
   { id: 'logs', label: 'Events' },
   { id: 'cameras', label: 'Cameras' },
+  { id: 'calendar', label: 'Calendar' },
 ]

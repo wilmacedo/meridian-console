@@ -3,12 +3,12 @@ import { clampStrands, sanitizeModuleOrder } from './module-order'
 
 describe('workspace prefs', () => {
   it('keeps a stored dock order and appends modules it does not know about', () => {
-    expect(sanitizeModuleOrder(['cameras', 'core'])).toEqual(['cameras', 'core', 'services', 'telemetry', 'logs'])
+    expect(sanitizeModuleOrder(['cameras', 'core'])).toEqual(['cameras', 'core', 'services', 'telemetry', 'logs', 'calendar'])
   })
 
   it('drops unknown and repeated modules, and falls back to the default order', () => {
-    expect(sanitizeModuleOrder(['core', 'core', 'nope', 'logs'])).toEqual(['core', 'logs', 'services', 'telemetry', 'cameras'])
-    expect(sanitizeModuleOrder(undefined)).toEqual(['core', 'services', 'telemetry', 'logs', 'cameras'])
+    expect(sanitizeModuleOrder(['core', 'core', 'nope', 'logs'])).toEqual(['core', 'logs', 'services', 'telemetry', 'cameras', 'calendar'])
+    expect(sanitizeModuleOrder(undefined)).toEqual(['core', 'services', 'telemetry', 'logs', 'cameras', 'calendar'])
   })
 
   it('clamps the strand count to the slider range and its step', () => {

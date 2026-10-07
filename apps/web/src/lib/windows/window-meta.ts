@@ -20,6 +20,7 @@ const KICKERS: Record<string, (ctx: MetaContext) => string> = {
   telemetry: ({ hostName }) => `${hostName.toLowerCase()} · live`,
   logs: () => 'Unified log stream',
   cameras: () => 'Feeds · linked automation',
+  calendar: () => 'Unified · Google',
 }
 
 export function windowMeta(id: WindowId, ctx: MetaContext): WindowMeta {

@@ -20,6 +20,8 @@ export function pinDef(id: WindowId): WidgetDef | null {
       return logs(eventsView.filter)
     case 'cameras':
       return contributed(moduleContributions('cameras').find((w) => w.pin)?.pin)
+    case 'calendar':
+      return contributed(moduleContributions('calendar').find((w) => w.pin)?.pin)
     case 'doc':
       return docs.current ? docWidget(docs.current.title, docs.current.blocks, docs.current.id) : null
     default:

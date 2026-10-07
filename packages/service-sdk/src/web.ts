@@ -11,11 +11,11 @@ export interface ServiceWindow {
   kicker: string
   // A window with a module is what that dock button opens. Several services can contribute to one
   // module; their bodies stack in a single window.
-  module?: 'cameras'
+  module?: 'cameras' | 'calendar'
   // The widget type this window's PIN button docks, if any.
   pin?: string
-  // Left side of the window footer.
-  footer?: string
+  // Left side of the window footer; a function is read on every render, so it can follow live data.
+  footer?: string | (() => string)
   component: Contribution
 }
 
