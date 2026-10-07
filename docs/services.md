@@ -108,6 +108,32 @@ register in the core.
 
 Check it with `pnpm --filter @meridian/service-<id> typecheck`, or `pnpm typecheck` for everything.
 
+## Managed services: added without code
+
+A service does not have to be a folder. NOX can add, change and remove **managed** services while the
+server runs, which is how something already running on the machine (a Docker container) gets under
+Meridian without writing code or restarting anything. A managed service is a record in the server's
+SQLite database (`managed_services`), not a file in the repository, so it also stays out of version control.
+
+| Field | Meaning |
+|---|---|
+| `id`, `name`, `desc` | As in the manifest. `desc` may be empty |
+| `container` | A Docker container name. The service is `online` while it runs, `degraded` while Docker reports it unhealthy, `offline` otherwise (or when the container does not exist) |
+| `healthUrl` | An `http(s)` URL fetched on each status check; any answer below 500 counts as up. With a container, a failing URL makes it `degraded`; on its own, `offline` |
+| `url`, `address`, `runtime`, `mono` | Shown on the card; `runtime` defaults to `docker` for a container |
+
+A managed service with a `container` gets actions: `details` and `logs` (read-only) and `start`, `stop`
+and `restart` (`mutating`: when NOX runs them the owner confirms on the screen). Without a container it has
+no actions, only a status. It is listed in `GET /api/services` with `managed: true`, its actions run through
+the same `POST /api/services/<id>/actions/<action>`, and it survives a restart.
+
+NOX's tools for it: `list_containers`, `add_service`, `edit_service`, `remove_service`,
+`describe_service` and `call_service_action` (which runs any action by name, including those of services
+added after NOX started: its per-action `service_*` tools are fixed when the process starts). Adding,
+editing and removing do not ask for confirmation, because they only change what Meridian shows, never the
+container; services made of code cannot be changed from there. For anything beyond this (custom routes,
+windows, widgets, a protocol of its own) a service is still a folder with code, as above.
+
 ## Keep personal data out
 
 A service's code and docs are generic; what is specific to one installation (device IDs, hostnames, IPs,
@@ -117,5 +143,5 @@ readings) goes in `.env` or the git-ignored `docs/local/`. That is what lets a s
 
 - Production: the server runs through `tsx` (also for `start`), because services are loaded from outside
   `apps/server`. Bundling comes with the run-permanently work.
-- Hiding or retiring a service from the Services window: a setting stored with the workspace (later).
+- A managed service cannot contribute windows or widgets; that needs a code service.
 - Actions with input from the card: only NOX can call them for now.

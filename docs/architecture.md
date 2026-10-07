@@ -318,6 +318,10 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   workspace; the header shows a pulsing `● N TASK(S)` chip (amber, the thinking tint) that opens the
   newest task's document, fetched from `GET /api/docs/<id>` (the server keeps the latest version of every
   live document in memory). The orb does not change.
+- **Managing services:** NOX can add, edit and remove *managed* services (data, stored in SQLite, live
+  without a restart) with `add_service` / `edit_service` / `remove_service`, find containers with
+  `list_containers`, and run any action with `call_service_action`; see `services.md`. The registry mounts
+  one shared action route for them, since Fastify takes no routes after it starts.
 - **Background tasks:** `start_task({title, goal})` hands a long job to a worker (`nox/tasks.ts`): its own
   headless `claude` process with the same flags as NOX (Bash for ssh, the Meridian tools, the gate for
   confirmations, `start_task` denied so tasks can't spawn tasks) and a worker persona that reports through

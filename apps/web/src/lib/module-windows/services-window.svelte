@@ -78,7 +78,7 @@
     <div class="empty">{live.link !== 'offline' ? 'NO SERVICES REGISTERED' : 'SERVER UNREACHABLE'}</div>
   {/each}
 </div>
-<div class="note">Services are discovered from the services folder</div>
+<div class="note">Services come from the services folder, or are added by NOX</div>
 
 <style>
   .grid {
