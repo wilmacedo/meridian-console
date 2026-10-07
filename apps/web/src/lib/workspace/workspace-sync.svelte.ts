@@ -12,7 +12,6 @@ import { prefs } from './prefs.svelte'
 
 // Writes are debounced so a drag doesn't send a request per pointer move.
 const WRITE_DEBOUNCE_MS = 400
-const DEVICE_KEY = 'meridian.workspace'
 const DEFAULT_ID = 'default'
 
 // Specs, not rendered output: a feeder widget is stored as its type and re-renders with live data.
@@ -50,13 +49,10 @@ function restore(state: WorkspaceState): void {
   layout.mode = state.layout ?? 'auto'
 }
 
-// Which workspace this tab opens. An address naming one (?workspace=) wins and sticks to the tab, so a bookmark
-// per monitor keeps each tab on its own workspace across reloads; the tabs of a browser share localStorage, which
-// therefore only holds what the settings menu last picked, for a tab opened without an address.
+// The address decides the workspace: ?workspace=<id>, and the default one when it names none. Nothing is
+// remembered between tabs, so each tab (each monitor) keeps the workspace of its own address across reloads.
 export function deviceWorkspaceId(): string {
-  const requested = new URLSearchParams(location.search).get('workspace')
-  if (requested) sessionStorage.setItem(DEVICE_KEY, requested)
-  return requested ?? sessionStorage.getItem(DEVICE_KEY) ?? localStorage.getItem(DEVICE_KEY) ?? DEFAULT_ID
+  return new URLSearchParams(location.search).get('workspace') || DEFAULT_ID
 }
 
 let id = DEFAULT_ID
@@ -87,7 +83,6 @@ export async function loadWorkspace(workspaceId: string): Promise<string> {
       if (created.ok) {
         const workspace = (await created.json()) as Workspace
         id = workspace.id
-        sessionStorage.setItem(DEVICE_KEY, id)
         adopt(workspace)
         return id
       }
@@ -139,14 +134,12 @@ export async function listWorkspaces(): Promise<WorkspaceSummary[]> {
   return res.ok ? ((await res.json()) as WorkspaceSummary[]).sort((a, b) => a.name.localeCompare(b.name)) : []
 }
 
-// Opens another workspace on this device: what is on screen is saved first, the choice is remembered, and
-// the page loads again onto it (the address loses ?workspace=, which would win over the choice).
+// Opens another workspace in this tab: what is on screen is saved first, then the page loads again at the
+// address of the one chosen (the default one has none).
 export async function switchWorkspace(target: string): Promise<void> {
   clearTimeout(timer)
   await flush()
-  sessionStorage.setItem(DEVICE_KEY, target)
-  localStorage.setItem(DEVICE_KEY, target)
-  location.assign(location.pathname)
+  location.assign(target === DEFAULT_ID ? location.pathname : `${location.pathname}?workspace=${encodeURIComponent(target)}`)
 }
 
 // A new empty workspace, named by number (there is no text input in the UI), and straight onto it.

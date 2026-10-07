@@ -179,8 +179,11 @@ after a reload instead of freezing.
   the agent. A screen ignores versions it already holds, which is how it recognises its own writes.
 - The client updates optimistically and sends the whole state, debounced (400 ms) so a drag is one write.
   Unchanged state is never sent.
-- Which workspace a device opens is a per-device preference (local storage, set with
-  `?workspace=<id>` on the URL), not workspace state; an unknown id falls back to `default`.
+- The address decides which workspace a tab shows: `?workspace=<id>`, and `default` when there is none;
+  nothing is remembered between tabs, so each monitor keeps its own with a bookmark. An id that does not
+  exist yet is created (the server makes it once, whoever asks first). The `+` menu lists the workspaces
+  and makes new ones by name (a taken name is refused with a 409); a new workspace starts with the
+  default's theme.
 - SQLite is Node's built-in `node:sqlite` (Node 24, `.nvmrc`), so there is no native dependency to
   build. It is still marked experimental and prints a warning at start; only `database.ts` and
   `workspace-store.ts` touch it, so a change in its API stays contained there.
