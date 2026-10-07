@@ -535,6 +535,11 @@ feeder automation is linked) the automation card.
   border `ac/.6`, fill `mu/.16`, glow `0 0 20px mu/.25`, hover fill `mu/.32`); and
   `LAST FED hh:mm · portion` (mono 10 `.1em`, `ac/.6`).
 
+As built, the automation card shows only what the device reports: the schedule rows and `NEXT FEEDING`
+are left out until the device's schedule is decoded (see the tuya-feeder README), `HOPPER` shows the
+device's `FULL` / `LOW` / `EMPTY` state with a level bar instead of a percentage, and `DISPENSE NOW` is
+two-step (`CONFIRM · 1 PORTION`, cancelling itself after 5s) because it dispenses real food.
+
 ### Doc
 
 A document of **typed blocks**, streamed in one block at a time while NOX composes. See

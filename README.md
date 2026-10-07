@@ -1,9 +1,9 @@
 # Meridian Console
 
-Control plane for a self-hosted homelab: fleet overview, per-service drill-down, a live
-packet/log console, Home Assistant control, reverse-proxy route management, and scheduled
-automations. Built to run on a headless Debian box and be viewed from any device on the network,
-including a permanently-mounted touch panel.
+Control plane for a self-hosted homelab, built around **NOX**, a voice-driven agent. One screen: a
+generative core with windows (services, telemetry, events, cameras, generated documents) and dock
+widgets in front of it. Built to run on a headless Debian box and be viewed from a browser on the
+network.
 
 ## Stack
 
@@ -17,9 +17,9 @@ See [`docs/architecture.md`](docs/architecture.md) for the why, and
 
 ## Services
 
-Everything the dashboard shows is a **service**: a folder under `services/` that is discovered
-automatically, with its own server routes, status and optional UI. Today: `aqw-idle` (a packet
-console) and `tuya-feeder` (a Tuya pet feeder with a camera, on the Habitat screen). See
+Everything Meridian shows is a **service**: a folder under `services/` that is discovered
+automatically, with its own server routes, status, actions, events and optional windows and widgets.
+Today: `aqw-idle` (a packet console) and `tuya-feeder` (a Tuya pet feeder with a camera). See
 [`docs/services.md`](docs/services.md) to write one. Credentials and per-installation values go in
 `.env` (see `.env.example`).
 
