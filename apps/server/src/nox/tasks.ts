@@ -53,8 +53,9 @@ const doc = (task: Task, blocks: DocSpec['blocks']): DocSpec => ({ id: docIdOf(t
 // same guard-rails as NOX, reporting into a live document and logging to the event stream. They use the
 // owner's Claude subscription like any turn does, so only a couple run at once.
 export class Tasks {
-  private running = new Map<string, { task: Task; process: TaskProcess; timer: ReturnType<typeof setTimeout> }>()
+  private running_ = new Map<string, { task: Task; process: TaskProcess; timer: ReturnType<typeof setTimeout> }>()
   private all: Task[] = []
+  private listeners = new Set<() => void>()
 
   constructor(
     private options: { port: number; home: string; model: string; bus: EventBus; screens: ScreenRegistry; spawn?: SpawnTask },
@@ -64,8 +65,19 @@ export class Tasks {
     return [...this.all]
   }
 
+  // What a screen shows: the tasks still running for its workspace.
+  running(workspace: string): { id: string; title: string }[] {
+    return [...this.running_.values()].filter((e) => e.task.workspace === workspace).map((e) => ({ id: e.task.id, title: e.task.title }))
+  }
+
+  // Told whenever a task starts or ends.
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
   start(workspace: string, title: string, goal: string): Task {
-    if (this.running.size >= MAX_RUNNING) throw new Error(`${MAX_RUNNING} tasks are already running; wait for one to finish or stop one`)
+    if (this.running_.size >= MAX_RUNNING) throw new Error(`${MAX_RUNNING} tasks are already running; wait for one to finish or stop one`)
     const task: Task = { id: randomUUID().slice(0, 8), title: title.slice(0, 80), workspace, state: 'running' }
     this.all.push(task)
 
@@ -85,7 +97,8 @@ export class Tasks {
     const timer = setTimeout(() => this.finish(task, 'failed', 'took too long'), TASK_TIMEOUT_MS)
     // Writing to a process that already ended must not take the server down.
     process.stdin.on('error', () => undefined)
-    this.running.set(task.id, { task, process, timer })
+    this.running_.set(task.id, { task, process, timer })
+    this.changed()
     bus.emit('nox', 'info', `task ${task.id} started: ${task.title}`)
     screens.dispatch(workspace, { name: 'compose_doc', doc: doc(task, [{ t: 'callout', tone: 'accent', title: 'STARTING', text: goal.slice(0, 400) }]) })
 
@@ -103,21 +116,26 @@ export class Tasks {
   }
 
   stop(id: string): boolean {
-    const entry = this.running.get(id)
+    const entry = this.running_.get(id)
     if (!entry) return false
     this.finish(entry.task, 'stopped', 'stopped by the owner')
     return true
   }
 
   stopAll(): void {
-    for (const id of [...this.running.keys()]) this.stop(id)
+    for (const id of [...this.running_.keys()]) this.stop(id)
+  }
+
+  private changed(): void {
+    for (const listener of this.listeners) listener()
   }
 
   // Ends a task once; whichever of done, error, exit, timeout or stop comes first wins.
   private finish(task: Task, state: Task['state'], note: string): void {
-    const entry = this.running.get(task.id)
+    const entry = this.running_.get(task.id)
     if (!entry) return
-    this.running.delete(task.id)
+    this.running_.delete(task.id)
+    this.changed()
     clearTimeout(entry.timer)
     entry.process.stdin.end()
     entry.process.kill()

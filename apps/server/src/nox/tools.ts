@@ -1,4 +1,4 @@
-import type { PaletteId, ScreenCommand, ThemeMode } from '@meridian/service-sdk'
+import { renderTemplate, type DocBlock, type PaletteId, type ScreenCommand, type ThemeMode } from '@meridian/service-sdk'
 import type { EventBus } from '../event-bus.js'
 import type { ScreenRegistry } from '../screens.js'
 import type { Registry } from '../service-registry.js'
@@ -29,6 +29,8 @@ const SERVICE_WINDOW = /^[a-z0-9-]+:[a-z0-9-]+$/
 const THEME_MODES: readonly ThemeMode[] = ['auto', 'light', 'dark']
 const PALETTES: readonly PaletteId[] = ['mono', 'blue', 'meridian']
 const MAX_RESULT_CHARS = 8000
+const MIN_LIVE_SECONDS = 5
+const MAX_LIVE_SECONDS = 3600
 
 const workspaceProperty = { type: 'string', description: 'Workspace id. Defaults to the workspace of the screen you are answering.' }
 const windowProperty = {
@@ -107,6 +109,41 @@ export function buildTools(d: ToolDeps): McpTool[] {
       handler: (a) => {
         const window = text(a, 'window') === 'doc' ? 'doc' : windowArg(a)
         return command(a, { name: 'pin_widget', window }, `offered to pin ${window}`)
+      },
+    },
+    {
+      name: 'pin_live_widget',
+      description:
+        'Offers to dock a widget that keeps itself up to date: every few seconds a read-only service action runs and its result fills a block template. Use it for something the owner wants to keep an eye on. The template is a list of the same blocks compose_doc takes, with {{path}} placeholders that read the action result (dotted paths such as lastFeed.at or items.0.name); a string that is only one placeholder keeps its type, so {{percent}} works as a progress value. Call the matching service_* read tool first to see the shape of the result. Dynamic row lists are not supported, so use kv, stats or progress blocks. The owner drops the card on a rail; the action is run once now to check the template.',
+      inputSchema: {
+        type: 'object',
+        required: ['service', 'action', 'title', 'template'],
+        properties: {
+          service: { type: 'string', description: 'Service id, for example "tuya-feeder".' },
+          action: { type: 'string', description: 'A read-only action id of that service, for example "feeder-status".' },
+          params: { type: 'object', description: 'Input for the action, when it takes any.' },
+          every_seconds: { type: 'integer', minimum: MIN_LIVE_SECONDS, maximum: MAX_LIVE_SECONDS, description: 'How often to refresh. Default 30.' },
+          title: { type: 'string' },
+          kicker: { type: 'string', description: 'Small line above the title. Default "NOX · LIVE".' },
+          template: { type: 'array', items: { type: 'object' } },
+          workspace: workspaceProperty,
+        },
+      },
+      handler: async (a) => {
+        const service = d.registry.summaries().find((s) => s.id === text(a, 'service'))
+        if (!service) throw new Error(`no service "${String(a.service)}"; get_status lists them`)
+        const action = service.actions.find((x) => x.id === text(a, 'action'))
+        if (!action) throw new Error(`service ${service.id} has no action "${String(a.action)}"; its actions are ${service.actions.map((x) => x.id).join(', ') || 'none'}`)
+        if (action.mutating) throw new Error('a live widget re-runs its action on a timer, so only read-only actions can be bound')
+        const params = a.params !== undefined && typeof a.params === 'object' && a.params !== null && !Array.isArray(a.params) ? (a.params as Record<string, unknown>) : undefined
+        const title = text(a, 'title')
+        if (!title) throw new Error('give a title')
+        // Rendering the template with a real result now means a broken one fails here, where NOX can fix it.
+        const sample = (await d.registry.run(service.id, action.id, action.input ? params : undefined)).result
+        const checked = validateDoc({ title, blocks: renderTemplate(a.template, sample) })
+        const every = typeof a.every_seconds === 'number' ? Math.round(a.every_seconds) : 30
+        const widget = { title, kicker: text(a, 'kicker') ?? 'NOX · LIVE', service: service.id, action: action.id, params, everySec: Math.min(MAX_LIVE_SECONDS, Math.max(MIN_LIVE_SECONDS, every)), template: a.template as DocBlock[] }
+        return command(a, { name: 'pin_live_widget', widget }, `offered a live widget "${title}" from ${service.id}/${action.id}`) + ` It shows ${checked.blocks.length} blocks and refreshes every ${widget.everySec} seconds.`
       },
     },
     {

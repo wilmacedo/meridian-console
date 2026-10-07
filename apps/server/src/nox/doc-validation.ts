@@ -14,7 +14,10 @@ const fail = (path: string, message: string): never => {
 const obj = (v: unknown, path: string): Obj => (typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Obj) : fail(path, 'expected an object'))
 const arr = (v: unknown, path: string): unknown[] => (Array.isArray(v) ? v : fail(path, 'expected an array'))
 
+// A number or a boolean where text is expected is written as text: a live widget's template fills text
+// fields with whatever the action returned.
 const str = (v: unknown, path: string): string => {
+  if (typeof v === 'number' || typeof v === 'boolean') v = String(v)
   if (typeof v !== 'string') return fail(path, 'expected a string')
   return v.length <= MAX_TEXT ? v : fail(path, `longer than ${MAX_TEXT} characters`)
 }

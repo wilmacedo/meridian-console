@@ -34,13 +34,15 @@ app.get('/api/events', async () => bus.recent())
 registerWorkspaces(app, workspaces)
 
 const approvals = new Approvals(screens, bus)
-registerStream(app, { bus, registry, telemetry, workspaces, screens, approvals })
+const tasks = new Tasks({ port, home: noxHome(), model: process.env.NOX_MODEL ?? 'sonnet', bus, screens })
+app.addHook('onClose', async () => tasks.stopAll())
+registerStream(app, { bus, registry, telemetry, workspaces, screens, approvals, tasks })
+// The latest version of a live document, for a screen that wasn't there when NOX composed it.
+app.get<{ Params: { id: string } }>('/api/docs/:id', async (request, reply) => screens.doc(request.params.id) ?? reply.code(404).send({ error: 'no such document' }))
 
 // NOX: its tools are served as an MCP server on this same process, and it answers whoever asks over
 // /api/nox/say. While it answers, its tools act on the workspace of the screen that asked.
 let turnWorkspace = 'default'
-const tasks = new Tasks({ port, home: noxHome(), model: process.env.NOX_MODEL ?? 'sonnet', bus, screens })
-app.addHook('onClose', async () => tasks.stopAll())
 registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, hostName, currentWorkspace: () => turnWorkspace })))
 // Claude Code asks this server before anything its classifier doesn't settle. It is a separate MCP
 // server so that NOX, who only gets the Meridian one, can never approve its own actions. NOX's turns

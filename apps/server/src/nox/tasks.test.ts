@@ -77,6 +77,20 @@ describe('Tasks', () => {
     expect(docs()[1].blocks[0]).toMatchObject({ tone: 'bad', text: 'rate limited' })
   })
 
+  it('tells subscribers when tasks start and end, and lists the running ones per workspace', async () => {
+    const { tasks, spawned, line } = setup()
+    let changes = 0
+    tasks.subscribe(() => changes++)
+    const task = tasks.start('default', 'T', 'g')
+    expect(changes).toBe(1)
+    expect(tasks.running('default')).toEqual([{ id: task.id, title: 'T' }])
+    expect(tasks.running('elsewhere')).toEqual([])
+    spawned[0].stdout.write(line({ type: 'result', is_error: false }))
+    await tick()
+    expect(changes).toBe(2)
+    expect(tasks.running('default')).toEqual([])
+  })
+
   it('stops a running task on request and only allows two at once', () => {
     const { tasks, spawned } = setup()
     const a = tasks.start('default', 'A', 'g')

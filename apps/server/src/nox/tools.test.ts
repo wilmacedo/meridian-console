@@ -120,6 +120,35 @@ describe('NOX tools', () => {
     expect(await call('stop_task', { id: 'nope' })).toBe('No such running task.')
   })
 
+  describe('pin_live_widget', () => {
+    const read = { id: 'status', method: 'GET' as const, path: '/status', title: 'Status', description: 'Reads', mutating: false }
+    const write = { id: 'feed', method: 'POST' as const, path: '/feed', title: 'Feed', description: 'Dispenses', mutating: true }
+    const base = { service: 'pet-feeder', action: 'status', title: 'Feeder', template: [{ t: 'kv', items: [{ k: 'OK', v: '{{ok}}' }] }] }
+
+    it('checks the template against a real result, then offers the widget with its binding', async () => {
+      const { call, commands, ran } = setup([summary('pet-feeder', [read, write])])
+      expect(await call('pin_live_widget', { ...base, every_seconds: 2 })).toContain('refreshes every 5 seconds')
+      expect(ran).toEqual(['pet-feeder/status'])
+      expect(commands()).toEqual([
+        { name: 'pin_live_widget', widget: { title: 'Feeder', kicker: 'NOX · LIVE', service: 'pet-feeder', action: 'status', everySec: 5, template: base.template } },
+      ])
+    })
+
+    it('refuses mutating actions and unknown services or actions', async () => {
+      const { call, ran } = setup([summary('pet-feeder', [read, write])])
+      await expect(call('pin_live_widget', { ...base, action: 'feed' })).rejects.toThrow('only read-only')
+      await expect(call('pin_live_widget', { ...base, action: 'nope' })).rejects.toThrow('has no action "nope"')
+      await expect(call('pin_live_widget', { ...base, service: 'ghost' })).rejects.toThrow('no service "ghost"')
+      expect(ran).toEqual([])
+    })
+
+    it('rejects a template that does not render into valid blocks', async () => {
+      const { call, commands } = setup([summary('pet-feeder', [read])])
+      await expect(call('pin_live_widget', { ...base, template: [{ t: 'progress', items: [{ label: 'X', value: '{{ok}}x' }] }] })).rejects.toThrow('value')
+      expect(commands()).toEqual([])
+    })
+  })
+
   it('summarises status for the model', async () => {
     const { call } = setup([summary('aqw-idle', [])])
     expect(JSON.parse(await call('get_status'))).toMatchObject({ host: 'box', telemetry: { cpuPercent: 23, memoryGb: 4.2 }, services: [{ id: 'aqw-idle', state: 'online' }] })

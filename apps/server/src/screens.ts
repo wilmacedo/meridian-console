@@ -1,4 +1,4 @@
-import type { AgentMode, ScreenCommand, StreamMessage } from '@meridian/service-sdk'
+import type { AgentMode, DocSpec, ScreenCommand, StreamMessage } from '@meridian/service-sdk'
 
 interface Screen {
   send: (message: StreamMessage) => void
@@ -8,12 +8,14 @@ interface Screen {
 }
 
 let nextId = 1
+const MAX_KEPT_DOCS = 50
 
 // The screens connected right now, and which workspace each shows. NOX acts on a workspace by
 // asking one of its screens to run a command; the layout then reaches the others through the workspace.
 export class ScreenRegistry {
   private screens = new Map<number, Screen>()
   private mode: AgentMode = 'idle'
+  private docs = new Map<string, DocSpec>()
 
   add(send: (message: StreamMessage) => void): number {
     const key = nextId++
@@ -53,7 +55,17 @@ export class ScreenRegistry {
     return targets.length
   }
 
+  // The latest version of every live document, so a screen can open one it did not see being composed.
+  doc(id: string): DocSpec | undefined {
+    return this.docs.get(id)
+  }
+
   dispatch(workspace: string, command: ScreenCommand): boolean {
+    if (command.name === 'compose_doc' && command.doc.id) {
+      this.docs.delete(command.doc.id)
+      this.docs.set(command.doc.id, command.doc)
+      if (this.docs.size > MAX_KEPT_DOCS) this.docs.delete(this.docs.keys().next().value!)
+    }
     return this.sendTo(workspace, { type: 'command', command })
   }
 

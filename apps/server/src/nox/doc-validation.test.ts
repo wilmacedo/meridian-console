@@ -29,6 +29,11 @@ describe('validateDoc', () => {
     expect(() => validateDoc({ ...doc({ t: 'p', text: 'x' }), id: 'Task 1' })).toThrow('id: use lowercase')
   })
 
+  it('writes numbers and booleans as text where text is expected', () => {
+    expect(validateDoc(doc({ t: 'kv', items: [{ k: 'N', v: 3 }, { k: 'B', v: false }] })).blocks[0]).toEqual({ t: 'kv', items: [{ k: 'N', v: '3' }, { k: 'B', v: 'false' }] })
+    expect(() => validateDoc(doc({ t: 'p', text: { x: 1 } }))).toThrow('expected a string')
+  })
+
   it('drops undefined keys so the result is plain JSON', () => {
     const out = validateDoc(doc({ t: 'p', text: 'x' }))
     expect(out.blocks[0]).toEqual({ t: 'p', text: 'x' })
@@ -53,6 +58,6 @@ describe('validateDoc', () => {
 
   it('rejects something that is not a document', () => {
     expect(() => validateDoc('hello')).toThrow('expected an object')
-    expect(() => validateDoc({ title: 1, blocks: [{ t: 'divider' }] })).toThrow('title: expected a string')
+    expect(() => validateDoc({ title: { x: 1 }, blocks: [{ t: 'divider' }] })).toThrow('title: expected a string')
   })
 })
