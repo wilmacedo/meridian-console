@@ -1,4 +1,5 @@
-import type { ClientMessage, ContainerInfo, HostInfo, MeridianEvent, ServiceSummary, StreamMessage, TelemetrySample } from '@meridian/service-sdk'
+import { agent } from '../agent/agent-state.svelte'
+import type { ClientMessage, ContainerInfo, ScreenCommand, HostInfo, MeridianEvent, ServiceSummary, StreamMessage, TelemetrySample } from '@meridian/service-sdk'
 
 // The events window keeps the 120 most recent.
 const EVENT_BUFFER = 120
@@ -19,6 +20,13 @@ export const live = $state({
 
 function apply(message: StreamMessage): void {
   switch (message.type) {
+    case 'agent':
+      // The orb is still rising on load; BOOTING ends on its own schedule.
+      if (agent.mode === 'boot' && message.mode === 'idle') break
+      agent.mode = message.mode
+      // Until voice gives a real audio level, speaking uses a steady one so the orb moves.
+      agent.amplitude = message.mode === 'speaking' ? 0.55 : 0
+      break
     case 'snapshot':
       live.host = message.host
       live.services = message.services
@@ -39,8 +47,14 @@ function apply(message: StreamMessage): void {
   }
 }
 
-// `onWorkspace` receives the state of the workspace this screen shows, on connect and when it changes.
-export function startStream(workspaceId: string, onWorkspace: (version: number, state: unknown) => void): () => void {
+interface Handlers {
+  // The state of the workspace this screen shows, on connect and when it changes.
+  onWorkspace: (version: number, state: unknown) => void
+  // Something NOX asked this screen to do.
+  onCommand: (command: ScreenCommand) => void
+}
+
+export function startStream(workspaceId: string, { onWorkspace, onCommand }: Handlers): () => void {
   let socket: WebSocket | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   let delay = RECONNECT_MIN_MS
@@ -57,6 +71,7 @@ export function startStream(workspaceId: string, onWorkspace: (version: number, 
     socket.onmessage = (e) => {
       const message = JSON.parse(e.data as string) as StreamMessage
       if (message.type === 'workspace') onWorkspace(message.version, message.state)
+      else if (message.type === 'command') onCommand(message.command)
       else apply(message)
     }
     socket.onclose = () => {

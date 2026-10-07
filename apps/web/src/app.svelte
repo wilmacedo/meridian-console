@@ -14,6 +14,7 @@
   import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
   import { startStream } from './lib/live/stream.svelte'
+  import { runCommand } from './lib/workspace/commands'
   import { deviceWorkspaceId, loadWorkspace, receiveWorkspace, startWorkspaceSync } from './lib/workspace/workspace-sync.svelte'
   import { activeVariant, applyTheme, darkVariant } from './lib/theme/theme.svelte'
 
@@ -38,7 +39,7 @@
     void loadWorkspace(deviceWorkspaceId()).then((id) => {
       if (stopped) return
       stopSync = startWorkspaceSync()
-      stopStream = startStream(id, receiveWorkspace)
+      stopStream = startStream(id, { onWorkspace: receiveWorkspace, onCommand: runCommand })
     })
     return () => {
       stopped = true

@@ -9,7 +9,8 @@
     "start": "tsx --env-file=../../.env src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "nox:latency": "tsx scripts/nox-latency.ts"
+    "nox:latency": "tsx scripts/nox-latency.ts",
+    "nox": "tsx scripts/nox.ts"
   },
   "dependencies": {
     "@fastify/websocket": "^11.3.0",

@@ -13,6 +13,7 @@
     "build": "pnpm --filter @meridian/web build",
     "typecheck": "pnpm -r typecheck",
     "tuya": "pnpm --filter @meridian/service-tuya-feeder tuya",
-    "test": "pnpm -r --if-present test"
+    "test": "pnpm -r --if-present test",
+    "nox": "pnpm --filter @meridian/server nox"
   }
 }
