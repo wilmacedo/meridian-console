@@ -13,7 +13,8 @@ export const micAvailable = (): boolean => isSecureContext && !!navigator.mediaD
 const SPEECH_LEVEL = 0.02
 const SILENCE_MS = 1000
 const NO_SPEECH_MS = 7000
-const MAX_MS = 30_000
+// Only a guard for a noisy room that never goes quiet; a recording this long is still far below the server's 10 MB limit.
+const MAX_MS = 10 * 60_000
 const TICK_MS = 50
 const MIC_LEVEL_GAIN = 6
 
