@@ -305,6 +305,19 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   screen updates it where it is: no re-streaming, and the window is not reopened if the owner closed it.
   There is still one document slot per screen, so a task reporting progress replaces whatever document was
   open, and an update for an id that is no longer the current one opens as a new document.
+- **Live widgets:** two kinds, both persisted with the workspace so they survive a reload.
+  A doc widget docked from a live document (`docId`) follows that document: composing it again updates
+  the widget, and if one is docked the document window is not pulled open. A *bound* widget
+  (`pin_live_widget`) is a widget made by NOX from a read-only service action, its params, a refresh
+  interval (5 s to 1 h) and a block template with `{{path}}` placeholders (`renderTemplate` in the SDK;
+  a lone placeholder keeps its type, a missing path reads `—`, there are no repeated rows). The server
+  refuses mutating actions, runs the action once to render the template through the doc validator, and
+  offers the widget like any pin (the owner drops it on a rail). Each screen then polls the action's
+  REST endpoint itself while the tab is visible, and dims the widget when the source stops answering.
+- **Task indicator:** the stream's `tasks` message tells each screen which tasks are running for its
+  workspace; the header shows a pulsing `● N TASK(S)` chip (amber, the thinking tint) that opens the
+  newest task's document, fetched from `GET /api/docs/<id>` (the server keeps the latest version of every
+  live document in memory). The orb does not change.
 - **Background tasks:** `start_task({title, goal})` hands a long job to a worker (`nox/tasks.ts`): its own
   headless `claude` process with the same flags as NOX (Bash for ssh, the Meridian tools, the gate for
   confirmations, `start_task` denied so tasks can't spawn tasks) and a worker persona that reports through

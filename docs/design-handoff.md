@@ -549,6 +549,14 @@ the second delayed `.2s`) and `NOX IS COMPOSING…` (mono 9.5 `.22em`, `ac/.6`).
 re-renders its blocks in place as its data changes (for example the deploy doc's progress bar,
 whose width transitions `.7s cubic-bezier(.4,0,.2,1)`).
 
+### As built: background-task chip
+
+Not in the prototype. While NOX runs background tasks, the header shows a pill after `SVC n/m`:
+`● N TASK` / `N TASKS`, mono 10 `.14em`, 1px border and text in the thinking amber (`255,205,80`), the dot
+pulsing with `nxFlash 1.1s`. It is clickable (the header is otherwise pointer-events none) and opens the
+newest task's document; it leaves when no task runs. Bound dock widgets (`LIVE`) dim to .55 opacity with
+`SOURCE NOT ANSWERING · SHOWING THE LAST READING` when their source fails.
+
 ## Doc blocks
 
 Every block enters with `nxSub .5s cubic-bezier(.2,.7,.2,1) both`. Blocks arrive one every **260ms**

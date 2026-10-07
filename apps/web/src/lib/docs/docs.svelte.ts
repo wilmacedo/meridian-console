@@ -40,7 +40,7 @@ export function restoreDoc(spec: DocSpec | null): void {
   docs.shown = spec?.blocks.length ?? 0
 }
 
-if (import.meta.env.DEV) Object.assign(window, { noxDocs: { openDoc } })
+if (import.meta.env.DEV) Object.assign(window, { noxDocs: { openDoc, composeDoc } })
 
 // A document NOX composed. Widgets docked from a live document follow it wherever it is; if the owner has
 // docked one, they are watching it there, so an update doesn't pull the document window open.

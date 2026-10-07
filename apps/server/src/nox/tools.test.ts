@@ -130,7 +130,7 @@ describe('NOX tools', () => {
       expect(await call('pin_live_widget', { ...base, every_seconds: 2 })).toContain('refreshes every 5 seconds')
       expect(ran).toEqual(['pet-feeder/status'])
       expect(commands()).toEqual([
-        { name: 'pin_live_widget', widget: { title: 'Feeder', kicker: 'NOX · LIVE', service: 'pet-feeder', action: 'status', everySec: 5, template: base.template } },
+        { name: 'pin_live_widget', widget: { title: 'Feeder', kicker: 'LIVE', service: 'pet-feeder', action: 'status', everySec: 5, template: base.template } },
       ])
     })
 

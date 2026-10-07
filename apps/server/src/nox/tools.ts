@@ -124,7 +124,7 @@ export function buildTools(d: ToolDeps): McpTool[] {
           params: { type: 'object', description: 'Input for the action, when it takes any.' },
           every_seconds: { type: 'integer', minimum: MIN_LIVE_SECONDS, maximum: MAX_LIVE_SECONDS, description: 'How often to refresh. Default 30.' },
           title: { type: 'string' },
-          kicker: { type: 'string', description: 'Small line above the title. Default "NOX · LIVE".' },
+          kicker: { type: 'string', description: 'Small line above the title. Default "LIVE".' },
           template: { type: 'array', items: { type: 'object' } },
           workspace: workspaceProperty,
         },
@@ -142,7 +142,7 @@ export function buildTools(d: ToolDeps): McpTool[] {
         const sample = (await d.registry.run(service.id, action.id, action.input ? params : undefined)).result
         const checked = validateDoc({ title, blocks: renderTemplate(a.template, sample) })
         const every = typeof a.every_seconds === 'number' ? Math.round(a.every_seconds) : 30
-        const widget = { title, kicker: text(a, 'kicker') ?? 'NOX · LIVE', service: service.id, action: action.id, params, everySec: Math.min(MAX_LIVE_SECONDS, Math.max(MIN_LIVE_SECONDS, every)), template: a.template as DocBlock[] }
+        const widget = { title, kicker: text(a, 'kicker') ?? 'LIVE', service: service.id, action: action.id, params, everySec: Math.min(MAX_LIVE_SECONDS, Math.max(MIN_LIVE_SECONDS, every)), template: a.template as DocBlock[] }
         return command(a, { name: 'pin_live_widget', widget }, `offered a live widget "${title}" from ${service.id}/${action.id}`) + ` It shows ${checked.blocks.length} blocks and refreshes every ${widget.everySec} seconds.`
       },
     },
