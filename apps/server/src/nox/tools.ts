@@ -4,6 +4,7 @@ import type { ScreenRegistry } from '../screens.js'
 import type { Registry } from '../service-registry.js'
 import type { HostTelemetry } from '../telemetry.js'
 import type { WorkspaceStore } from '../workspace-store.js'
+import type { Approvals } from './approvals.js'
 import { validateDoc } from './doc-validation.js'
 import type { McpTool } from './mcp.js'
 
@@ -13,6 +14,7 @@ interface ToolDeps {
   telemetry: HostTelemetry
   workspaces: WorkspaceStore
   screens: ScreenRegistry
+  approvals: Pick<Approvals, 'ask'>
   hostName: () => string
   // The workspace of the screen NOX is answering; tools act there unless told otherwise.
   currentWorkspace: () => string
@@ -186,14 +188,22 @@ export function buildTools(d: ToolDeps): McpTool[] {
     },
   ]
 
-  // Service actions that only read. The ones that change something wait for approvals in the UI.
+  // Service actions. The ones that change something run only after the owner confirms the card.
   for (const service of d.registry.summaries()) {
-    for (const action of service.actions.filter((x) => !x.mutating)) {
+    for (const action of service.actions) {
       tools.push({
         name: `service_${service.id}_${action.id}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64),
-        description: `${service.name}: ${action.title}. ${action.description}`,
+        description: `${service.name}: ${action.title}. ${action.description}${action.mutating ? ' Changes something, so the owner is asked to confirm on the screen first.' : ''}`,
         inputSchema: action.input ?? { type: 'object', properties: {} },
-        handler: async (a) => clip(JSON.stringify((await d.registry.run(service.id, action.id, action.input ? a : undefined)).result ?? null)),
+        handler: async (a) => {
+          const input = action.input ? a : undefined
+          if (action.mutating) {
+            const what = `${service.name}: ${action.title}${input && Object.keys(input).length ? ` ${JSON.stringify(input)}` : ''}`
+            if (!(await d.approvals.ask(d.currentWorkspace(), 'Service action', { command: what }))) throw new Error('The owner did not confirm this, so it was not done.')
+            d.bus.emit('nox', 'info', `ran ${service.id}/${action.id} after confirmation`)
+          }
+          return clip(JSON.stringify((await d.registry.run(service.id, action.id, input)).result ?? null))
+        },
       })
     }
   }

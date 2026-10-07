@@ -265,8 +265,8 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   `ssh -o BatchMode=yes -o ConnectTimeout=5 <host> ...` so an offline host fails fast instead of eating the
   turn timeout. `--allowedTools mcp__meridian` allows only Meridian's own MCP server, `--strict-mcp-config`
   ignores every other server, and `--setting-sources ""` keeps the owner's own settings out. SSH uses the
-  owner's existing config and keys; nothing is copied into the repo. Mutating service actions are still not
-  exposed as tools. Checked with the real `claude`: a read over SSH works; a write ask on `win-lan` was
+  owner's existing config and keys; nothing is copied into the repo. Mutating service actions go through the
+  confirmation card (below), not the classifier. Checked with the real `claude`: a read over SSH works; a write ask on `win-lan` was
   attempted (the owner asked for it); the classifier itself blocking an out-of-scope call has not been
   exercised yet, since the persona refuses first.
 - **Confirmation cards:** Claude Code asks `--permission-prompt-tool mcp__gate__approve` for anything its
@@ -287,8 +287,8 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   `close_window`, `close_all_windows`, `arrange_windows`, `pin_widget`, `clear_agent_widgets`,
   `set_theme`, `compose_doc` (validated server-side by `nox/doc-validation.ts`; an error message names the
   bad path so NOX can fix its call), `get_status`, `query_events`, `get_telemetry`, and one
-  `service_<id>_<action>` per **read-only** service action. Actions that change something are not exposed
-  until risky actions can be approved on screen.
+  `service_<id>_<action>` per service action. Read-only ones run at once; ones marked `mutating` wait for the
+  confirmation card (see below) and do nothing if the owner declines, whatever the permission mode.
 - **Acting on a screen:** the server tracks which workspace each connected screen shows
   (`ScreenRegistry`). A UI tool sends a `command` message over `/api/stream` to the **newest screen of the
   workspace** (the workspace of whoever is talking, unless the tool names another); that screen runs it
