@@ -446,7 +446,7 @@
     border: 1px solid rgba(var(--nx-ac), 0.14);
     border-radius: 10px;
     overflow: hidden;
-    background: rgba(var(--nx-sh), 0.28);
+    background: rgba(var(--nx-sh), calc(0.28 * var(--nx-so)));
   }
   .lang {
     padding: 6px var(--code-pad);

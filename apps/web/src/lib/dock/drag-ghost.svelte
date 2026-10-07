@@ -38,14 +38,14 @@
     position: relative;
     border-radius: 12px;
     box-shadow:
-      0 30px 70px rgba(var(--nx-sh), 0.6),
+      0 30px 70px rgba(var(--nx-sh), calc(0.6 * var(--nx-so))),
       0 0 36px rgba(var(--nx-ac), 0.25);
     transition:
       transform 0.22s var(--ease-out),
       box-shadow 0.3s ease;
   }
   .tilt.landing {
-    box-shadow: 0 10px 24px rgba(var(--nx-sh), 0.35);
+    box-shadow: 0 10px 24px rgba(var(--nx-sh), calc(0.35 * var(--nx-so)));
   }
   .clone {
     border-radius: 12px;

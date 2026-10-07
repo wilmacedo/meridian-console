@@ -10,6 +10,7 @@
   --nx-sh: 0, 0, 0;
   --nx-vg: 0, 0, 0;
   --nx-vga: 0.75;
+  --nx-so: 1;
   --nx-page: #030303;
 
   --font-ui: 'Inter', sans-serif;
@@ -136,7 +137,7 @@ button {
   100% {
     box-shadow:
       0 0 0 1px rgba(var(--nx-hi), 0),
-      0 30px 80px rgba(var(--nx-sh), 0.6),
+      0 30px 80px rgba(var(--nx-sh), calc(0.6 * var(--nx-so))),
       inset 0 1px 0 rgba(var(--nx-hi), 0.08);
   }
 }
@@ -287,7 +288,7 @@ button {
   border-radius: 14px;
   box-shadow:
     inset 0 1px 0 rgba(var(--nx-ac), 0.1),
-    0 10px 30px rgba(var(--nx-sh), 0.35);
+    0 10px 30px rgba(var(--nx-sh), calc(0.35 * var(--nx-so)));
 }
 
 @keyframes nx-bar {

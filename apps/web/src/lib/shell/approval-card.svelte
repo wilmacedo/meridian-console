@@ -36,7 +36,7 @@
     border: 1px solid rgba(var(--nx-ac), 0.6);
     border-radius: 12px;
     box-shadow:
-      0 28px 70px rgba(var(--nx-sh), 0.6),
+      0 28px 70px rgba(var(--nx-sh), calc(0.6 * var(--nx-so))),
       0 0 30px rgba(var(--nx-ac), 0.2);
     animation: nx-lift 0.35s var(--ease-out) both;
   }

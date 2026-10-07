@@ -784,6 +784,12 @@ each lands; an item marked *ours* is a project decision the design does not draw
 `--nx-wn` (RGB triplet): the amber for "NOX is busy and can be stopped" and for thinking tints.
 Dark `255,205,80`, light `168,112,0`. It replaces the hard-coded `255,205,80`; offline stays `#ff6b8a`.
 
+### Shadow opacity token
+
+`--nx-so` multiplies the opacity of every shadow (`rgba(sh, calc(a * var(--nx-so)))`: widgets, windows,
+panels, ghost, pending card and scrim, mic, task card, code blocks). `1` on dark variants, `.32` on light
+ones, where a shadow tuned for a dark field is far too heavy.
+
 ### Header collapse
 
 Below 1180px wide the host is dropped, below 980px `SVC n/m` too, and below 760px the side padding is 0

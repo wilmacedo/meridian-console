@@ -35,7 +35,7 @@
     position: absolute;
     inset: 0;
     z-index: 4;
-    background: radial-gradient(ellipse at center, rgba(var(--nx-sh), 0.35), rgba(var(--nx-sh), 0.7));
+    background: radial-gradient(ellipse at center, rgba(var(--nx-sh), calc(0.35 * var(--nx-so))), rgba(var(--nx-sh), calc(0.7 * var(--nx-so))));
     backdrop-filter: blur(7px) saturate(0.6) brightness(0.7);
     opacity: 0;
     pointer-events: none;
@@ -77,7 +77,7 @@
     border: 1px solid rgba(var(--nx-ac), 0.6);
     border-radius: 12px;
     box-shadow:
-      0 28px 70px rgba(var(--nx-sh), 0.6),
+      0 28px 70px rgba(var(--nx-sh), calc(0.6 * var(--nx-so))),
       0 0 30px rgba(var(--nx-ac), 0.2);
   }
   .grip {

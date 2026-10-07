@@ -221,7 +221,7 @@
     border: 1px solid rgba(var(--nx-hi), 0.14);
     border-radius: 14px;
     box-shadow:
-      0 30px 80px rgba(var(--nx-sh), 0.55),
+      0 30px 80px rgba(var(--nx-sh), calc(0.55 * var(--nx-so))),
       inset 0 1px 0 rgba(var(--nx-hi), 0.08);
     animation: nx-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
     transform-origin: top left;

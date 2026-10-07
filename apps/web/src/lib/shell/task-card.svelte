@@ -148,7 +148,7 @@
     border: 1px solid rgba(var(--nx-hi), 0.14);
     border-radius: 14px;
     box-shadow:
-      0 24px 60px rgba(var(--nx-sh), 0.5),
+      0 24px 60px rgba(var(--nx-sh), calc(0.5 * var(--nx-so))),
       inset 0 1px 0 rgba(var(--nx-hi), 0.06);
     animation:
       nx-in 0.62s cubic-bezier(0.2, 0.7, 0.2, 1) both,

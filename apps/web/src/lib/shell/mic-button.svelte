@@ -114,7 +114,7 @@
     border: 1px solid var(--edge);
     box-shadow:
       0 0 var(--blur) var(--halo),
-      0 14px 36px rgba(var(--nx-sh), 0.5),
+      0 14px 36px rgba(var(--nx-sh), calc(0.5 * var(--nx-so))),
       inset 0 1px 0 rgba(var(--nx-hi), 0.06);
     cursor: pointer;
     display: grid;

@@ -19,7 +19,7 @@ export function activeVariant(): PaletteVariant {
   return isLight() && p.light ? p.light : p.dark
 }
 
-const TOKENS = ['bg', 'pn', 'hi', 'fg', 'ac', 'mu', 'sh', 'vg', 'vga', 'wn'] as const
+const TOKENS = ['bg', 'pn', 'hi', 'fg', 'ac', 'mu', 'sh', 'vg', 'vga', 'so', 'wn'] as const
 
 export const darkVariant = (): PaletteVariant => PALETTES[theme.palette].dark
 

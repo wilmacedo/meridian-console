@@ -49,7 +49,7 @@
     border-radius: 12px;
     overflow: hidden;
     box-shadow:
-      0 18px 40px rgba(var(--nx-sh), 0.45),
+      0 18px 40px rgba(var(--nx-sh), calc(0.45 * var(--nx-so))),
       inset 0 1px 0 rgba(var(--nx-hi), 0.06);
   }
   .topline {
