@@ -89,3 +89,20 @@ export type StreamMessage =
   | { type: 'event'; event: MeridianEvent }
   | { type: 'services'; services: ServiceSummary[] }
   | { type: 'telemetry'; sample: TelemetrySample; containers: ContainerInfo[] }
+  // Sent for the workspace the client asked to watch, on connect and on every change.
+  | { type: 'workspace'; id: string; version: number; state: unknown }
+
+// Messages a client sends on the same socket.
+export type ClientMessage = { type: 'watch'; workspace: string }
+
+export interface WorkspaceSummary {
+  id: string
+  name: string
+  version: number
+  updatedAt: string
+}
+
+// A workspace's state is the web app's business (windows, dock, theme...); the server stores it as JSON.
+export interface Workspace extends WorkspaceSummary {
+  state: unknown
+}
