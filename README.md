@@ -19,7 +19,8 @@ See [`docs/architecture.md`](docs/architecture.md) for the why, and
 
 Everything Meridian shows is a **service**: a folder under `services/` that is discovered
 automatically, with its own server routes, status, actions, events and optional windows and widgets.
-Today: `aqw-idle` (a packet console) and `tuya-feeder` (a Tuya pet feeder with a camera). See
+Today: `aqw-idle` (a packet console), `tuya-feeder` (a Tuya pet feeder with a camera) and `calendar` (Google
+Calendar across several accounts). See
 [`docs/services.md`](docs/services.md) to write one. Credentials and per-installation values go in
 `.env` (see `.env.example`).
 
