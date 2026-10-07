@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import websocket from '@fastify/websocket'
 import { openDatabase } from './database.js'
 import { EventBus } from './event-bus.js'
+import { ScreenRegistry } from './screens.js'
 import { registerServices } from './service-registry.js'
 import { registerStream } from './stream.js'
 import { HostTelemetry } from './telemetry.js'
@@ -12,6 +13,7 @@ const app = Fastify({ logger: true })
 const bus = new EventBus()
 const telemetry = new HostTelemetry(app.log)
 const workspaces = new WorkspaceStore(openDatabase())
+const screens = new ScreenRegistry()
 
 await app.register(websocket)
 
@@ -23,7 +25,7 @@ await telemetry.start()
 app.get('/api/services', async () => registry.summaries())
 app.get('/api/events', async () => bus.recent())
 registerWorkspaces(app, workspaces)
-registerStream(app, { bus, registry, telemetry, workspaces })
+registerStream(app, { bus, registry, telemetry, workspaces, screens })
 
 const port = Number(process.env.PORT ?? 4000)
 

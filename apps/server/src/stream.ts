@@ -2,6 +2,7 @@ import { hostname } from 'node:os'
 import type { FastifyInstance } from 'fastify'
 import type { ClientMessage, HostInfo, StreamMessage } from '@meridian/service-sdk'
 import type { EventBus } from './event-bus.js'
+import type { ScreenRegistry } from './screens.js'
 import type { Registry } from './service-registry.js'
 import type { HostTelemetry } from './telemetry.js'
 import type { WorkspaceStore } from './workspace-store.js'
@@ -17,11 +18,12 @@ interface StreamSources {
   registry: Registry
   telemetry: HostTelemetry
   workspaces: WorkspaceStore
+  screens: ScreenRegistry
 }
 
 // One WebSocket carries everything live: the snapshot on connect, then events, service status
 // changes and telemetry as they happen.
-export function registerStream(app: FastifyInstance, { bus, registry, telemetry, workspaces }: StreamSources): void {
+export function registerStream(app: FastifyInstance, { bus, registry, telemetry, workspaces, screens }: StreamSources): void {
   app.get('/api/stream', { websocket: true }, (socket) => {
     const send = (message: StreamMessage): void => {
       if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message))
@@ -29,6 +31,8 @@ export function registerStream(app: FastifyInstance, { bus, registry, telemetry,
 
     const host: HostInfo = { name: hostName(), memTotalGb: telemetry.memTotalGb }
     send({ type: 'snapshot', host, services: registry.summaries(), events: bus.recent(), telemetry: telemetry.samples(), containers: telemetry.containers() })
+
+    const screenKey = screens.add(send)
 
     // A screen shows one workspace and only hears about that one.
     let watching: string | undefined
@@ -41,6 +45,7 @@ export function registerStream(app: FastifyInstance, { bus, registry, telemetry,
         const message = JSON.parse(raw.toString()) as ClientMessage
         if (message.type === 'watch') {
           watching = message.workspace
+          screens.watch(screenKey, watching)
           sendWorkspace(watching)
         }
       } catch {
@@ -66,6 +71,7 @@ export function registerStream(app: FastifyInstance, { bus, registry, telemetry,
     }, HEARTBEAT_MS)
 
     socket.on('close', () => {
+      screens.remove(screenKey)
       clearInterval(heartbeat)
       for (const stop of stops) stop()
     })
