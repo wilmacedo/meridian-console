@@ -258,17 +258,26 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   (the id lives in `session-id` under NOX's home). `POST /api/nox/say {text, workspace?}` is the single
   entry point; the answer streams back as newline-delimited JSON (`text`, `tool`, `done`, `error`). Voice
   will post to it, and so does the dev CLI: `pnpm nox "abre a telemetria" [--workspace <id>]`.
-- **Reach, enforced by flags** (and covered by a test, `buildArgs`): `--tools Bash` leaves Bash as the
-  only built-in tool, and `--permission-mode auto` hands every Bash call to Claude Code's auto mode
-  classifier, which is told (`--settings`, `autoMode.environment`) that `mac-lan` and `win-lan` are the
-  owner's trusted machines and that nothing else is in scope. The persona asks NOX to use
-  `ssh -o BatchMode=yes -o ConnectTimeout=5 <host> ...` so an offline host fails fast instead of eating the
-  turn timeout. `--allowedTools mcp__meridian` allows only Meridian's own MCP server, `--strict-mcp-config`
-  ignores every other server, and `--setting-sources ""` keeps the owner's own settings out. SSH uses the
-  owner's existing config and keys; nothing is copied into the repo. Mutating service actions go through the
-  confirmation card (below), not the classifier. Checked with the real `claude`: a read over SSH works; a write ask on `win-lan` was
-  attempted (the owner asked for it); the classifier itself blocking an out-of-scope call has not been
-  exercised yet, since the persona refuses first.
+- **Reach, enforced by flags** (and covered by a test, `buildArgs`): the Debian machine NOX runs on is
+  **its own and its first place to work**. `--tools` gives it Bash, Read, Glob, Grep, Edit and Write for this
+  machine and WebSearch and WebFetch for the web (nothing else built in), `--add-dir` opens the owner's whole
+  home directory to the file tools, and `--permission-mode auto` hands every Bash call and file change to
+  Claude Code's auto mode classifier. Only reading (and the web tools and the Meridian server) is allowed
+  without a verdict; running and writing go through the classifier. It is told (`--settings`,
+  `autoMode.environment`) that this machine is entirely NOX's to work on, including the repository and Docker,
+  so looking around is not "scope escalation"; that `mac-lan` and `win-lan` are trusted but reached only with
+  `ssh <host> <command>` and only when the owner named that machine in the conversation; that secrets
+  (`.env`, keys, tokens, passwords) may be used by programs but never printed, read aloud, copied or sent;
+  and that anything else on the network is out of scope. The system prompt also carries the machine's facts
+  (`machineFacts`: host, user, home, where the repository, the services and the data are), so it does not
+  hunt for its own project. The persona asks for `ssh -o BatchMode=yes -o ConnectTimeout=5 <host> ...` so an
+  offline host fails fast. `--allowedTools` also lists the Meridian MCP server, `--strict-mcp-config` ignores
+  every other server, and `--setting-sources ""` keeps the owner's own settings out. SSH uses the owner's
+  existing config and keys. Mutating service actions go through the confirmation card (below), not the
+  classifier. Background tasks get the same flags. Checked with the real `claude`: it found `aqw-idle` on
+  this machine without being told where, answered uptime and disk locally, wrote a file, refused to show the
+  `.env`, and went to the Mac only when the Mac was named. NOX is told never to restart or stop the server
+  (it is the server's child); a code service it edits needs a restart that the owner does.
 - **Confirmation cards:** Claude Code asks `--permission-prompt-tool mcp__gate__approve` for anything its
   mode doesn't settle. That tool lives on a second MCP server (`/mcp/gate`) that only the harness is
   pointed at, so NOX can never approve its own actions. `nox/approvals.ts` sends an `approval` message to

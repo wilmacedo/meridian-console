@@ -5,7 +5,7 @@ import type { Readable, Writable } from 'node:stream'
 import type { DocSpec } from '@meridian/service-sdk'
 import type { EventBus } from '../event-bus.js'
 import type { ScreenRegistry } from '../screens.js'
-import { buildArgs, commandNote, interpret, readNotes, SSH_HOSTS, type NoxConfig } from './process.js'
+import { buildArgs, commandNote, interpret, machineFacts, readNotes, SSH_HOSTS, type NoxConfig } from './process.js'
 
 const MAX_RUNNING = 2
 const TASK_TIMEOUT_MS = 15 * 60_000
@@ -46,7 +46,7 @@ Reporting
 
 What you can do
 - The Meridian tools to read status, telemetry, events and services, and compose_doc. Do not open, close or arrange windows, and do not start tasks.
-- Bash, only as \`ssh -o BatchMode=yes -o ConnectTimeout=5 <host> <command>\` to ${SSH_HOSTS.join(' or ')}. Anything that changes something asks the owner to confirm on the screen; if they decline, say so in the document and stop that step.
+- This machine is yours and the first place to work: Bash and the file tools (Read, Glob, Grep, Edit, Write) find files, read logs, check Docker and run commands here, without asking. Use ssh only when the job names the Mac or Windows machine: \`ssh -o BatchMode=yes -o ConnectTimeout=5 <host> <command>\` to ${SSH_HOSTS.join(' or ')}. Anything that changes something asks the owner to confirm on the screen; if they decline, say so in the document and stop that step. Never put secrets (.env, keys, tokens, passwords) in the document.
 - Never invent state. If something fails, report it plainly in the document.`
 
 const doc = (task: Task, blocks: DocSpec['blocks']): DocSpec => ({ id: docIdOf(task), title: task.title, kicker: `BACKGROUND TASK · ${task.id}`, blocks })
@@ -90,6 +90,7 @@ export class Tasks {
       mcpUrl: `http://127.0.0.1:${port}/mcp`,
       gateUrl: `http://127.0.0.1:${port}/mcp/gate/${encodeURIComponent(workspace)}`,
       notes: readNotes(home),
+      facts: machineFacts(home),
       persona: taskPersona(task),
       deny: ['mcp__meridian__start_task'],
       sessionId: randomUUID(),

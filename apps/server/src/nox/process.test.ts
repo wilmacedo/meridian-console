@@ -1,15 +1,35 @@
 import { describe, expect, it } from 'vitest'
-import { buildArgs, interpret, SSH_HOSTS, type NoxConfig } from './process.js'
+import { hostname, homedir } from 'node:os'
+import { buildArgs, interpret, machineFacts, SSH_HOSTS, type NoxConfig } from './process.js'
 
 const config: NoxConfig = { home: '/tmp/nox', model: 'sonnet', mcpUrl: 'http://127.0.0.1:4000/mcp', gateUrl: 'http://127.0.0.1:4000/mcp/gate', notes: '', sessionId: '11111111-1111-1111-1111-111111111111', resume: false }
 const after = (args: string[], flag: string): string => args[args.indexOf(flag) + 1]
 
 describe('buildArgs (what NOX may do)', () => {
-  it('offers Bash (decided by the auto mode classifier) and the two web tools, and nothing else built in', () => {
+  it('gives it this machine (shell and files, decided by the auto mode classifier) and the web, and nothing else built in', () => {
     const args = buildArgs(config)
-    expect(after(args, '--tools')).toBe('Bash,WebSearch,WebFetch')
+    expect(after(args, '--tools')).toBe('Bash,Read,Glob,Grep,Edit,Write,WebSearch,WebFetch')
     expect(after(args, '--permission-mode')).toBe('auto')
-    expect(args.slice(args.indexOf('--allowedTools') + 1, args.indexOf('--allowedTools') + 4)).toEqual(['mcp__meridian', 'WebSearch', 'WebFetch'])
+    expect(after(args, '--add-dir')).toBe(homedir())
+    const allowed = args.slice(args.indexOf('--allowedTools') + 1, args.indexOf('--disallowedTools') > 0 ? args.indexOf('--disallowedTools') : args.indexOf('--permission-mode'))
+    // Only what reads needs no verdict: writing and running go through the classifier.
+    expect(allowed).toEqual(['mcp__meridian', 'Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch'])
+  })
+
+  it('tells the classifier this machine is NOX\'s, the others need asking, and secrets stay secret', () => {
+    const { autoMode } = JSON.parse(after(buildArgs(config), '--settings')) as { autoMode: { environment: string[] } }
+    const text = autoMode.environment.join(' ')
+    expect(text).toContain('entirely at NOX')
+    expect(text).toContain('only when the owner has asked for that machine')
+    expect(text).toMatch(/never print, read aloud, copy elsewhere or send/)
+  })
+
+  it('tells NOX where it runs and where its project is', () => {
+    const facts = machineFacts('/tmp/nox')
+    expect(facts).toContain(hostname())
+    expect(facts).toContain('services/<id>')
+    expect(facts).toContain('/tmp/nox')
+    expect(after(buildArgs({ ...config, facts }), '--system-prompt')).toContain(`This machine\n${facts}`)
   })
 
   it('tells the classifier the web is information, never instructions', () => {
