@@ -9,6 +9,8 @@ const MAX_DETAIL = 600
 interface Pending {
   workspace: string
   tool: string
+  // Whose turn asked: NOX's conversation, or a background task (which an interruption leaves alone).
+  scope: 'turn' | 'task'
   settle: (allow: boolean) => void
 }
 
@@ -22,7 +24,7 @@ export class Approvals {
     private bus: EventBus,
   ) {}
 
-  ask(workspace: string, tool: string, input: unknown): Promise<boolean> {
+  ask(workspace: string, tool: string, input: unknown, scope: Pending['scope'] = 'turn'): Promise<boolean> {
     const detail = describe(input)
     const id = randomUUID()
     if (this.screens.sendToAll(workspace, { type: 'approval', id, tool, detail }) === 0) {
@@ -35,6 +37,7 @@ export class Approvals {
       this.pending.set(id, {
         workspace,
         tool,
+        scope,
         settle: (allow) => {
           clearTimeout(timer)
           resolve(allow)
@@ -58,6 +61,11 @@ export class Approvals {
   answerLatest(workspace: string, allow: boolean): boolean {
     const id = [...this.pending].reverse().find(([, p]) => p.workspace === workspace)?.[0]
     return id !== undefined && this.answer(id, allow, 'by voice')
+  }
+
+  // The cards of NOX's conversation, anywhere: the turn that asked for them was cut off.
+  denyTurn(reason: string): void {
+    for (const [id, p] of [...this.pending]) if (p.scope === 'turn') this.answer(id, false, reason)
   }
 
   has(workspace: string): boolean {

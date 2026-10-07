@@ -108,6 +108,8 @@ export type ClientMessage =
   // The screen finished playing a turn's speech.
   | { type: 'speech_done'; turn: number }
   | { type: 'approval_answer'; id: string; allow: boolean }
+  // The owner cut NOX off: stop the turn that is running and whatever it is still saying.
+  | { type: 'interrupt' }
 
 export interface WorkspaceSummary {
   id: string

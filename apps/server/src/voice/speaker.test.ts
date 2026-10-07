@@ -50,6 +50,20 @@ describe('TurnSpeaker', () => {
     expect(sent.some((m) => m.type === 'speech_end')).toBe(false)
   })
 
+  it('stops synthesising and delivering once cancelled', async () => {
+    const { speaker, sent } = setup(async (t) => {
+      await new Promise((r) => setTimeout(r, 10))
+      return Buffer.from(t)
+    })
+    speaker.push('Primeira frase bem comprida aqui. ')
+    speaker.cancel()
+    speaker.push('Segunda frase bem comprida aqui. ')
+    speaker.flush()
+    await speaker.finish()
+    expect(sent.filter((m) => m.type === 'speech')).toHaveLength(0)
+    expect(sent.at(-1)).toEqual({ type: 'speech_end', turn: 7 })
+  })
+
   it('speaks the trailing text on finish', async () => {
     const { speaker, sent } = setup(async (t) => Buffer.from(t))
     speaker.push('Tudo certo por aqui')

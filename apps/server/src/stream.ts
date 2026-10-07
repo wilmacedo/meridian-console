@@ -24,11 +24,12 @@ interface StreamSources {
   screens: ScreenRegistry
   approvals: Approvals
   tasks: Tasks
+  onInterrupt: () => void
 }
 
 // One WebSocket carries everything live: the snapshot on connect, then events, service status
 // changes and telemetry as they happen.
-export function registerStream(app: FastifyInstance, { bus, registry, telemetry, workspaces, screens, approvals, tasks }: StreamSources): void {
+export function registerStream(app: FastifyInstance, { bus, registry, telemetry, workspaces, screens, approvals, tasks, onInterrupt }: StreamSources): void {
   app.get('/api/stream', { websocket: true }, (socket) => {
     const send = (message: StreamMessage): void => {
       if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message))
@@ -58,6 +59,8 @@ export function registerStream(app: FastifyInstance, { bus, registry, telemetry,
           sendTasks()
         } else if (message.type === 'speech_done') {
           playbackDone(message.turn)
+        } else if (message.type === 'interrupt') {
+          onInterrupt()
         } else if (message.type === 'approval_answer') {
           approvals.answer(message.id, message.allow === true, 'tapped')
         }

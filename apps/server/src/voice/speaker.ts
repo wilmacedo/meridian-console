@@ -18,6 +18,7 @@ export class TurnSpeaker {
   private seq = 0
   private chain: Promise<void> = Promise.resolve()
   private started = false
+  private cancelled = false
 
   constructor(
     private config: VoiceConfig,
@@ -25,13 +26,20 @@ export class TurnSpeaker {
     private hooks: Hooks,
   ) {}
 
+  // The owner cut NOX off: nothing more is synthesised, and what is already on its way is not delivered.
+  cancel(): void {
+    this.cancelled = true
+  }
+
   push(delta: string): void {
+    if (this.cancelled) return
     for (const sentence of this.splitter.push(delta)) this.speak(sentence)
   }
 
   // Speaks what has not formed a sentence yet. NOX does this before it acts, because the tool call can
   // wait on the owner (a confirmation card) and what it said before must not be heard after the wait.
   flush(): void {
+    if (this.cancelled) return
     const rest = this.splitter.flush()
     if (rest) this.speak(rest)
   }
@@ -51,6 +59,7 @@ export class TurnSpeaker {
     this.chain = this.chain.then(async () => {
       try {
         const mp3 = await audio
+        if (this.cancelled) return
         if (!this.started) {
           this.started = true
           this.hooks.onFirstAudio()

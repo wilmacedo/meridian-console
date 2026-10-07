@@ -27,7 +27,20 @@ interface Deps {
 // The entry points to NOX. Both answer as newline-delimited JSON events (text, tool, done, error); when
 // voice is configured and a screen is showing the workspace, the answer is also spoken there, sentence
 // by sentence, while it is still being written.
-export function registerNox(app: FastifyInstance, { nox, bus, screens, registry, approvals }: Deps): void {
+export function registerNox(app: FastifyInstance, { nox, bus, screens, registry, approvals }: Deps): { interrupt: () => void } {
+  // The turn whose answer is being written or spoken, for the owner to cut off.
+  let active: { turn: number; speaker?: TurnSpeaker } | undefined
+
+  // The owner talks over NOX: end the turn that is running, stop synthesising, and release the screen
+  // (which has already stopped playing) so the next request starts clean.
+  function interrupt(): void {
+    nox.interrupt()
+    approvals.denyTurn('interrupted')
+    if (!active) return
+    active.speaker?.cancel()
+    playbackDone(active.turn)
+  }
+
   async function answer(text: string, workspace: string, reply: FastifyReply, heardLine?: string): Promise<void> {
     bus.emit('nox', 'info', `request: ${text.slice(0, 120)}`)
     reply.hijack()
@@ -51,6 +64,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
           })
         : undefined
 
+    active = { turn, speaker }
     screens.setAgentMode('thinking')
     let typing = false
     try {
@@ -77,6 +91,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
         await played
       }
     } finally {
+      if (active?.turn === turn) active = undefined
       screens.setAgentMode('idle')
       if (!reply.raw.writableEnded) reply.raw.end()
     }
@@ -115,6 +130,8 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
       return reply.code(502).send({ error: message })
     }
     if (!heard) return reply.code(422).send({ error: 'nothing heard' })
+    // The owner gave up while it was being transcribed: a request nobody is waiting for is not run.
+    if (request.socket.destroyed) return
     // NOX is waiting on a card: what was said is the owner's answer to it, not a new request.
     const workspace = request.query.workspace ?? 'default'
     if (approvals.has(workspace)) {
@@ -124,4 +141,6 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     }
     return answer(heard, workspace, reply, heard)
   })
+
+  return { interrupt }
 }

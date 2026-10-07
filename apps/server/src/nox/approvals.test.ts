@@ -67,6 +67,16 @@ describe('Approvals', () => {
     expect(approvals.has('default')).toBe(false)
   })
 
+  it('denies the cards of the conversation when it is interrupted, and leaves a background task\'s alone', async () => {
+    const turn = approvals.ask('default', 'Bash', { command: 'a' })
+    const task = approvals.ask('default', 'Bash', { command: 'b' }, 'task')
+    approvals.denyTurn('interrupted')
+    await expect(turn).resolves.toBe(false)
+    expect(approvals.has('default')).toBe(true)
+    approvals.answerLatest('default', true)
+    await expect(task).resolves.toBe(true)
+  })
+
   it('logs every decision as a nox event', async () => {
     const result = approvals.ask('default', 'Bash', { command: 'x' })
     approvals.answer(card().id, true)

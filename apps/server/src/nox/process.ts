@@ -115,6 +115,8 @@ export class Nox {
   private child: ChildProcessWithoutNullStreams | undefined
   private listener: ((event: NoxEvent) => void) | undefined
   private tail: Promise<unknown> = Promise.resolve()
+  // Set while an interrupted turn winds down: Claude Code reports it as an error, which is not one.
+  private interrupted = false
 
   constructor(
     private options: { home?: string; model?: string; port: number },
@@ -172,8 +174,9 @@ export class Nox {
 
       const pending: NoxEvent[] = []
       let wake: (() => void) | undefined
+      this.interrupted = false
       this.listener = (event) => {
-        pending.push(event)
+        pending.push(this.interrupted && event.type === 'error' ? { type: 'done' } : event)
         wake?.()
       }
       const timer = setTimeout(() => {
@@ -197,6 +200,13 @@ export class Nox {
     } finally {
       release()
     }
+  }
+
+  // Cuts the turn that is running short, without restarting the process. Nothing happens between turns.
+  interrupt(): void {
+    if (!this.child || !this.listener) return
+    this.interrupted = true
+    this.child.stdin.write(`${JSON.stringify({ type: 'control_request', request_id: randomUUID(), request: { subtype: 'interrupt' } })}\n`)
   }
 
   stop(): void {

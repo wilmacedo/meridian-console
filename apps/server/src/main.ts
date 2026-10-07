@@ -36,7 +36,7 @@ registerWorkspaces(app, workspaces)
 const approvals = new Approvals(screens, bus)
 const tasks = new Tasks({ port, home: noxHome(), model: process.env.NOX_MODEL ?? 'sonnet', bus, screens })
 app.addHook('onClose', async () => tasks.stopAll())
-registerStream(app, { bus, registry, telemetry, workspaces, screens, approvals, tasks })
+registerStream(app, { bus, registry, telemetry, workspaces, screens, approvals, tasks, onInterrupt: () => noxRoutes.interrupt() })
 // The latest version of a live document, for a screen that wasn't there when NOX composed it.
 app.get<{ Params: { id: string } }>('/api/docs/:id', async (request, reply) => screens.doc(request.params.id) ?? reply.code(404).send({ error: 'no such document' }))
 
@@ -47,22 +47,22 @@ registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, t
 // Claude Code asks this server before anything its classifier doesn't settle. It is a separate MCP
 // server so that NOX, who only gets the Meridian one, can never approve its own actions. NOX's turns
 // ask on the workspace being answered; a background task has its own URL naming the workspace it serves.
-const gate = (workspace: () => string): McpServer =>
+const gate = (workspace: () => string, scope: 'turn' | 'task'): McpServer =>
   new McpServer('gate', [
     {
       name: 'approve',
       description: 'Asks the owner on the screen to confirm an action.',
       inputSchema: { type: 'object', properties: { tool_name: { type: 'string' }, input: { type: 'object' } }, required: ['tool_name'] },
-      handler: async (args) => verdict(await approvals.ask(workspace(), String(args.tool_name), args.input), args.input),
+      handler: async (args) => verdict(await approvals.ask(workspace(), String(args.tool_name), args.input, scope), args.input),
     },
   ])
-registerMcp(app, '/mcp/gate', gate(() => turnWorkspace))
-registerMcp(app, '/mcp/gate/:workspace', (params) => gate(() => params.workspace))
+registerMcp(app, '/mcp/gate', gate(() => turnWorkspace, 'turn'))
+registerMcp(app, '/mcp/gate/:workspace', (params) => gate(() => params.workspace, 'task'))
 const nox = new Nox(
   { port },
   { setWorkspace: (id) => (turnWorkspace = id), log: (message) => app.log.info(message) },
 )
-registerNox(app, { nox, bus, screens, registry, approvals })
+const noxRoutes = registerNox(app, { nox, bus, screens, registry, approvals })
 app.addHook('onClose', async () => nox.stop())
 
 app.listen({ port, host: '0.0.0.0' }).catch((err) => {
