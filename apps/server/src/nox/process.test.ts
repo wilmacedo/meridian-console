@@ -63,6 +63,13 @@ describe('interpret', () => {
     expect(interpret(line({ type: 'stream_event', event: { type: 'content_block_start', content_block: { type: 'tool_use', name: 'mcp__meridian__open_window' } } }))).toEqual({ type: 'tool', name: 'open_window' })
   })
 
+  it('reads the shell command from a complete Bash call, and nothing else from assistant lines', () => {
+    const call = (name: string, input: unknown) => line({ type: 'assistant', message: { content: [{ type: 'tool_use', name, input }] } })
+    expect(interpret(call('Bash', { command: 'ssh win-lan hostname' }))).toEqual({ type: 'command', command: 'ssh win-lan hostname' })
+    expect(interpret(call('mcp__meridian__get_status', {}))).toBeUndefined()
+    expect(interpret(line({ type: 'assistant', message: { content: [{ type: 'text', text: 'oi' }] } }))).toBeUndefined()
+  })
+
   it('ends a turn on result, reporting model errors', () => {
     expect(interpret(line({ type: 'result', is_error: false }))).toEqual({ type: 'done' })
     expect(interpret(line({ type: 'result', is_error: true, result: 'rate limited' }))).toEqual({ type: 'error', message: 'rate limited' })

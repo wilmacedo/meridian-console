@@ -58,6 +58,14 @@ describe('Tasks', () => {
     expect(bus.recent().at(-1)?.message).toBe(`task ${task.id} done: Tudo certo.`)
   })
 
+  it('logs the shell commands a worker runs', async () => {
+    const { tasks, spawned, bus, line } = setup()
+    const task = tasks.start('default', 'T', 'g')
+    spawned[0].stdout.write(line({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Bash', input: { command: 'ssh win-lan hostname' } }] } }))
+    await tick()
+    expect(bus.recent().at(-1)?.message).toBe(`task ${task.id} ran: ssh win-lan hostname`)
+  })
+
   it('marks a failed worker on the document, once', async () => {
     const { tasks, spawned, docs, line } = setup()
     tasks.start('default', 'T', 'g')

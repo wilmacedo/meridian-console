@@ -5,7 +5,7 @@ import type { Readable, Writable } from 'node:stream'
 import type { DocSpec } from '@meridian/service-sdk'
 import type { EventBus } from '../event-bus.js'
 import type { ScreenRegistry } from '../screens.js'
-import { buildArgs, interpret, readNotes, SSH_HOSTS, type NoxConfig } from './process.js'
+import { buildArgs, commandNote, interpret, readNotes, SSH_HOSTS, type NoxConfig } from './process.js'
 
 const MAX_RUNNING = 2
 const TASK_TIMEOUT_MS = 15 * 60_000
@@ -92,7 +92,8 @@ export class Tasks {
     let said = ''
     createInterface({ input: process.stdout }).on('line', (line) => {
       const event = interpret(line)
-      if (event?.type === 'text') said = (said + event.text).slice(-FINAL_WORDS)
+      if (event?.type === 'command') bus.emit('nox', 'info', `task ${task.id} ${commandNote(event.command)}`)
+      else if (event?.type === 'text') said = (said + event.text).slice(-FINAL_WORDS)
       else if (event?.type === 'done') this.finish(task, 'done', said.trim())
       else if (event?.type === 'error') this.finish(task, 'failed', event.message)
     })

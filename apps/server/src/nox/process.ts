@@ -6,13 +6,14 @@ import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { PERSONA } from './persona.js'
 
-export type NoxEvent = { type: 'text'; text: string } | { type: 'tool'; name: string } | { type: 'done' } | { type: 'error'; message: string }
+export type NoxEvent = { type: 'text'; text: string } | { type: 'tool'; name: string } | { type: 'command'; command: string } | { type: 'done' } | { type: 'error'; message: string }
 
 interface StreamLine {
   type?: string
   subtype?: string
   is_error?: boolean
   result?: string
+  message?: { content?: { type?: string; name?: string; input?: { command?: unknown } }[] }
   event?: { type?: string; delta?: { type?: string; text?: string }; content_block?: { type?: string; name?: string } }
 }
 
@@ -28,6 +29,11 @@ export function interpret(line: string): NoxEvent | undefined {
     const e = msg.event
     if (e?.type === 'content_block_delta' && e.delta?.type === 'text_delta' && e.delta.text) return { type: 'text', text: e.delta.text }
     if (e?.type === 'content_block_start' && e.content_block?.type === 'tool_use' && e.content_block.name) return { type: 'tool', name: e.content_block.name.replace(/^mcp__meridian__/, '') }
+  }
+  // The complete call, which is the first place the command it runs is known.
+  if (msg.type === 'assistant') {
+    const call = msg.message?.content?.find((b) => b.type === 'tool_use' && b.name === 'Bash')
+    if (typeof call?.input?.command === 'string') return { type: 'command', command: call.input.command }
   }
   if (msg.type === 'result') return msg.is_error ? { type: 'error', message: msg.result ?? 'the model returned an error' } : { type: 'done' }
   return undefined
@@ -197,3 +203,6 @@ export class Nox {
     this.child?.kill()
   }
 }
+
+// What goes to the event log when NOX runs a shell command, whoever's turn it is.
+export const commandNote = (command: string): string => `ran: ${command.length > 200 ? `${command.slice(0, 200)}…` : command}`

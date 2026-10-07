@@ -7,7 +7,7 @@ import { playbackDone, waitForPlayback } from '../voice/playback.js'
 import { TurnSpeaker } from '../voice/speaker.js'
 import { keytermsFor, transcribe } from '../voice/transcribe.js'
 import { spokenAnswer, type Approvals } from './approvals.js'
-import type { Nox } from './process.js'
+import { commandNote, type Nox } from './process.js'
 
 const MAX_UTTERANCE = 2000
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024
@@ -63,6 +63,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
           }
         }
         if (event.type === 'tool') speaker?.flush()
+        if (event.type === 'command') bus.emit('nox', 'info', commandNote(event.command))
         if (event.type === 'error') bus.emit('nox', 'error', event.message)
         reply.raw.write(`${JSON.stringify(event)}\n`)
       }
