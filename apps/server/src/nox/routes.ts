@@ -6,6 +6,7 @@ import { usage, voiceConfig } from '../voice/elevenlabs.js'
 import { playbackDone, waitForPlayback } from '../voice/playback.js'
 import { TurnSpeaker } from '../voice/speaker.js'
 import { keytermsFor, transcribe } from '../voice/transcribe.js'
+import { isSlowTool, pickAck } from './acknowledge.js'
 import { spokenAnswer, type Approvals } from './approvals.js'
 import { commandNote, type Nox } from './process.js'
 
@@ -14,7 +15,10 @@ const MAX_AUDIO_BYTES = 10 * 1024 * 1024
 // A screen that never reports it finished playing must not keep NOX "speaking" forever.
 const PLAYBACK_TIMEOUT_MS = 90_000
 
-let turns = 0
+// Numbers each answer so a screen can tell one turn's speech from another's. It starts from the clock, not
+// from zero: a screen that stayed open across a server restart still remembers the last turn it played,
+// and would drop every new answer as an old one.
+let turns = Date.now()
 
 interface Deps {
   nox: Nox
@@ -67,16 +71,25 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     active = { turn, speaker }
     screens.setAgentMode('thinking')
     let typing = false
+    let saidSomething = false
     try {
       for await (const event of nox.say(text, workspace)) {
         if (event.type === 'text') {
+          saidSomething = true
           if (speaker) speaker.push(event.text)
           else if (!typing) {
             typing = true
             screens.setAgentMode('speaking')
           }
         }
-        if (event.type === 'tool') speaker?.flush()
+        if (event.type === 'tool') {
+          // Slow work and not a word yet: say that it was understood, rather than leave the owner in silence.
+          if (!saidSomething && isSlowTool(event.name)) {
+            saidSomething = true
+            speaker?.say(pickAck())
+          }
+          speaker?.flush()
+        }
         if (event.type === 'command') bus.emit('nox', 'info', commandNote(event.command))
         if (event.type === 'error') bus.emit('nox', 'error', event.message)
         reply.raw.write(`${JSON.stringify(event)}\n`)
