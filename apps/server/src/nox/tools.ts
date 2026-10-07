@@ -33,7 +33,7 @@ interface ToolDeps {
   currentScreen: () => string | undefined
 }
 
-const MODULE_WINDOWS = ['services', 'telemetry', 'events', 'cameras'] as const
+const MODULE_WINDOWS = ['services', 'telemetry', 'events', 'cameras', 'calendar'] as const
 // The dock's Events button opens the window the screens call "logs".
 const WINDOW_ID: Record<string, string> = { events: 'logs' }
 const SERVICE_WINDOW = /^[a-z0-9-]+:[a-z0-9-]+$/
@@ -116,7 +116,7 @@ export function buildTools(d: ToolDeps): McpTool[] {
     },
     {
       name: 'open_window',
-      description: 'Opens a window on the screen: services, telemetry, events or cameras, or a window a service contributes. At most 4 windows are open; opening a fifth closes the least recently used one.',
+      description: 'Opens a window on the screen: services, telemetry, events, cameras or calendar, or a window a service contributes. At most 4 windows are open; opening a fifth closes the least recently used one.',
       inputSchema: { type: 'object', required: ['window'], properties: { window: windowProperty, workspace: workspaceProperty } },
       handler: (a) => command(a, { name: 'open_window', window: windowArg(a) }, `opened window ${windowArg(a)}`),
     },
