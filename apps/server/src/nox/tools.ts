@@ -4,6 +4,8 @@ import type { ScreenRegistry } from '../screens.js'
 import type { Registry } from '../service-registry.js'
 import type { HostTelemetry } from '../telemetry.js'
 import type { WorkspaceStore } from '../workspace-store.js'
+import type { ContainerSummary, DockerApi } from '../docker.js'
+import { validateSpec, type ManagedSpec } from '../managed-services.js'
 import type { Approvals } from './approvals.js'
 import type { Tasks } from './tasks.js'
 import { validateDoc } from './doc-validation.js'
@@ -17,6 +19,8 @@ interface ToolDeps {
   screens: ScreenRegistry
   approvals: Pick<Approvals, 'ask'>
   tasks: Pick<Tasks, 'start' | 'stop' | 'list'>
+  containers: () => Promise<ContainerSummary[]>
+  docker: Pick<DockerApi, 'inspect'>
   hostName: () => string
   // The workspace of the screen NOX is answering; tools act there unless told otherwise.
   currentWorkspace: () => string
@@ -66,6 +70,23 @@ export function buildTools(d: ToolDeps): McpTool[] {
     if (!d.screens.dispatch(workspace, cmd)) throw new Error(`no screen is showing workspace "${workspace}" right now`)
     d.bus.emit('nox', 'info', note)
     return `Done on workspace "${workspace}".`
+  }
+
+  // NOX speaks snake_case; the spec is camelCase. With `partial`, a field NOX did not send stays out and a null stays null.
+  const specFrom = (a: Record<string, unknown>, partial = false): Record<string, unknown> => {
+    const out: Record<string, unknown> = {}
+    for (const key of ['id', 'name', 'desc', 'mono', 'runtime', 'address', 'url', 'container']) if (a[key] !== undefined) out[key] = a[key]
+    if (a.health_url !== undefined) out.healthUrl = a.health_url
+    return partial ? out : Object.fromEntries(Object.entries(out).filter(([, v]) => v !== null))
+  }
+
+  const mustExist = async (spec: ManagedSpec): Promise<void> => {
+    if (spec.container && !(await d.docker.inspect(spec.container))) throw new Error(`no container named "${spec.container}"; list_containers shows the ones that exist`)
+  }
+
+  const statusOf = (id: string): string => {
+    const status = d.registry.summaries().find((x) => x.id === id)?.status
+    return status ? `Status: ${status.state}${status.message ? ` (${status.message})` : ''}.` : ''
   }
 
   const tools: McpTool[] = [
@@ -261,25 +282,133 @@ export function buildTools(d: ToolDeps): McpTool[] {
     },
   ]
 
-  // Service actions. The ones that change something run only after the owner confirms the card.
+  // Runs a service action. The ones that change something run only after the owner confirms the card.
+  async function invoke(serviceId: string, actionId: string, a: Record<string, unknown> | undefined): Promise<string> {
+    const service = d.registry.summaries().find((x) => x.id === serviceId)
+    if (!service) throw new Error(`no service "${serviceId}"; get_status lists them`)
+    const action = service.actions.find((x) => x.id === actionId)
+    if (!action) throw new Error(`service ${service.id} has no action "${actionId}"; its actions are ${service.actions.map((x) => x.id).join(', ') || 'none'}`)
+    const input = action.input ? a : undefined
+    if (action.mutating) {
+      const what = `${service.name}: ${action.title}${input && Object.keys(input).length ? ` ${JSON.stringify(input)}` : ''}`
+      if (!(await d.approvals.ask(d.currentWorkspace(), 'Service action', { command: what }))) throw new Error('The owner did not confirm this, so it was not done.')
+      d.bus.emit('nox', 'info', `ran ${service.id}/${action.id} after confirmation`)
+    }
+    return clip(JSON.stringify((await d.registry.run(service.id, action.id, input)).result ?? null))
+  }
+
+  // One tool per action for the services that exist when the server starts. A tool added later would not
+  // reach NOX until its process restarts, which is what call_service_action is for.
   for (const service of d.registry.summaries()) {
     for (const action of service.actions) {
       tools.push({
         name: `service_${service.id}_${action.id}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64),
         description: `${service.name}: ${action.title}. ${action.description}${action.mutating ? ' Changes something, so the owner is asked to confirm on the screen first.' : ''}`,
         inputSchema: action.input ?? { type: 'object', properties: {} },
-        handler: async (a) => {
-          const input = action.input ? a : undefined
-          if (action.mutating) {
-            const what = `${service.name}: ${action.title}${input && Object.keys(input).length ? ` ${JSON.stringify(input)}` : ''}`
-            if (!(await d.approvals.ask(d.currentWorkspace(), 'Service action', { command: what }))) throw new Error('The owner did not confirm this, so it was not done.')
-            d.bus.emit('nox', 'info', `ran ${service.id}/${action.id} after confirmation`)
-          }
-          return clip(JSON.stringify((await d.registry.run(service.id, action.id, input)).result ?? null))
-        },
+        handler: (a) => invoke(service.id, action.id, a),
       })
     }
   }
+
+  tools.push(
+    {
+      name: 'describe_service',
+      description: 'What a service is and what it can do: its details, whether it is managed (added from here) or made of code, and each action with its input.',
+      inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } },
+      handler: (a) => {
+        const service = d.registry.summaries().find((x) => x.id === text(a, 'id'))
+        if (!service) throw new Error(`no service "${String(a.id)}"; get_status lists them`)
+        return JSON.stringify({ ...service, actions: service.actions.map(({ id, title, description, mutating, input }) => ({ id, title, description, mutating, input })) })
+      },
+    },
+    {
+      name: 'call_service_action',
+      description: 'Runs any action of any service, including services added while you are running (describe_service lists the actions). Read-only actions run at once; ones that change something ask the owner to confirm on the screen first.',
+      inputSchema: {
+        type: 'object',
+        required: ['service', 'action'],
+        properties: { service: { type: 'string' }, action: { type: 'string' }, input: { type: 'object', description: "The action's input, when it takes any." } },
+      },
+      handler: (a) => invoke(text(a, 'service') ?? '', text(a, 'action') ?? '', a.input !== null && typeof a.input === 'object' && !Array.isArray(a.input) ? (a.input as Record<string, unknown>) : {}),
+    },
+    {
+      name: 'list_containers',
+      description: 'Every Docker container on this machine, running or not, with its image, state and published ports. Use it to find the container of something the owner wants to add as a service.',
+      inputSchema: { type: 'object', properties: {} },
+      handler: async () => JSON.stringify(await d.containers()),
+    },
+    {
+      name: 'add_service',
+      description:
+        'Adds a service to Meridian, live and without a restart: it shows up in the Services window and gets status, and for a container also logs and start, stop and restart (which ask the owner to confirm). Give it the Docker container (find it with list_containers) and/or a health_url that answers when the service is up. Use a url for the OPEN link on its card (the address the owner opens in a browser). Nothing is changed on the container itself.',
+      inputSchema: {
+        type: 'object',
+        required: ['id', 'name'],
+        properties: {
+          id: { type: 'string', description: 'Kebab-case and unique, for example "baixa".' },
+          name: { type: 'string', description: 'Shown on the card.' },
+          desc: { type: 'string', description: 'One line under the name.' },
+          container: { type: 'string', description: 'Docker container name, as list_containers shows it.' },
+          health_url: { type: 'string', description: 'http(s) URL fetched to see if it is up; any answer below 500 counts.' },
+          url: { type: 'string', description: 'Opens in a new tab from the card.' },
+          address: { type: 'string', description: 'host:port shown on the card.' },
+          runtime: { type: 'string', description: 'Shown on the card; "docker" for a container by default.' },
+          mono: { type: 'string', description: 'One or two letters for the card badge; derived from the name by default.' },
+        },
+      },
+      handler: async (a) => {
+        const spec = validateSpec(specFrom(a))
+        if (d.registry.summaries().some((x) => x.id === spec.id)) throw new Error(`there is already a service "${spec.id}"; use edit_service to change a managed one`)
+        await mustExist(spec)
+        await d.registry.managed.upsert(spec)
+        d.bus.emit('nox', 'info', `added service ${spec.id}`)
+        return `Added "${spec.name}". ${statusOf(spec.id)}`
+      },
+    },
+    {
+      name: 'edit_service',
+      description: 'Changes a service that was added with add_service: give its id and only the fields to change; null clears a field. Services made of code cannot be edited from here.',
+      inputSchema: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          desc: { type: 'string' },
+          container: { type: ['string', 'null'] },
+          health_url: { type: ['string', 'null'] },
+          url: { type: ['string', 'null'] },
+          address: { type: ['string', 'null'] },
+          runtime: { type: ['string', 'null'] },
+          mono: { type: ['string', 'null'] },
+        },
+      },
+      handler: async (a) => {
+        const id = text(a, 'id') ?? ''
+        const existing = d.registry.managed.get(id)
+        if (!existing) throw new Error(d.registry.summaries().some((x) => x.id === id) ? `"${id}" is a service made of code and cannot be edited from here` : `no managed service "${id}"; get_status lists the services`)
+        const changes = specFrom(a, true)
+        const merged = { ...existing, ...Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined)) }
+        for (const [k, v] of Object.entries(changes)) if (v === null) delete (merged as Record<string, unknown>)[k]
+        const spec = validateSpec(merged)
+        if (spec.container !== existing.container) await mustExist(spec)
+        await d.registry.managed.upsert(spec)
+        d.bus.emit('nox', 'info', `edited service ${id}`)
+        return `Updated "${spec.name}". ${statusOf(id)}`
+      },
+    },
+    {
+      name: 'remove_service',
+      description: 'Removes a service that was added with add_service from Meridian. The container or program it pointed at is not touched. Services made of code cannot be removed from here.',
+      inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } },
+      handler: (a) => {
+        const id = text(a, 'id') ?? ''
+        if (!d.registry.managed.remove(id)) throw new Error(d.registry.summaries().some((x) => x.id === id) ? `"${id}" is a service made of code and cannot be removed from here` : `no service "${id}"`)
+        d.bus.emit('nox', 'info', `removed service ${id}`)
+        return `Removed "${id}" from Meridian.`
+      },
+    },
+  )
 
   return tools
 }

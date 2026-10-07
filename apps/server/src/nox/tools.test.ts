@@ -4,6 +4,7 @@ import type { ServiceSummary, StreamMessage } from '@meridian/service-sdk'
 import { EventBus } from '../event-bus.js'
 import { ScreenRegistry } from '../screens.js'
 import type { Registry } from '../service-registry.js'
+import type { ManagedSpec } from '../managed-services.js'
 import type { HostTelemetry } from '../telemetry.js'
 import { WorkspaceStore } from '../workspace-store.js'
 import { buildTools } from './tools.js'
@@ -19,16 +20,26 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   const ran: string[] = []
   const asked: unknown[][] = []
   const started: unknown[][] = []
-  const registry = { summaries: () => services, run: async (s: string, a: string) => (ran.push(`${s}/${a}`), { ms: 1, result: { ok: true } }) } as unknown as Registry
+  const managedSpecs = new Map<string, ManagedSpec>()
+  const registry = {
+    summaries: () => [...services, ...[...managedSpecs.values()].map((m) => ({ ...summary(m.id, []), name: m.name, managed: true }))],
+    run: async (s: string, a: string) => (ran.push(`${s}/${a}`), { ms: 1, result: { ok: true } }),
+    managed: {
+      get: (id: string) => managedSpecs.get(id),
+      upsert: async (spec: ManagedSpec) => void managedSpecs.set(spec.id, spec),
+      remove: (id: string) => managedSpecs.delete(id),
+    },
+  } as unknown as Registry
+  const existingContainers = ['baixa-baixa-1']
   const telemetry = { samples: () => [{ cpu: 23.4, mem: 4.2, temp: 55, net: 0 }], containers: () => [], memTotalGb: 15.3 } as unknown as HostTelemetry
-  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const }), stop: (id: string) => id === 't1', list: () => [] }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default' })
+  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const }), stop: (id: string) => id === 't1', list: () => [] }, containers: async () => existingContainers.map((name) => ({ name, image: 'img', state: 'running', status: 'Up', ports: [] })), docker: { inspect: async (name: string) => (existingContainers.includes(name) ? { state: 'running', startedAt: '', image: 'img' } : undefined) }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default' })
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const tool = tools.find((t) => t.name === name)
     if (!tool) throw new Error(`no tool ${name}`)
     return tool.handler(args)
   }
   const commands = () => sent.filter((m) => m.type === 'command').map((m) => (m as { command: unknown }).command)
-  return { call, commands, bus, ran, tools, asked, started }
+  return { call, commands, bus, ran, tools, asked, started, managedSpecs }
 }
 
 describe('NOX tools', () => {
@@ -146,6 +157,68 @@ describe('NOX tools', () => {
       const { call, commands } = setup([summary('pet-feeder', [read])])
       await expect(call('pin_live_widget', { ...base, template: [{ t: 'progress', items: [{ label: 'X', value: '{{ok}}x' }] }] })).rejects.toThrow('value')
       expect(commands()).toEqual([])
+    })
+  })
+
+  describe('managing services', () => {
+    it('lists the containers so NOX can find the one to add', async () => {
+      const { call } = setup()
+      expect(JSON.parse(await call('list_containers'))).toEqual([{ name: 'baixa-baixa-1', image: 'img', state: 'running', status: 'Up', ports: [] }])
+    })
+
+    it('adds a service on its own, checking the container exists, and logs it as NOX\'s doing', async () => {
+      const { call, managedSpecs, bus } = setup()
+      expect(await call('add_service', { id: 'baixa', name: 'Baixa', container: 'baixa-baixa-1', health_url: 'http://127.0.0.1:21832/', url: 'http://box:21832' })).toContain('Added "Baixa"')
+      expect(managedSpecs.get('baixa')).toEqual({ id: 'baixa', name: 'Baixa', desc: '', container: 'baixa-baixa-1', healthUrl: 'http://127.0.0.1:21832/', url: 'http://box:21832' })
+      expect(bus.recent().at(-1)).toMatchObject({ source: 'nox', message: 'added service baixa' })
+    })
+
+    it('refuses a bad spec, a missing container and an id that is taken, with a reason NOX can use', async () => {
+      const { call } = setup([summary('aqw-idle', [])])
+      await expect(call('add_service', { id: 'Bad Id', name: 'X' })).rejects.toThrow('kebab-case')
+      await expect(call('add_service', { id: 'x', name: 'X', container: 'ghost' })).rejects.toThrow('list_containers')
+      await expect(call('add_service', { id: 'aqw-idle', name: 'X' })).rejects.toThrow('already a service')
+      await call('add_service', { id: 'x', name: 'X' })
+      await expect(call('add_service', { id: 'x', name: 'X again' })).rejects.toThrow('edit_service')
+    })
+
+    it('edits only what is given, clears a field with null, and checks a new container', async () => {
+      const { call, managedSpecs } = setup()
+      await call('add_service', { id: 'baixa', name: 'Baixa', desc: 'old', container: 'baixa-baixa-1', url: 'http://box:1' })
+      await call('edit_service', { id: 'baixa', desc: 'new', url: null })
+      expect(managedSpecs.get('baixa')).toEqual({ id: 'baixa', name: 'Baixa', desc: 'new', container: 'baixa-baixa-1' })
+      await expect(call('edit_service', { id: 'baixa', container: 'ghost' })).rejects.toThrow('no container named "ghost"')
+      await expect(call('edit_service', { id: 'nope', name: 'X' })).rejects.toThrow('no managed service')
+    })
+
+    it('removes a managed service but not one made of code', async () => {
+      const { call, managedSpecs } = setup([summary('aqw-idle', [])])
+      await call('add_service', { id: 'x', name: 'X' })
+      expect(await call('remove_service', { id: 'x' })).toContain('Removed')
+      expect(managedSpecs.size).toBe(0)
+      await expect(call('remove_service', { id: 'aqw-idle' })).rejects.toThrow('made of code')
+      await expect(call('edit_service', { id: 'aqw-idle', name: 'X' })).rejects.toThrow('made of code')
+      await expect(call('remove_service', { id: 'ghost' })).rejects.toThrow('no service')
+    })
+
+    it('runs any action by name, asking first when it changes something', async () => {
+      const read = { id: 'status', method: 'GET' as const, path: '/status', title: 'Status', description: 'Reads', mutating: false }
+      const write = { id: 'restart', method: 'POST' as const, path: '/restart', title: 'Restart', description: 'Restarts', mutating: true }
+      const { call, ran, asked } = setup([summary('baixa', [read, write])])
+      await call('call_service_action', { service: 'baixa', action: 'status' })
+      expect(asked).toEqual([])
+      await call('call_service_action', { service: 'baixa', action: 'restart' })
+      expect(asked).toEqual([['default', 'Service action', { command: 'baixa: Restart' }]])
+      expect(ran).toEqual(['baixa/status', 'baixa/restart'])
+      await expect(call('call_service_action', { service: 'baixa', action: 'nope' })).rejects.toThrow('has no action "nope"')
+      expect(JSON.parse(await call('describe_service', { id: 'baixa' })).actions.map((x: { id: string }) => x.id)).toEqual(['status', 'restart'])
+    })
+
+    it('does not run a mutating action the owner declines', async () => {
+      const write = { id: 'restart', method: 'POST' as const, path: '/restart', title: 'Restart', description: 'Restarts', mutating: true }
+      const { call, ran } = setup([summary('baixa', [write])], false)
+      await expect(call('call_service_action', { service: 'baixa', action: 'restart' })).rejects.toThrow('did not confirm')
+      expect(ran).toEqual([])
     })
   })
 

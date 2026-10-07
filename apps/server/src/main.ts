@@ -1,7 +1,7 @@
 import Fastify from 'fastify'
 import websocket from '@fastify/websocket'
 import { openDatabase } from './database.js'
-import { docker } from './docker.js'
+import { allContainers, docker } from './docker.js'
 import { ManagedServiceStore } from './managed-services.js'
 import { McpServer, registerMcp } from './nox/mcp.js'
 import { Approvals, verdict } from './nox/approvals.js'
@@ -47,7 +47,7 @@ app.get<{ Params: { id: string } }>('/api/docs/:id', async (request, reply) => s
 // NOX: its tools are served as an MCP server on this same process, and it answers whoever asks over
 // /api/nox/say. While it answers, its tools act on the workspace of the screen that asked.
 let turnWorkspace = 'default'
-registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, hostName, currentWorkspace: () => turnWorkspace })))
+registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, hostName, currentWorkspace: () => turnWorkspace })))
 // Claude Code asks this server before anything its classifier doesn't settle. It is a separate MCP
 // server so that NOX, who only gets the Meridian one, can never approve its own actions. NOX's turns
 // ask on the workspace being answered; a background task has its own URL naming the workspace it serves.
