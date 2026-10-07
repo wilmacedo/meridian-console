@@ -170,8 +170,10 @@ after a reload instead of freezing.
   `MERIDIAN_DATA_DIR`, default `~/.meridian`, WAL mode); one `default` row on first start. The server
   treats `state` as opaque JSON; its shape belongs to the web app (theme, windows, dock, document,
   retired services). Nothing may assume a single workspace.
-- `GET /api/workspaces`, `POST /api/workspaces {name}`, `GET /api/workspaces/:id`,
-  `PUT /api/workspaces/:id {version, state}` — the PUT carries the version it was based on; a stale one
+- `GET /api/workspaces` (in the order they were made; `?state=1` adds each one's state, for the switcher's
+  thumbnails), `POST /api/workspaces {name}`, `GET /api/workspaces/:id`, `PATCH /api/workspaces/:id {name}`
+  (rename; the id stays), `POST /api/workspaces/:id/duplicate {name?}`, `DELETE /api/workspaces/:id` (never
+  the default one), `PUT /api/workspaces/:id {version, state}` — the PUT carries the version it was based on; a stale one
   is rejected with `409` and the current workspace, so two screens can't silently overwrite each other.
   The client then adopts the server's state: the first writer wins.
 - Change notification rides the existing `/api/stream` socket: a screen sends `{type:'watch', workspace}`
@@ -384,7 +386,9 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
 - **Background tasks:** `start_task({title, goal})` hands a long job to a worker (`nox/tasks.ts`): its own
   headless `claude` process with the same flags as NOX (Bash for ssh, the Meridian tools, the gate for
   confirmations, `start_task` denied so tasks can't spawn tasks) and a worker persona that reports through
-  `compose_doc` with id `task-<id>`. NOX answers at once and stays free. The gate for a task lives at
+  `report_progress` (its steps and their states, which the task card and the orb's ring show) and
+  `compose_doc` with id `task-<id>` (its findings). A screen stops its workspace's tasks with
+  `{type:'stop_tasks', id?}`, which is what the card's ✕ and the mic's halt send. NOX answers at once and stays free. The gate for a task lives at
   `/mcp/gate/<workspace>`, so its cards go to the workspace that asked. At most 2 run at once, 15 minutes
   each, and they use the owner's Claude subscription like any turn. A worker that fails, times out or is
   stopped (`stop_task`) replaces its document with the reason; one that finishes wrote its own outcome.

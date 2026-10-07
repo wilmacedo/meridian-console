@@ -44,8 +44,8 @@ styles only). Treat all of that as scaffolding:
 - Subtitles: `hasSub`, `subText`, `subKey`, `subSize`, `subTop`/`subBottom`, the `subtitle()` chunker,
   `nixLine`/`nixShown`/`userLine`. There is **no transcript on screen**.
 - Text input: `showInput`, `input`, `inputRef`, `onInput`, `onKey`, `submit`, `toggleInput`. There is
-  **no text input in the UI** for talking to NOX; the one field there is names a new workspace (see the
-  workspace menu).
+  **no text input in the UI** for talking to NOX; the fields there name or rename a workspace (see the
+  workspace chip and Settings).
 - Leftovers of the earlier single-panel design: `panelOpen`, `panelKey`, `panelW`, `panelFootL`,
   `panel`, `goHome`, `pinCurrent`, `isDoc`/`isServices`/… at top level.
 - Widget types `summary` and `table` (`statusSummary()`, `containerTable()`): defined but never
@@ -193,6 +193,7 @@ state colour and `text-shadow: 0 0 12px <colour>`, colour transition `.4s`; belo
 | idle | `STANDBY` | `ac` |
 | listening | `LISTENING` | `ac` |
 | thinking | `THINKING` | `fg` |
+| working | `WORKING` | `fg` |
 | speaking | `SPEAKING` | `ac` |
 
 Tick bar: ticks are 1px tall; every 6th tick (i % 6 = 0) is 8px wide, the rest 3px. Re-evaluated
@@ -322,18 +323,13 @@ Inactive: label `ac/.55`, bar width 0. Active (its window is open and not closin
 
 `Core` is never "active"; it is the button that **closes every window**.
 
-**Mic button**: 58px circle, 1.5px border in the **state colour**,
-`radial-gradient(circle, <core> 0%, pn/.85 70%)` where core is `ac/.4` (thinking: `rgba(255,205,80,.35)`),
-outer glow `0 0 18px <state colour>`, inner glow `inset 0 0 14px <glow>` where glow is `ac/.45`
-(thinking: `rgba(255,205,80,.4)`); transitions `box-shadow .4s, border-color .4s`. The glyph is a
-microphone drawn with three spans in `fg` (capsule 8×14 r5, cradle arc 12×5, stem 1.5×3).
-While **listening**, two expanding rings (`inset:-2px`, 1px `ac` border, `nxPing 1.2s ease-out infinite`,
-the second delayed `.6s`) pulse around it. Tooltip: "Talk (space)". Pressing it starts listening.
+**Mic button**: see "Mic button" under v9 additions below (72px box, ring canvas, halt for NOX).
 
 **Keyboard**: `1`–`9` open the *n*th module (so `1` closes all windows); `Space` starts listening
 (default prevented); `Esc` cancels a pending pin if there is one, otherwise closes the active window.
-`Space` while already listening does nothing; while thinking or speaking it interrupts and starts
-listening.
+`Space` while already listening sends; while NOX is busy (thinking, speaking, a task running) it stops NOX
+instead (see the mic button), and so does `Esc`. `W` toggles the workspace panel, `⌥1–9` jumps to a
+workspace and `,` toggles Settings.
 
 ## Windows
 
@@ -567,10 +563,10 @@ whose width transitions `.7s cubic-bezier(.4,0,.2,1)`).
 
 ### As built: background-task chip
 
-Not in the prototype. While NOX runs background tasks, the header shows a pill after `SVC n/m`:
-`● N TASK` / `N TASKS`, mono 10 `.14em`, 1px border and text in the thinking amber (`255,205,80`), the dot
+Not in the prototype. While NOX runs **more than one** background task, the header shows a pill after
+`SVC n/m`: `● N TASKS`, mono 10 `.14em`, 1px border and text in the warning amber (`--nx-wn`), the dot
 pulsing with `nxFlash 1.1s`. It is clickable (the header is otherwise pointer-events none) and opens the
-newest task's document; it leaves when no task runs. Bound dock widgets (`LIVE`) dim to .55 opacity with
+newest task's document; it leaves when one or none runs (a single task has its card, below). Bound dock widgets (`LIVE`) dim to .55 opacity with
 `SOURCE NOT ANSWERING · SHOWING THE LAST READING` when their source fails.
 
 ### As built: offline state
@@ -847,7 +843,9 @@ expected duration, capped at 97%, and carries a moving highlight), and in tall m
 16px icon / label 13px / result mono 9.5. Done = filled square with `✓` (`nxLand`), active = ringed dot with
 `nxFlash` and an `nxPing` ring, todo = dashed square. Done labels `fg/.55`, active `fg`, todo `ac/.55`.
 
-The header chip `● N TASK` stays as the way to reach a task whose card is not shown (several tasks, or none
+The segments carry no expected duration (a worker does not know it): a done step is full, the active one
+is an empty track with the moving highlight, and the orb's ring advances by the share of steps done. The header
+chip `● N TASKS` stays as the way to reach a task whose card is not shown (several tasks, or none
 visible on the stage).
 
 ### Agent state WORKING
@@ -890,29 +888,24 @@ halted `NOX HALTED`; boot `BOOTING`; else `TAP TO TALK`. Tapping while listening
 
 Decided for the project; drawn from the design's own tokens, kept minimal.
 
-- **Workspace menu**: a `+` button just left of the settings icon (same 28px square) opens a dropdown
-  with the workspaces by name (the current one marked) and `+ New workspace`. Picking one saves the
-  current workspace and loads the page at that workspace's address. `New workspace` turns into a name
-  field with a `CREATE` button (Enter also creates): a name that already exists, ignoring case, is
-  refused inline (`ALREADY EXISTS`, button disabled; the server refuses it too, and a name that would make
-  the id of another one). A new workspace starts with the **default workspace's theme** (Meridian
-  palette, mode by clock unless the default was changed) and nothing else. The tab's address decides the
-  workspace: `?workspace=<id>`, and the default one when there is none; nothing is remembered between
-  tabs. Typing in the field does not trigger the keyboard shortcuts (space, 1-9); Esc closes the menu.
-- **Settings dropdown**: a small icon in the header opens a dropdown with mode (`Auto by clock` /
-  `Light` / `Dark`) and palette (`Mono` / `Blue` / `Meridian`). With Blue selected the mode choice is
-  disabled (Blue has a single, dark variant). The stored theme is per workspace. A third group,
-  `Services`, lists every service with a check; unchecking one retires it from the Services window, the
-  dock widget and the header count (the setting is stored with the workspace). It replaces the
-  prototype's "edit nix.config.json" footnote mechanism. Three more groups follow the same pattern:
-  `Layout` (`Auto` / `Side rails` / `Top and bottom`, stored with the workspace), `Orb` (`High` / `Low`, a device preference: Low draws half the
-  strands, drops the wide glow and renders at 1x, for the tablet and the Echo Show tiers) and `Dock`
-  (Services, Telemetry, Events and Cameras can each be taken off the dock, stored with the workspace;
-  Core stays; hiding one closes its window and the 1-9 shortcuts count what is left).
+- **Workspaces**: the chip and panel of the v9 additions. A new workspace starts with the **default
+  workspace's theme** and nothing else. A name that already exists, ignoring case, is refused inline
+  (`ALREADY EXISTS`; the server refuses it too, and a name that would make the id of another one); renaming
+  keeps the id. The address follows the workspace on screen (`?workspace=<id>`, the default one when there is
+  none) so a reload stays on it; nothing is remembered between tabs. Typing in a field does not trigger the
+  keyboard shortcuts; Esc closes the panel. The server keeps them in the order they were made, which is the
+  order of `⌥1–9`; the default one cannot be deleted.
+- **Settings** (the v9 window) has three sections the design does not draw, in its style: `05 SERVICES`
+  (retire a service: it leaves the Services window, the dock widget and the header count; replaces the
+  prototype's "edit nix.config.json" footnote), `06 LAYOUT` (`Auto` / `Side` / `Stacked`, stored with the
+  workspace) and `07 DEVICE` (orb quality `High` / `Low` and sound effects, kept on the device: Low draws half
+  the strands, drops the wide glow and renders at 1x, for the tablet and the Echo Show tiers). With the Blue
+  palette (a single, dark variant) the mode choice is locked to `Auto`. Hiding a dock module closes its window
+  and the 1-9 shortcuts count what is left.
 - **Voice input is feature-detected**: if the page is not in a secure context (no HTTPS) or the browser has
-  no recorder, the mic button is dimmed and does nothing, and NOX remains reachable through the dev CLI
+  no recorder, the mic button is dimmed (hint `NEEDS HTTPS`) and does nothing, and NOX remains reachable through the dev CLI
   (see architecture). `Space`, the mic button and a click on the orb all start and stop listening, and
-  `Esc` drops a recording.
+  `Esc` drops a recording, or stops NOX when it is busy.
 
 ## Out of scope for now
 
