@@ -94,6 +94,9 @@ export type StreamMessage =
   | { type: 'speech'; turn: number; seq: number; mime: 'audio/mpeg'; audio: string }
   | { type: 'speech_end'; turn: number }
   | { type: 'command'; command: ScreenCommand }
+  // NOX wants to do something that needs the owner's yes; the card stays until the matching approval_end.
+  | { type: 'approval'; id: string; tool: string; detail: string }
+  | { type: 'approval_end'; id: string }
   // Sent for the workspace the client asked to watch, on connect and on every change.
   | { type: 'workspace'; id: string; version: number; state: unknown }
 
@@ -102,6 +105,7 @@ export type ClientMessage =
   | { type: 'watch'; workspace: string }
   // The screen finished playing a turn's speech.
   | { type: 'speech_done'; turn: number }
+  | { type: 'approval_answer'; id: string; allow: boolean }
 
 export interface WorkspaceSummary {
   id: string

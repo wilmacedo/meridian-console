@@ -2,6 +2,7 @@ import { hostname } from 'node:os'
 import type { FastifyInstance } from 'fastify'
 import type { ClientMessage, HostInfo, StreamMessage } from '@meridian/service-sdk'
 import type { EventBus } from './event-bus.js'
+import type { Approvals } from './nox/approvals.js'
 import type { ScreenRegistry } from './screens.js'
 import { playbackDone } from './voice/playback.js'
 import type { Registry } from './service-registry.js'
@@ -20,11 +21,12 @@ interface StreamSources {
   telemetry: HostTelemetry
   workspaces: WorkspaceStore
   screens: ScreenRegistry
+  approvals: Approvals
 }
 
 // One WebSocket carries everything live: the snapshot on connect, then events, service status
 // changes and telemetry as they happen.
-export function registerStream(app: FastifyInstance, { bus, registry, telemetry, workspaces, screens }: StreamSources): void {
+export function registerStream(app: FastifyInstance, { bus, registry, telemetry, workspaces, screens, approvals }: StreamSources): void {
   app.get('/api/stream', { websocket: true }, (socket) => {
     const send = (message: StreamMessage): void => {
       if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message))
@@ -50,6 +52,8 @@ export function registerStream(app: FastifyInstance, { bus, registry, telemetry,
           sendWorkspace(watching)
         } else if (message.type === 'speech_done') {
           playbackDone(message.turn)
+        } else if (message.type === 'approval_answer') {
+          approvals.answer(message.id, message.allow === true, 'tapped')
         }
       } catch {
         // Not a message we know; ignore it.

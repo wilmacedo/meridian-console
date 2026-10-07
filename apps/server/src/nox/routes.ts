@@ -6,6 +6,7 @@ import { usage, voiceConfig } from '../voice/elevenlabs.js'
 import { playbackDone, waitForPlayback } from '../voice/playback.js'
 import { TurnSpeaker } from '../voice/speaker.js'
 import { keytermsFor, transcribe } from '../voice/transcribe.js'
+import { spokenAnswer, type Approvals } from './approvals.js'
 import type { Nox } from './process.js'
 
 const MAX_UTTERANCE = 2000
@@ -20,12 +21,13 @@ interface Deps {
   bus: EventBus
   screens: ScreenRegistry
   registry: Registry
+  approvals: Approvals
 }
 
 // The entry points to NOX. Both answer as newline-delimited JSON events (text, tool, done, error); when
 // voice is configured and a screen is showing the workspace, the answer is also spoken there, sentence
 // by sentence, while it is still being written.
-export function registerNox(app: FastifyInstance, { nox, bus, screens, registry }: Deps): void {
+export function registerNox(app: FastifyInstance, { nox, bus, screens, registry, approvals }: Deps): void {
   async function answer(text: string, workspace: string, reply: FastifyReply, heardLine?: string): Promise<void> {
     bus.emit('nox', 'info', `request: ${text.slice(0, 120)}`)
     reply.hijack()
@@ -111,6 +113,13 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry 
       return reply.code(502).send({ error: message })
     }
     if (!heard) return reply.code(422).send({ error: 'nothing heard' })
-    return answer(heard, request.query.workspace ?? 'default', reply, heard)
+    // NOX is waiting on a card: what was said is the owner's answer to it, not a new request.
+    const workspace = request.query.workspace ?? 'default'
+    if (approvals.has(workspace)) {
+      const allow = spokenAnswer(heard)
+      if (allow !== undefined) approvals.answerLatest(workspace, allow)
+      return reply.send({ heard, answeredCard: allow !== undefined })
+    }
+    return answer(heard, workspace, reply, heard)
   })
 }

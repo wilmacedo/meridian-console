@@ -37,6 +37,7 @@ export interface NoxConfig {
   home: string
   model: string
   mcpUrl: string
+  gateUrl: string
   // Owner's notes appended to the persona.
   notes: string
   sessionId: string
@@ -69,9 +70,10 @@ export function buildArgs(c: NoxConfig): string[] {
     '--setting-sources', '',
     '--disable-slash-commands',
     '--strict-mcp-config',
-    '--mcp-config', JSON.stringify({ mcpServers: { meridian: { type: 'http', url: c.mcpUrl } } }),
+    '--mcp-config', JSON.stringify({ mcpServers: { meridian: { type: 'http', url: c.mcpUrl }, gate: { type: 'http', url: c.gateUrl } } }),
     '--allowedTools', 'mcp__meridian',
     '--permission-mode', 'auto',
+    '--permission-prompt-tool', 'mcp__gate__approve',
     '--settings', JSON.stringify({ autoMode: { environment: AUTO_MODE_ENVIRONMENT } }),
     ...(c.resume ? ['--resume', c.sessionId] : ['--session-id', c.sessionId]),
   ]
@@ -119,7 +121,7 @@ export class Nox {
     } catch {
       // No notes.
     }
-    return { home: this.home, model: this.options.model ?? process.env.NOX_MODEL ?? 'sonnet', mcpUrl: `http://127.0.0.1:${this.options.port}/mcp`, notes, sessionId, resume }
+    return { home: this.home, model: this.options.model ?? process.env.NOX_MODEL ?? 'sonnet', mcpUrl: `http://127.0.0.1:${this.options.port}/mcp`, gateUrl: `http://127.0.0.1:${this.options.port}/mcp/gate`, notes, sessionId, resume }
   }
 
   private spawnProcess(): ChildProcessWithoutNullStreams {

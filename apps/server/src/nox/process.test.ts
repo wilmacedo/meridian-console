@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildArgs, interpret, SSH_HOSTS, type NoxConfig } from './process.js'
 
-const config: NoxConfig = { home: '/tmp/nox', model: 'sonnet', mcpUrl: 'http://127.0.0.1:4000/mcp', notes: '', sessionId: '11111111-1111-1111-1111-111111111111', resume: false }
+const config: NoxConfig = { home: '/tmp/nox', model: 'sonnet', mcpUrl: 'http://127.0.0.1:4000/mcp', gateUrl: 'http://127.0.0.1:4000/mcp/gate', notes: '', sessionId: '11111111-1111-1111-1111-111111111111', resume: false }
 const after = (args: string[], flag: string): string => args[args.indexOf(flag) + 1]
 
 describe('buildArgs (what NOX may do)', () => {
@@ -12,6 +12,12 @@ describe('buildArgs (what NOX may do)', () => {
     expect(after(args, '--allowedTools')).toBe('mcp__meridian')
   })
 
+  it('asks the owner through the gate server, which NOX itself may not call', () => {
+    const args = buildArgs(config)
+    expect(after(args, '--permission-prompt-tool')).toBe('mcp__gate__approve')
+    expect(after(args, '--allowedTools')).not.toContain('gate')
+  })
+
   it('tells the classifier which machines are trusted', () => {
     const { autoMode } = JSON.parse(after(buildArgs(config), '--settings')) as { autoMode: { environment: string[] } }
     for (const host of SSH_HOSTS) expect(autoMode.environment.join(' ')).toContain(host)
@@ -20,7 +26,9 @@ describe('buildArgs (what NOX may do)', () => {
   it('uses only the Meridian MCP server, and no user or project settings', () => {
     const args = buildArgs(config)
     expect(args).toContain('--strict-mcp-config')
-    expect(JSON.parse(after(args, '--mcp-config'))).toEqual({ mcpServers: { meridian: { type: 'http', url: 'http://127.0.0.1:4000/mcp' } } })
+    expect(JSON.parse(after(args, '--mcp-config'))).toEqual({
+      mcpServers: { meridian: { type: 'http', url: 'http://127.0.0.1:4000/mcp' }, gate: { type: 'http', url: 'http://127.0.0.1:4000/mcp/gate' } },
+    })
     expect(after(args, '--setting-sources')).toBe('')
     expect(args).toContain('--disable-slash-commands')
   })
