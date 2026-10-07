@@ -3,6 +3,7 @@
   import { finishBoot } from './lib/agent/agent-state.svelte'
   import { startClock } from './lib/clock.svelte'
   import CoreLayer from './lib/core/core-layer.svelte'
+  import Rail from './lib/dock/rail.svelte'
   import BottomDock from './lib/shell/bottom-dock.svelte'
   import Header from './lib/shell/header.svelte'
   import { loadHost } from './lib/shell/host.svelte'
@@ -42,6 +43,8 @@
   <Header />
   <StateLabel />
   <Stage />
+  <Rail rail="L" />
+  <Rail rail="R" />
   <BottomDock />
   <SettingsMenu bind:open={settingsOpen} />
 </div>

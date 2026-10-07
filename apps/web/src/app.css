@@ -162,3 +162,40 @@ button {
     opacity: 1;
   }
 }
+
+@keyframes nx-out {
+  0% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    max-height: var(--h);
+    margin-bottom: 0;
+  }
+  38% {
+    opacity: 0;
+    transform: scale(0.94) translateX(var(--dx));
+    filter: blur(10px) brightness(1.8);
+    max-height: var(--h);
+    margin-bottom: 0;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.94) translateX(var(--dx));
+    filter: blur(10px);
+    max-height: 0;
+    margin-bottom: -10px;
+    border-width: 0;
+  }
+}
+
+@keyframes nx-land {
+  0% {
+    transform: scale(1.035);
+    box-shadow:
+      0 0 0 1px rgba(var(--nx-ac), 0.7),
+      0 0 40px rgba(var(--nx-ac), 0.3);
+  }
+  100% {
+    transform: none;
+  }
+}

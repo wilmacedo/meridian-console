@@ -1,6 +1,7 @@
 <script lang="ts">
   import DocWindowBody from '../docs/doc-window-body.svelte'
   import { docs } from '../docs/docs.svelte'
+  import { hasWidgets } from '../dock/dock.svelte'
   import { registry } from '../services/registry.svelte'
   import { host } from '../shell/host.svelte'
   import WindowFrame from './window-frame.svelte'
@@ -34,7 +35,7 @@
   }
 </script>
 
-<div class="stage" bind:this={el}>
+<div class="stage" bind:this={el} style:--stage-inset={hasWidgets() ? 'calc(min(300px, 24vw) + 55px)' : '20px'}>
   {#if wm.gesture}<div class="outline"></div>{/if}
   {#if liveCount > 1}
     <div class="count">
