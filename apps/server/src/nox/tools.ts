@@ -226,7 +226,7 @@ export function buildTools(d: ToolDeps): McpTool[] {
     {
       name: 'start_task',
       description:
-        'Hands a long job to a background worker so you can keep talking: investigations across the machines, anything that takes more than a few seconds. The worker shows its progress in a live document on the screen and stops by itself. Describe the goal completely, because the worker cannot ask you anything. At most 2 run at once. After starting one, tell the owner in a short sentence that it is running and where to watch it.',
+        'Hands a long job to a background worker so you can keep talking: investigations across the machines, anything that takes more than a few seconds. The worker shows its progress on a task card under the orb and its findings in a live document, and stops by itself. Describe the goal completely, because the worker cannot ask you anything. At most 2 run at once. After starting one, tell the owner in a short sentence that it is running and where to watch it.',
       inputSchema: {
         type: 'object',
         required: ['title', 'goal'],
