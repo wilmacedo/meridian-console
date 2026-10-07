@@ -2,18 +2,20 @@
   import { agent } from '../agent/agent-state.svelte'
   import { live } from '../live/stream.svelte'
   import { micAvailable, toggleListening } from '../voice/microphone.svelte'
-  import { MODULES } from '../modules'
+  import type { ModuleDef } from '../modules'
+  import { visibleModules } from '../workspace/prefs.svelte'
   import { isOpen, openModule } from '../windows/window-manager.svelte'
 
-  const half = Math.ceil(MODULES.length / 2)
-  const left = MODULES.slice(0, half)
-  const right = MODULES.slice(half)
+  const modules = $derived(visibleModules())
+  const half = $derived(Math.ceil(modules.length / 2))
+  const left = $derived(modules.slice(0, half))
+  const right = $derived(modules.slice(half))
 
   const thinking = $derived(agent.mode === 'thinking')
   const stateColor = $derived(thinking ? 'rgb(var(--nx-fg))' : 'rgb(var(--nx-ac))')
 </script>
 
-{#snippet moduleButton(m: (typeof MODULES)[number])}
+{#snippet moduleButton(m: ModuleDef)}
   {@const active = isOpen(m.id)}
   <button class="module" class:active onclick={() => openModule(m.id)}>
     <span>{m.label.toUpperCase()}</span>

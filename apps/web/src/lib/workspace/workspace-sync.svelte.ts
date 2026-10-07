@@ -20,6 +20,7 @@ interface WorkspaceState {
   dock?: { rails: Record<RailId, string[]>; widgets: Record<string, PersistedWidget> }
   doc?: DocSpec | null
   hiddenServices?: string[]
+  hiddenModules?: string[]
 }
 
 function snapshot(): WorkspaceState {
@@ -29,6 +30,7 @@ function snapshot(): WorkspaceState {
     dock: snapshotDock(),
     doc: docs.current ? ($state.snapshot(docs.current) as DocSpec) : null,
     hiddenServices: [...prefs.hiddenServices],
+    hiddenModules: [...prefs.hiddenModules],
   }
 }
 
@@ -40,6 +42,7 @@ function restore(state: WorkspaceState): void {
   if (state.dock) restoreDock(state.dock.rails, state.dock.widgets)
   restoreDoc(state.doc ?? null)
   prefs.hiddenServices = state.hiddenServices ?? []
+  prefs.hiddenModules = state.hiddenModules ?? []
 }
 
 // Which workspace this device opens is a device preference, not workspace state.

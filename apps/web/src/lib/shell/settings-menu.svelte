@@ -2,7 +2,9 @@
   import { MODE_LABELS, PALETTE_LABELS, type PaletteId, type ThemeMode } from '../theme/palettes'
   import { live } from '../live/stream.svelte'
   import { hasLightVariant, theme } from '../theme/theme.svelte'
-  import { isHidden, toggleHidden } from '../workspace/prefs.svelte'
+  import { MODULES } from '../modules'
+  import { close } from '../windows/window-manager.svelte'
+  import { isHidden, isModuleHidden, toggleHidden, toggleModuleHidden } from '../workspace/prefs.svelte'
 
   let { open = $bindable(false) }: { open: boolean } = $props()
 
@@ -36,6 +38,22 @@
         {#each palettes as p}
           <button role="menuitemradio" aria-checked={theme.palette === p} class:on={theme.palette === p} onclick={() => (theme.palette = p)}>
             <i class="dot"></i>{PALETTE_LABELS[p]}
+          </button>
+        {/each}
+      </div>
+      <div class="group">
+        <span class="title">DOCK</span>
+        {#each MODULES.filter((m) => m.id !== 'core') as m (m.id)}
+          <button
+            role="menuitemcheckbox"
+            aria-checked={!isModuleHidden(m.id)}
+            class:on={!isModuleHidden(m.id)}
+            onclick={() => {
+              toggleModuleHidden(m.id)
+              if (isModuleHidden(m.id)) close(m.id)
+            }}
+          >
+            <i class="dot"></i>{m.label}
           </button>
         {/each}
       </div>
