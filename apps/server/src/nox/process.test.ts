@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { buildArgs, interpret, type NoxConfig } from './process.js'
+import { buildArgs, interpret, SSH_HOSTS, type NoxConfig } from './process.js'
 
 const config: NoxConfig = { home: '/tmp/nox', model: 'sonnet', mcpUrl: 'http://127.0.0.1:4000/mcp', notes: '', sessionId: '11111111-1111-1111-1111-111111111111', resume: false }
 const after = (args: string[], flag: string): string => args[args.indexOf(flag) + 1]
 
 describe('buildArgs (what NOX may do)', () => {
-  it('turns every built-in tool off and denies what is not allowed', () => {
+  it('offers Bash as the only built-in tool, decided by the auto mode classifier', () => {
     const args = buildArgs(config)
-    expect(after(args, '--tools')).toBe('')
-    expect(after(args, '--permission-mode')).toBe('dontAsk')
+    expect(after(args, '--tools')).toBe('Bash')
+    expect(after(args, '--permission-mode')).toBe('auto')
     expect(after(args, '--allowedTools')).toBe('mcp__meridian')
+  })
+
+  it('tells the classifier which machines are trusted', () => {
+    const { autoMode } = JSON.parse(after(buildArgs(config), '--settings')) as { autoMode: { environment: string[] } }
+    for (const host of SSH_HOSTS) expect(autoMode.environment.join(' ')).toContain(host)
   })
 
   it('uses only the Meridian MCP server, and no user or project settings', () => {

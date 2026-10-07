@@ -206,7 +206,7 @@ a general agent (shell, files, MCP, subagents, skills, memory, background work).
 The owner's constraint is no per-token API cost. `claude -p` (headless) runs on the **subscription
 login** of the machine it runs on and supports token streaming (`--output-format stream-json
 --include-partial-messages`), session resume (`--resume`), our tools (`--mcp-config`), lock-down
-(`--allowedTools`, `--permission-mode dontAsk`), and system prompt control. Usage counts against the
+(`--allowedTools`, `--permission-mode`), and system prompt control. Usage counts against the
 plan's limits, shared with the owner's own Claude Code use. This is a personal tool on the owner's own
 machine and login; it must never be exposed to other users.
 
@@ -258,11 +258,17 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   (the id lives in `session-id` under NOX's home). `POST /api/nox/say {text, workspace?}` is the single
   entry point; the answer streams back as newline-delimited JSON (`text`, `tool`, `done`, `error`). Voice
   will post to it, and so does the dev CLI: `pnpm nox "abre a telemetria" [--workspace <id>]`.
-- **Reach, enforced by flags** (and covered by a test, `buildArgs`): `--tools ""` removes every built-in
-  tool, `--permission-mode dontAsk` denies whatever isn't allowed, `--allowedTools mcp__meridian` allows
-  only Meridian's own MCP server, `--strict-mcp-config` ignores every other server, and
-  `--setting-sources ""` keeps the owner's own Claude Code settings out. NOX therefore has no shell, no
-  files and no network of its own until the approval flow exists.
+- **Reach, enforced by flags** (and covered by a test, `buildArgs`): `--tools Bash` leaves Bash as the
+  only built-in tool, and `--permission-mode auto` hands every Bash call to Claude Code's auto mode
+  classifier, which is told (`--settings`, `autoMode.environment`) that `mac-lan` and `win-lan` are the
+  owner's trusted machines and that nothing else is in scope. The persona asks NOX to use
+  `ssh -o BatchMode=yes -o ConnectTimeout=5 <host> ...` so an offline host fails fast instead of eating the
+  turn timeout. `--allowedTools mcp__meridian` allows only Meridian's own MCP server, `--strict-mcp-config`
+  ignores every other server, and `--setting-sources ""` keeps the owner's own settings out. SSH uses the
+  owner's existing config and keys; nothing is copied into the repo. Mutating service actions are still not
+  exposed as tools. Checked with the real `claude`: a read over SSH works; a write ask on `win-lan` was
+  attempted (the owner asked for it); the classifier itself blocking an out-of-scope call has not been
+  exercised yet, since the persona refuses first.
 - **Persona and notes:** the system prompt is `nox/persona.ts`; anything in `$NOX_HOME/CLAUDE.md`
   (default `~/.meridian/nox/`) is appended as the owner's notes. `NOX_MODEL` picks the model (Sonnet).
 - **Meridian MCP server:** `POST /mcp`, a stateless JSON-RPC implementation of the tools part of MCP

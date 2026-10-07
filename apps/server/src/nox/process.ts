@@ -43,8 +43,19 @@ export interface NoxConfig {
   resume: boolean
 }
 
-// What NOX is allowed to be. Built-in tools are off and anything not explicitly allowed is denied, so
-// the Meridian MCP server is the whole of its reach; this is the guard-rail, and it is tested.
+// Machines NOX may reach over SSH, with the owner's existing config and keys.
+export const SSH_HOSTS = ['mac-lan', 'win-lan']
+
+// Told to the auto mode classifier, which decides every Bash call: reading on the hosts goes through,
+// changing them is blocked unless the owner asked for it in this conversation.
+const AUTO_MODE_ENVIRONMENT = [
+  `NOX is the owner's voice assistant on a homelab server. Its only Bash use is \`ssh <host> <command>\` to the owner's machines: ${SSH_HOSTS.join(', ')}. These are trusted. Reading state on them (status, logs, disk, processes, listings) is expected.`,
+  'Anything else in Bash (local files, other hosts, the network, credentials or keys) is out of scope.',
+]
+
+// What NOX is allowed to be. The only built-in tool is Bash, and every call goes through the auto mode
+// classifier; anything else is off, so Bash and the Meridian MCP server are the whole of its reach.
+// This is the guard-rail, and it is tested.
 export function buildArgs(c: NoxConfig): string[] {
   return [
     '-p',
@@ -54,13 +65,14 @@ export function buildArgs(c: NoxConfig): string[] {
     '--verbose',
     '--model', c.model,
     '--system-prompt', c.notes ? `${PERSONA}\n\nOwner's notes\n${c.notes}` : PERSONA,
-    '--tools', '',
+    '--tools', 'Bash',
     '--setting-sources', '',
     '--disable-slash-commands',
     '--strict-mcp-config',
     '--mcp-config', JSON.stringify({ mcpServers: { meridian: { type: 'http', url: c.mcpUrl } } }),
     '--allowedTools', 'mcp__meridian',
-    '--permission-mode', 'dontAsk',
+    '--permission-mode', 'auto',
+    '--settings', JSON.stringify({ autoMode: { environment: AUTO_MODE_ENVIRONMENT } }),
     ...(c.resume ? ['--resume', c.sessionId] : ['--session-id', c.sessionId]),
   ]
 }
