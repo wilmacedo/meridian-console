@@ -269,6 +269,17 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   exposed as tools. Checked with the real `claude`: a read over SSH works; a write ask on `win-lan` was
   attempted (the owner asked for it); the classifier itself blocking an out-of-scope call has not been
   exercised yet, since the persona refuses first.
+- **Confirmation cards:** Claude Code asks `--permission-prompt-tool mcp__gate__approve` for anything its
+  mode doesn't settle. That tool lives on a second MCP server (`/mcp/gate`) that only the harness is
+  pointed at, so NOX can never approve its own actions. `nox/approvals.ts` sends an `approval` message to
+  the screen that spoke, which shows a card with the command; the owner taps CONFIRMAR / NEGAR, presses Esc
+  (no), or says it: while a card waits, `/api/voice/ask` treats the transcript as the answer
+  (`spokenAnswer`: "confirma", "sim", "não", "cancela"; anything unclear leaves the card open) instead of
+  starting a turn. No screen, no answer in 60 s, or a dropped card is a no. Every decision is a `nox` event.
+  Verified with the real `claude` in `default` mode (every Bash call prompts): tap, Esc and voice each
+  worked end to end. In `auto` mode the classifier allowed every in-scope command we tried without
+  prompting, so the card was never reached there; whether auto mode ever hands a case to the prompt tool
+  is not confirmed yet.
 - **Persona and notes:** the system prompt is `nox/persona.ts`; anything in `$NOX_HOME/CLAUDE.md`
   (default `~/.meridian/nox/`) is appended as the owner's notes. `NOX_MODEL` picks the model (Sonnet).
 - **Meridian MCP server:** `POST /mcp`, a stateless JSON-RPC implementation of the tools part of MCP
