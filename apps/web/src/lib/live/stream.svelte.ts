@@ -87,7 +87,19 @@ export function sendToServer(message: ClientMessage): void {
   if (current?.readyState === WebSocket.OPEN) current.send(JSON.stringify(message))
 }
 
+// The workspace this screen is watching, which a switch in place changes without reconnecting.
+let watched = ''
+
+export function watchWorkspace(workspaceId: string): void {
+  watched = workspaceId
+  // Another workspace's tasks are not this one's.
+  live.tasks = []
+  agent.working = false
+  sendToServer({ type: 'watch', workspace: workspaceId, screen: screenId })
+}
+
 export function startStream(workspaceId: string, { onWorkspace, onCommand }: Handlers): () => void {
+  watched = workspaceId
   let socket: WebSocket | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   let delay = RECONNECT_MIN_MS
@@ -105,7 +117,7 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
     socket.onopen = () => {
       live.link = 'online'
       delay = RECONNECT_MIN_MS
-      socket?.send(JSON.stringify({ type: 'watch', workspace: workspaceId, screen: screenId } satisfies ClientMessage))
+      socket?.send(JSON.stringify({ type: 'watch', workspace: watched, screen: screenId } satisfies ClientMessage))
     }
     socket.onmessage = (e) => {
       lastHeard = Date.now()

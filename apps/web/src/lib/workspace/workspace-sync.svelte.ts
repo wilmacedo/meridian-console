@@ -1,14 +1,17 @@
 import type { Workspace, WorkspaceSummary } from '@meridian/service-sdk'
-import { restoreDock, snapshotDock, type PersistedWidget } from '../dock/dock.svelte'
+import { cancelPending, resetDock, restoreDock, snapshotDock, type PersistedWidget } from '../dock/dock.svelte'
 import type { RailId } from '../dock/widgets'
 import type { DocSpec } from '../docs/doc-blocks'
 import { docs, restoreDoc } from '../docs/docs.svelte'
+import { watchWorkspace } from '../live/stream.svelte'
 import type { PaletteId, ThemeMode } from '../theme/palettes'
 import { theme } from '../theme/theme.svelte'
 import { restoreWindows, snapshotWindows, type PersistedWindow } from '../windows/window-manager.svelte'
 import { layout } from './layout.svelte'
 import type { LayoutMode } from './layout-mode'
 import { prefs } from './prefs.svelte'
+import { finishSwitchFx, sleep, startSwitchFx, switchFx } from './switch-fx.svelte'
+import { workspaceCode } from './workspace-card'
 
 // Writes are debounced so a drag doesn't send a request per pointer move.
 const WRITE_DEBOUNCE_MS = 400
@@ -25,7 +28,8 @@ interface WorkspaceState {
   layout?: LayoutMode
 }
 
-function snapshot(): WorkspaceState {
+// What is on screen right now, which the stored copy trails by the write debounce.
+export function snapshot(): WorkspaceState {
   return {
     theme: { mode: theme.mode, palette: theme.palette },
     windows: snapshotWindows(),
@@ -43,6 +47,7 @@ function restore(state: WorkspaceState): void {
   theme.palette = state.theme?.palette ?? 'meridian'
   restoreWindows(state.windows?.list ?? [], state.windows?.custom ?? false, state.windows?.active ?? 'core')
   if (state.dock) restoreDock(state.dock.rails, state.dock.widgets)
+  else resetDock()
   restoreDoc(state.doc ?? null)
   prefs.hiddenServices = state.hiddenServices ?? []
   prefs.hiddenModules = state.hiddenModules ?? []
@@ -55,7 +60,7 @@ export function deviceWorkspaceId(): string {
   return new URLSearchParams(location.search).get('workspace') || DEFAULT_ID
 }
 
-let id = DEFAULT_ID
+let id = $state(DEFAULT_ID)
 
 // The workspace this screen shows.
 export const workspaceId = (): string => id
@@ -128,27 +133,113 @@ async function flush(): Promise<void> {
   }
 }
 
-export async function listWorkspaces(): Promise<WorkspaceSummary[]> {
-  const res = await fetch('/api/workspaces')
-  // By name: the server lists the most recently changed first, and a menu that reorders itself is no menu.
-  return res.ok ? ((await res.json()) as WorkspaceSummary[]).sort((a, b) => a.name.localeCompare(b.name)) : []
+// Every workspace with its stored state, in the order they were made (the switcher's order).
+export const workspaces = $state({ list: [] as Workspace[] })
+
+export async function refreshWorkspaces(): Promise<void> {
+  try {
+    const res = await fetch('/api/workspaces?state=1')
+    if (res.ok) workspaces.list = (await res.json()) as Workspace[]
+  } catch {
+    // Offline: the switcher keeps what it had.
+  }
 }
 
-// Opens another workspace in this tab: what is on screen is saved first, then the page loads again at the
-// address of the one chosen (the default one has none).
-export async function switchWorkspace(target: string): Promise<void> {
+// The workspace this screen shows, as the switcher lists it.
+export const currentIndex = (): number => Math.max(0, workspaces.list.findIndex((w) => w.id === id))
+export const currentWorkspace = (): Workspace | undefined => workspaces.list.find((w) => w.id === id)
+
+// What is on screen is sent now, not after the debounce, and the request has landed when this returns.
+async function settle(): Promise<void> {
   clearTimeout(timer)
   await flush()
-  location.assign(target === DEFAULT_ID ? location.pathname : `${location.pathname}?workspace=${encodeURIComponent(target)}`)
+  while (inflight) await sleep(30)
+}
+
+const OUT_MS = 270
+let switching = false
+
+// Opens another workspace in this tab without loading the page: what is on screen is saved first, the core
+// blurs behind a banner, and the new workspace's layout is put in its place. The address follows, so a reload
+// stays on the same workspace.
+export async function switchWorkspace(target: string): Promise<void> {
+  if (target === id || switching) return
+  switching = true
+  try {
+    await settle()
+    const index = workspaces.list.findIndex((w) => w.id === target)
+    startSwitchFx(workspaces.list[index]?.name ?? target, workspaceCode(Math.max(0, index)))
+    const [res] = await Promise.all([fetch(`/api/workspaces/${encodeURIComponent(target)}`), sleep(OUT_MS)])
+    if (!res.ok) {
+      switchFx.current = null
+      return
+    }
+    cancelPending()
+    id = target
+    adopt((await res.json()) as Workspace)
+    history.replaceState(null, '', target === DEFAULT_ID ? location.pathname : `${location.pathname}?workspace=${encodeURIComponent(target)}`)
+    watchWorkspace(target)
+    void finishSwitchFx()
+  } catch {
+    switchFx.current = null
+  } finally {
+    switching = false
+  }
+}
+
+async function send(path: string, method: string, body?: unknown): Promise<Response> {
+  return fetch(path, { method, headers: body === undefined ? undefined : { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
 }
 
 // A new workspace with the name given, and straight onto it. Returns what is wrong when it could not be made.
 export async function createWorkspace(name: string): Promise<string | undefined> {
-  const res = await fetch('/api/workspaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim() }) })
+  const res = await send('/api/workspaces', 'POST', { name: name.trim() })
   if (res.status === 409) return 'ALREADY EXISTS'
   if (!res.ok) return 'COULD NOT CREATE'
-  await switchWorkspace(((await res.json()) as Workspace).id)
+  const created = (await res.json()) as Workspace
+  await refreshWorkspaces()
+  await switchWorkspace(created.id)
   return undefined
+}
+
+// Changes the name shown for a workspace. Returns what is wrong when it was refused.
+export async function renameWorkspace(target: string, name: string): Promise<string | undefined> {
+  const res = await send(`/api/workspaces/${encodeURIComponent(target)}`, 'PATCH', { name: name.trim() })
+  if (res.status === 409) return 'ALREADY EXISTS'
+  if (!res.ok) return 'COULD NOT RENAME'
+  await refreshWorkspaces()
+  return undefined
+}
+
+// A copy of the workspace on screen, with everything in it, and straight onto the copy.
+export async function duplicateWorkspace(): Promise<void> {
+  await settle()
+  const res = await send(`/api/workspaces/${encodeURIComponent(id)}/duplicate`, 'POST', {})
+  if (!res.ok) return
+  const copy = (await res.json()) as Workspace
+  await refreshWorkspaces()
+  await switchWorkspace(copy.id)
+}
+
+// Deletes a workspace; when it is the one on screen, the screen moves to the one before it first.
+export async function deleteWorkspace(target: string): Promise<void> {
+  if (workspaces.list.length < 2 || target === DEFAULT_ID) return
+  if (target === id) {
+    const at = workspaces.list.findIndex((w) => w.id === target)
+    await switchWorkspace(workspaces.list[at > 0 ? at - 1 : 1].id)
+    if (id === target) return
+  }
+  const res = await send(`/api/workspaces/${encodeURIComponent(target)}`, 'DELETE')
+  if (res.ok) await refreshWorkspaces()
+}
+
+// Puts the workspace's own settings back as a new one has them: its theme, and nothing else of the layout.
+export function resetWorkspaceSettings(): void {
+  theme.mode = 'auto'
+  theme.palette = 'meridian'
+  prefs.hiddenServices = []
+  prefs.hiddenModules = []
+  layout.mode = 'auto'
 }
 
 // Watches every part of the workspace and sends it to the server whenever it changes.

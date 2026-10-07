@@ -3,6 +3,7 @@
   import { agent, kick, onKick, viewMode } from '../agent/agent-state.svelte'
   import { toggleListening } from '../voice/microphone.svelte'
   import { layout } from '../workspace/layout.svelte'
+  import { switchFx } from '../workspace/switch-fx.svelte'
   import { wm } from '../windows/window-manager.svelte'
   import { activeVariant, isLight } from '../theme/theme.svelte'
   import { CoreOrb } from './core-orb'
@@ -16,7 +17,8 @@
   const filter = $derived.by(() => {
     const invert = isLight() ? 'invert(1) hue-rotate(180deg)' : ''
     const recede = dimmed ? (isLight() ? 'opacity(.45)' : 'brightness(.55) saturate(1.2)') : ''
-    return `${invert} ${recede}`.trim() || 'none'
+    const switching = switchFx.current && switchFx.current.phase !== 'leave' ? 'blur(5px) brightness(.6)' : ''
+    return `${invert} ${recede} ${switching}`.trim() || 'none'
   })
 
   onMount(() => {

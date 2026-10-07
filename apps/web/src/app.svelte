@@ -13,7 +13,9 @@
   import Header from './lib/shell/header.svelte'
   import { handleShortcut } from './lib/shell/keyboard'
   import SettingsMenu from './lib/shell/settings-menu.svelte'
-  import WorkspaceMenu from './lib/shell/workspace-menu.svelte'
+  import WorkspaceBanner from './lib/shell/workspace-banner.svelte'
+  import WorkspaceChip from './lib/shell/workspace-chip.svelte'
+  import { shellUi } from './lib/shell/shell-ui.svelte'
   import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
   import TaskCard from './lib/shell/task-card.svelte'
@@ -21,16 +23,14 @@
   import { cancelListening, continueListening, haltIfBusy } from './lib/voice/microphone.svelte'
   import { retryPlayback, setPlaybackFinished, setPlaybackSpoken, unlockAudio } from './lib/voice/voice-player.svelte'
   import { runCommand } from './lib/workspace/commands'
-  import { deviceWorkspaceId, loadWorkspace, receiveWorkspace, startWorkspaceSync } from './lib/workspace/workspace-sync.svelte'
+  import { playBootFx } from './lib/workspace/switch-fx.svelte'
+  import { currentIndex, currentWorkspace, deviceWorkspaceId, loadWorkspace, receiveWorkspace, refreshWorkspaces, startWorkspaceSync } from './lib/workspace/workspace-sync.svelte'
   import { activeVariant, applyTheme, darkVariant } from './lib/theme/theme.svelte'
 
-  let settingsOpen = $state(false)
-  let workspacesOpen = $state(false)
-
   function closeOverlay(): boolean {
-    if (settingsOpen || workspacesOpen) {
-      settingsOpen = false
-      workspacesOpen = false
+    if (shellUi.settingsOpen || shellUi.workspacesOpen) {
+      shellUi.settingsOpen = false
+      shellUi.workspacesOpen = false
       return true
     }
     return denyApproval() || cancelListening() || haltIfBusy() || cancelPending()
@@ -57,6 +57,10 @@
       if (stopped) return
       stopSync = startWorkspaceSync()
       stopStream = startStream(id, { onWorkspace: receiveWorkspace, onCommand: runCommand })
+      void refreshWorkspaces().then(() => {
+        const w = currentWorkspace()
+        if (w && !stopped) void playBootFx(w.name, String(currentIndex() + 1).padStart(2, '0'))
+      })
     })
     return () => {
       stopped = true
@@ -81,8 +85,9 @@
   <Rail rail="R" />
   <TaskCard />
   <BottomDock />
-  <SettingsMenu bind:open={settingsOpen} />
-  <WorkspaceMenu bind:open={workspacesOpen} />
+  <SettingsMenu bind:open={shellUi.settingsOpen} />
+  <WorkspaceChip />
+  <WorkspaceBanner />
   <ApprovalCard />
   <DragGhost />
 </div>

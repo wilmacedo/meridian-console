@@ -40,11 +40,14 @@ export interface DragState {
 
 export const PENDING_ID = '__pending'
 
+const defaultRails = (): Record<RailId, string[]> => ({ L: ['w1'], R: [] })
+const defaultWidgets = (): Record<string, Widget> => ({
+  w1: { id: 'w1', def: tele(), collapsed: false, closing: false, landed: false, exitHeight: 0, exitDx: 0 },
+})
+
 export const dock = $state({
-  rails: { L: ['w1'], R: [] } as Record<RailId, string[]>,
-  widgets: {
-    w1: { id: 'w1', def: tele(), collapsed: false, closing: false, landed: false, exitHeight: 0, exitDx: 0 },
-  } as Record<string, Widget>,
+  rails: defaultRails(),
+  widgets: defaultWidgets(),
   flash: null as string | null,
   flashCount: 0,
   // A pin waiting to be dropped on a rail.
@@ -171,6 +174,13 @@ export const snapshotDock = (): { rails: Record<RailId, string[]>; widgets: Reco
   const widgets: Record<string, PersistedWidget> = {}
   for (const id of [...rails.L, ...rails.R]) widgets[id] = { def: $state.snapshot(dock.widgets[id].def) as WidgetDef, collapsed: dock.widgets[id].collapsed }
   return { rails, widgets }
+}
+
+// What a workspace that has never been arranged starts with.
+export function resetDock(): void {
+  dock.rails = defaultRails()
+  dock.widgets = defaultWidgets()
+  nextId = 1
 }
 
 export function restoreDock(rails: Record<RailId, string[]>, widgets: Record<string, PersistedWidget>): void {

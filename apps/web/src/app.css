@@ -298,3 +298,11 @@ button {
     transform: scaleX(1);
   }
 }
+
+@keyframes nx-fade {
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+    filter: blur(10px);
+  }
+}
