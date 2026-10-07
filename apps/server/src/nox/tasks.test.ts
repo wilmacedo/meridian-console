@@ -95,7 +95,7 @@ describe('Tasks', () => {
     tasks.subscribe(() => changes++)
     const task = tasks.start('default', 'T', 'g')
     expect(changes).toBe(1)
-    expect(tasks.running('default')).toEqual([{ id: task.id, title: 'T' }])
+    expect(tasks.running('default')).toEqual([{ id: task.id, title: 'T', startedAt: task.startedAt, steps: [] }])
     expect(tasks.running('elsewhere')).toEqual([])
     spawned[0].stdout.write(line({ type: 'result', is_error: false }))
     await tick()
@@ -113,5 +113,25 @@ describe('Tasks', () => {
     expect(spawned[0].killed()).toBe(true)
     expect(tasks.list()[0].state).toBe('stopped')
     expect(() => tasks.start('default', 'C', 'g')).not.toThrow()
+  })
+
+  it('keeps the steps a worker reports and tells watchers when they change', () => {
+    const { tasks } = setup()
+    const task = tasks.start('default', 'Audit', 'g')
+    let told = 0
+    tasks.subscribe(() => told++)
+    tasks.report(task.id, [{ label: 'Read logs', state: 'done', result: '2 errors' }, { label: 'Check pool', state: 'active' }, { label: 'Write up', state: 'todo' }])
+    expect(told).toBe(1)
+    const [running] = tasks.running('default')
+    expect(running.steps).toEqual([{ label: 'Read logs', state: 'done', result: '2 errors' }, { label: 'Check pool', state: 'active' }, { label: 'Write up', state: 'todo' }])
+    expect(running.startedAt).toBeLessThanOrEqual(Date.now())
+  })
+
+  it('refuses a malformed report and a task that is not running', () => {
+    const { tasks } = setup()
+    const task = tasks.start('default', 'Audit', 'g')
+    expect(() => tasks.report(task.id, [])).toThrow()
+    expect(() => tasks.report(task.id, [{ label: 'x', state: 'weird' }])).toThrow()
+    expect(() => tasks.report('nope', [{ label: 'x', state: 'done' }])).toThrow('no such running task')
   })
 })

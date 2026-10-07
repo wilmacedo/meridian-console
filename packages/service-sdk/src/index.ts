@@ -97,7 +97,7 @@ export type StreamMessage =
   | { type: 'telemetry'; sample: TelemetrySample; containers: ContainerInfo[] }
   | { type: 'agent'; mode: AgentMode }
   // The background tasks running for the workspace this screen shows, whenever they change.
-  | { type: 'tasks'; tasks: { id: string; title: string }[] }
+  | { type: 'tasks'; tasks: TaskView[] }
   // One spoken sentence of a NOX answer, as base64 mp3; `seq` orders them within a turn.
   | { type: 'speech'; turn: number; seq: number; mime: 'audio/mpeg'; audio: string }
   | { type: 'speech_end'; turn: number }
@@ -130,6 +130,23 @@ export interface WorkspaceSummary {
 // A workspace's state is the web app's business (windows, dock, theme...); the server stores it as JSON.
 export interface Workspace extends WorkspaceSummary {
   state: unknown
+}
+
+// A step of a background task, as the worker reports it.
+export interface TaskStep {
+  label: string
+  state: 'done' | 'active' | 'todo'
+  // What the step found, in a few words (shown once it is done).
+  result?: string
+}
+
+// A running background task as a screen shows it.
+export interface TaskView {
+  id: string
+  title: string
+  // When it started, epoch ms, for the elapsed time.
+  startedAt: number
+  steps: TaskStep[]
 }
 
 export type AgentMode = 'boot' | 'idle' | 'listening' | 'thinking' | 'speaking'

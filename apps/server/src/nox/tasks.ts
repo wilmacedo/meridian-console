@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createInterface } from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
-import type { DocSpec } from '@meridian/service-sdk'
+import type { DocSpec, TaskStep, TaskView } from '@meridian/service-sdk'
 import type { EventBus } from '../event-bus.js'
 import type { ScreenRegistry } from '../screens.js'
 import { buildArgs, commandNote, interpret, machineFacts, readNotes, SSH_HOSTS, type NoxConfig } from './process.js'
@@ -10,6 +10,8 @@ import { buildArgs, commandNote, interpret, machineFacts, readNotes, SSH_HOSTS, 
 const MAX_RUNNING = 2
 const TASK_TIMEOUT_MS = 15 * 60_000
 const FINAL_WORDS = 200
+const MAX_STEPS = 12
+const STEP_STATES: TaskStep['state'][] = ['done', 'active', 'todo']
 
 export interface Task {
   id: string
@@ -18,6 +20,8 @@ export interface Task {
   // The tab that asked for it, where its document appears.
   screen?: string
   state: 'running' | 'done' | 'failed' | 'stopped'
+  startedAt: number
+  steps: TaskStep[]
 }
 
 // The part of a child process a task uses; tests stand in for it.
@@ -41,7 +45,8 @@ export const docIdOf = (task: Pick<Task, 'id'>): string => `task-${task.id}`
 const taskPersona = (task: Task): string => `You are a background worker for NOX, the voice of a homelab control console called Meridian. The owner asked NOX for one job and NOX handed it to you so the conversation stays free. Nobody talks to you while you work: do the job, do not ask questions.
 
 Reporting
-- Show progress in a live document: call compose_doc with id "${docIdOf(task)}" and workspace "${task.workspace}", with the same title ("${task.title}"). Compose it as soon as you start, then again each time something changes: a progress block, a list of steps with states (done, active, todo) and the findings so far. Composing again with the same id updates the document in place. Keep it short and factual.
+- Show progress on the screen's task card: call report_progress with task "${task.id}" and the whole list of your steps (3 to 8, each a short label with state done, active or todo, and a few words of result once done). Call it as soon as you have a plan, then again each time a step starts or ends, so exactly one step is active until you finish. Plan the steps before the first command.
+- Show findings in a live document: call compose_doc with id "${docIdOf(task)}" and workspace "${task.workspace}", with the same title ("${task.title}"). Compose it as soon as you start, then again each time you learn something: the findings so far. Composing again with the same id updates the document in place. Keep it short and factual.
 - When you finish, update the document one last time with the outcome (a callout, tone ok if it worked, bad if it did not). Your last message is one plain sentence saying how it went.
 
 What you can do
@@ -68,8 +73,25 @@ export class Tasks {
   }
 
   // What a screen shows: the tasks still running for its workspace.
-  running(workspace: string): { id: string; title: string }[] {
-    return [...this.running_.values()].filter((e) => e.task.workspace === workspace).map((e) => ({ id: e.task.id, title: e.task.title }))
+  running(workspace: string): TaskView[] {
+    return [...this.running_.values()]
+      .filter((e) => e.task.workspace === workspace)
+      .map((e) => ({ id: e.task.id, title: e.task.title, startedAt: e.task.startedAt, steps: e.task.steps }))
+  }
+
+  // The worker's own account of how far along it is; it replaces the previous one.
+  report(id: string, steps: unknown): void {
+    const entry = this.running_.get(id)
+    if (!entry) throw new Error('no such running task')
+    if (!Array.isArray(steps) || !steps.length || steps.length > MAX_STEPS) throw new Error(`give 1 to ${MAX_STEPS} steps`)
+    entry.task.steps = steps.map((raw: Record<string, unknown>) => {
+      const label = typeof raw?.label === 'string' ? raw.label.trim().slice(0, 80) : ''
+      const state = STEP_STATES.find((s) => s === raw?.state)
+      if (!label || !state) throw new Error('each step needs a label and a state of done, active or todo')
+      const result = typeof raw.result === 'string' ? raw.result.trim().slice(0, 40) : ''
+      return result ? { label, state, result } : { label, state }
+    })
+    this.changed()
   }
 
   // Told whenever a task starts or ends.
@@ -80,7 +102,7 @@ export class Tasks {
 
   start(workspace: string, title: string, goal: string, screen?: string): Task {
     if (this.running_.size >= MAX_RUNNING) throw new Error(`${MAX_RUNNING} tasks are already running; wait for one to finish or stop one`)
-    const task: Task = { id: randomUUID().slice(0, 8), title: title.slice(0, 80), workspace, screen, state: 'running' }
+    const task: Task = { id: randomUUID().slice(0, 8), title: title.slice(0, 80), workspace, screen, state: 'running', startedAt: Date.now(), steps: [] }
     this.all.push(task)
 
     const { port, home, model, bus, screens } = this.options

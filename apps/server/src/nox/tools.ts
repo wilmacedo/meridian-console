@@ -20,7 +20,7 @@ interface ToolDeps {
   workspaces: WorkspaceStore
   screens: ScreenRegistry
   approvals: Pick<Approvals, 'ask'>
-  tasks: Pick<Tasks, 'start' | 'stop' | 'list'>
+  tasks: Pick<Tasks, 'start' | 'stop' | 'list' | 'report'>
   containers: () => Promise<ContainerSummary[]>
   docker: Pick<DockerApi, 'inspect'>
   anywh: AnywhApi
@@ -246,6 +246,30 @@ export function buildTools(d: ToolDeps): McpTool[] {
       description: 'The background tasks started since the server came up, with their state (running, done, failed, stopped).',
       inputSchema: { type: 'object', properties: {} },
       handler: () => JSON.stringify(d.tasks.list()),
+    },
+    {
+      name: 'report_progress',
+      description:
+        'For a background worker only: reports the steps of its job so the screen shows a task card with progress. Send the whole list every time; it replaces the previous one. Keep exactly one step active until the job is finished.',
+      inputSchema: {
+        type: 'object',
+        required: ['task', 'steps'],
+        properties: {
+          task: { type: 'string', description: 'The task id from your instructions.' },
+          steps: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['label', 'state'],
+              properties: { label: { type: 'string' }, state: { type: 'string', enum: ['done', 'active', 'todo'] }, result: { type: 'string', description: 'A few words, once the step is done.' } },
+            },
+          },
+        },
+      },
+      handler: (a) => {
+        d.tasks.report(text(a, 'task') ?? '', a.steps)
+        return 'Progress updated.'
+      },
     },
     {
       name: 'stop_task',
