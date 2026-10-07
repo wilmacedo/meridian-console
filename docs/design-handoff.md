@@ -772,7 +772,13 @@ Decided for the project; drawn from the design's own tokens, kept minimal.
   disabled (Blue has a single, dark variant). The stored theme is per workspace. A third group,
   `Services`, lists every service with a check; unchecking one retires it from the Services window, the
   dock widget and the header count (the setting is stored with the workspace). It replaces the
-  prototype's "edit nix.config.json" footnote mechanism.
+  prototype's "edit nix.config.json" footnote mechanism. Three more groups follow the same pattern:
+  `Workspace` (the workspaces, one marked; picking another saves the current one and reloads the page
+  onto it, and `+ New workspace` makes "Workspace N" and goes there, because the UI has no text input;
+  the choice is a device preference), `Orb` (`High` / `Low`, a device preference: Low draws half the
+  strands, drops the wide glow and renders at 1x, for the tablet and the Echo Show tiers) and `Dock`
+  (Services, Telemetry, Events and Cameras can each be taken off the dock, stored with the workspace;
+  Core stays; hiding one closes its window and the 1-9 shortcuts count what is left).
 - **Voice input is feature-detected**: if the page is not in a secure context (no HTTPS) or the browser has
   no recorder, the mic button is dimmed and does nothing, and NOX remains reachable through the dev CLI
   (see architecture). `Space`, the mic button and a click on the orb all start and stop listening, and

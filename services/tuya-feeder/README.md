@@ -154,7 +154,11 @@ polls until `feed_report`'s timestamp changes and shows `SERVED n` or `FEEDING F
   automation card leaves them out rather than invent them): Tuya's docs say "1–7 bytes of weekdays, then 3-byte rules (portions + minutes
   since 0h), binary + base64". The value observed on the test unit is a ~15-character repeating string
   starting with `7f` — it **does not match the documented format**, so decoding it requires comparing
-  against changes made in the SmartLife app.
+  against changes made in the SmartLife app. *Hypothesis, not verified*: the value is a hex string made of
+  15-character records, `7f` + hour (2 hex digits) + minute (2) + portions (2) + `1` + `000000`, where `7f`
+  would be the weekday mask (all seven days). That reads as one record per slot with the hour in the second
+  byte, but the number of slots it yields (11 on the test unit) does not look like a schedule anyone set,
+  so it has to be checked against what the SmartLife app shows before the card relies on it.
 - Confirm whether `feed_block_status` really is a stale flag.
 - **Local** control via `tinytuya` (LAN, no cloud): the feeder is Wi-Fi, so it is viable. Needs the
   device `local_key` (field of `/v1.0/devices/{id}`). Would give raw DP access and lower latency, and
