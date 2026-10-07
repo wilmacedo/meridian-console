@@ -1,4 +1,5 @@
 import { agent } from '../agent/agent-state.svelte'
+import { enqueueSpeech, endSpeech, player } from '../voice/voice-player.svelte'
 import type { ClientMessage, ContainerInfo, ScreenCommand, HostInfo, MeridianEvent, ServiceSummary, StreamMessage, TelemetrySample } from '@meridian/service-sdk'
 
 // The events window keeps the 120 most recent.
@@ -24,8 +25,10 @@ function apply(message: StreamMessage): void {
       // The orb is still rising on load; BOOTING ends on its own schedule.
       if (agent.mode === 'boot' && message.mode === 'idle') break
       agent.mode = message.mode
-      // Until voice gives a real audio level, speaking uses a steady one so the orb moves.
-      agent.amplitude = message.mode === 'speaking' ? 0.55 : 0
+      // With voice, the player drives the level from the audio it plays; without it, speaking uses a
+      // steady one so the orb still moves.
+      if (message.mode !== 'speaking') agent.amplitude = 0
+      else if (!player.active) agent.amplitude = 0.55
       break
     case 'snapshot':
       live.host = message.host
@@ -54,6 +57,12 @@ interface Handlers {
   onCommand: (command: ScreenCommand) => void
 }
 
+let current: WebSocket | undefined
+
+export function sendToServer(message: ClientMessage): void {
+  if (current?.readyState === WebSocket.OPEN) current.send(JSON.stringify(message))
+}
+
 export function startStream(workspaceId: string, { onWorkspace, onCommand }: Handlers): () => void {
   let socket: WebSocket | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -63,6 +72,7 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
   function connect(): void {
     const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/stream`
     socket = new WebSocket(url)
+    current = socket
     socket.onopen = () => {
       live.connected = true
       delay = RECONNECT_MIN_MS
@@ -72,6 +82,8 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
       const message = JSON.parse(e.data as string) as StreamMessage
       if (message.type === 'workspace') onWorkspace(message.version, message.state)
       else if (message.type === 'command') onCommand(message.command)
+      else if (message.type === 'speech') void enqueueSpeech(message.turn, message.seq, message.audio)
+      else if (message.type === 'speech_end') endSpeech(message.turn)
       else apply(message)
     }
     socket.onclose = () => {

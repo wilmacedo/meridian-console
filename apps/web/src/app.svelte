@@ -13,7 +13,8 @@
   import SettingsMenu from './lib/shell/settings-menu.svelte'
   import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
-  import { startStream } from './lib/live/stream.svelte'
+  import { sendToServer, startStream } from './lib/live/stream.svelte'
+  import { retryPlayback, setPlaybackFinished, unlockAudio } from './lib/voice/voice-player.svelte'
   import { runCommand } from './lib/workspace/commands'
   import { deviceWorkspaceId, loadWorkspace, receiveWorkspace, startWorkspaceSync } from './lib/workspace/workspace-sync.svelte'
   import { activeVariant, applyTheme, darkVariant } from './lib/theme/theme.svelte'
@@ -33,6 +34,14 @@
   onMount(() => {
     const stopClock = startClock()
     finishBoot()
+    setPlaybackFinished((turn) => sendToServer({ type: 'speech_done', turn }))
+    // Audio can only start after a gesture; the first one unlocks it, and any later one retries queued speech.
+    const unlock = (): void => {
+      unlockAudio()
+      retryPlayback()
+    }
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('keydown', unlock)
     let stopStream: (() => void) | undefined
     let stopSync: (() => void) | undefined
     let stopped = false
@@ -43,6 +52,8 @@
     })
     return () => {
       stopped = true
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
       stopClock()
       stopSync?.()
       stopStream?.()

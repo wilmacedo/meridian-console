@@ -56,6 +56,8 @@ export function registerNox(app: FastifyInstance, nox: Nox, bus: EventBus, scree
           if (event.type === 'error') bus.emit('nox', 'error', event.message)
           reply.raw.write(`${JSON.stringify(event)}\n`)
         }
+        // The text is complete: the caller has its answer, and the speech carries on after this.
+        reply.raw.end()
         if (speaker) {
           // Listen for the screen's "done" before the last sentence can possibly reach it.
           const played = waitForPlayback(turn, PLAYBACK_TIMEOUT_MS)
@@ -65,7 +67,7 @@ export function registerNox(app: FastifyInstance, nox: Nox, bus: EventBus, scree
         }
       } finally {
         screens.setAgentMode('idle')
-        reply.raw.end()
+        if (!reply.raw.writableEnded) reply.raw.end()
       }
 
       if (voice && spent > 0) {
