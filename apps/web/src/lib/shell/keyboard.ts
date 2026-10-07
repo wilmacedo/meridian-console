@@ -1,4 +1,3 @@
-import { toggleListening } from '../voice/microphone.svelte'
 import { visibleModules } from '../workspace/prefs.svelte'
 import { switchWorkspace, workspaces } from '../workspace/workspace-sync.svelte'
 import { close, closeActive, isOpen, open, openModule } from '../windows/window-manager.svelte'
@@ -14,9 +13,6 @@ export function handleShortcut(e: KeyboardEvent, closeOverlay: () => boolean): v
     if (w) void switchWorkspace(w.id)
   } else if (e.metaKey || e.ctrlKey || e.altKey) {
     return
-  } else if (e.key === ' ') {
-    e.preventDefault()
-    void toggleListening()
   } else if (e.key === 'Escape') {
     if (!closeOverlay()) closeActive()
   } else if (e.key === 'w' || e.key === 'W') {
