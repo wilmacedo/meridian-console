@@ -174,3 +174,14 @@ o = buf(0.4)
 pluck(o, 0.0, 880, 0.5)
 pluck(o, 0.16, 880, 0.5)
 save('approval', room(o, 0.25), PEAK * 1.2)
+
+# task-done: a background task finished. One higher pluck that rings a little longer than the others.
+o = buf(0.5)
+pluck(o, 0.0, 1175, 0.5, 0.35)
+save('task-done', room(o, 0.3), PEAK * 0.9)
+
+# unavailable: the mic cannot be used right now. Two low plucks, falling and dull.
+o = buf(0.35)
+pluck(o, 0.0, 330, 0.5, 0.16)
+pluck(o, 0.1, 262, 0.5, 0.2)
+save('unavailable', room(o, 0.2), PEAK * 0.9)

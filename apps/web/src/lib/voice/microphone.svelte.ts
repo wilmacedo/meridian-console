@@ -134,7 +134,7 @@ async function begin(): Promise<void> {
 // Tap to talk, tap again to send now; a pause in the speech sends it by itself. Tapping while NOX is
 // speaking or thinking interrupts it, for real: the server stops the turn and the voice.
 export async function toggleListening(): Promise<void> {
-  if (!micAvailable() || live.link === 'offline') return
+  if (!micAvailable() || live.link === 'offline') return play('unavailable')
   if (mic.phase === 'recording') return stopEarly?.()
   if (mic.phase === 'sending' || agent.mode === 'thinking' || agent.mode === 'speaking') cutOff()
   interruptPlayback()

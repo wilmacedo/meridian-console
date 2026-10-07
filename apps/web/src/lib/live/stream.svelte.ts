@@ -1,4 +1,5 @@
 import { clearApprovals, hideApproval, showApproval } from '../agent/approval.svelte'
+import { play } from '../sound/sfx.svelte'
 import { agent } from '../agent/agent-state.svelte'
 import { enqueueSpeech, endSpeech, player } from '../voice/voice-player.svelte'
 import type { ClientMessage, ContainerInfo, ScreenCommand, HostInfo, MeridianEvent, ServiceSummary, StreamMessage, TelemetrySample } from '@meridian/service-sdk'
@@ -41,6 +42,8 @@ function apply(message: StreamMessage): void {
       else if (!player.active) agent.amplitude = 0.55
       break
     case 'tasks':
+      // One that is gone from the list has finished (or was stopped): nothing else tells the owner it is done.
+      if (live.tasks.some((t) => !message.tasks.some((n) => n.id === t.id))) play('task-done')
       live.tasks = message.tasks
       break
     case 'snapshot':
@@ -86,6 +89,8 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
   let delay = RECONNECT_MIN_MS
   let stopped = false
   let lastHeard = Date.now()
+  // Another workspace's tasks leaving the list are not this one's finishing.
+  live.tasks = []
 
   function connect(): void {
     lastHeard = Date.now()

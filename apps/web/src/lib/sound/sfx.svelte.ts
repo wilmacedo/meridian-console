@@ -4,7 +4,7 @@ import { audioContext } from '../voice/voice-player.svelte'
 const KEY = 'meridian.sound'
 const VOLUME = 0.5
 
-export type Sfx = 'mic-on' | 'mic-off' | 'speech-end' | 'approval' | 'window-open' | 'window-close'
+export type Sfx = 'mic-on' | 'mic-off' | 'speech-end' | 'approval' | 'window-open' | 'window-close' | 'task-done' | 'unavailable'
 
 export const sound = $state({ on: typeof localStorage === 'undefined' || localStorage.getItem(KEY) !== 'off' })
 
