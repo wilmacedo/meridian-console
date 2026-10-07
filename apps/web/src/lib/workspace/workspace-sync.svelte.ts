@@ -116,6 +116,28 @@ async function flush(): Promise<void> {
   }
 }
 
+export async function listWorkspaces(): Promise<WorkspaceSummary[]> {
+  const res = await fetch('/api/workspaces')
+  // By name: the server lists the most recently changed first, and a menu that reorders itself is no menu.
+  return res.ok ? ((await res.json()) as WorkspaceSummary[]).sort((a, b) => a.name.localeCompare(b.name)) : []
+}
+
+// Opens another workspace on this device: what is on screen is saved first, the choice is remembered, and
+// the page loads again onto it (the address loses ?workspace=, which would win over the choice).
+export async function switchWorkspace(target: string): Promise<void> {
+  clearTimeout(timer)
+  await flush()
+  localStorage.setItem(DEVICE_KEY, target)
+  location.assign(location.pathname)
+}
+
+// A new empty workspace, named by number (there is no text input in the UI), and straight onto it.
+export async function createWorkspace(): Promise<void> {
+  const name = `Workspace ${(await listWorkspaces()).length + 1}`
+  const res = await fetch('/api/workspaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+  if (res.ok) await switchWorkspace(((await res.json()) as Workspace).id)
+}
+
 // Watches every part of the workspace and sends it to the server whenever it changes.
 export function startWorkspaceSync(): () => void {
   const stop = $effect.root(() => {
