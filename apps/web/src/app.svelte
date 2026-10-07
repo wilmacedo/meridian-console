@@ -14,7 +14,7 @@
   import Stage from './lib/windows/stage.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
   import { startStream } from './lib/live/stream.svelte'
-  import { activeVariant, applyTheme } from './lib/theme/theme.svelte'
+  import { activeVariant, applyTheme, darkVariant } from './lib/theme/theme.svelte'
 
   let settingsOpen = $state(false)
 
@@ -26,7 +26,7 @@
     return cancelPending()
   }
 
-  $effect(() => applyTheme(document.documentElement, activeVariant()))
+  $effect(() => applyTheme(document.documentElement, activeVariant(), darkVariant()))
 
   onMount(() => {
     const stopClock = startClock()

@@ -19,6 +19,17 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Keeps the dark palette inside a light theme: camera frames are video, not chrome. */
+.nx-dark {
+  --nx-bg: var(--nx-dark-bg);
+  --nx-pn: var(--nx-dark-pn);
+  --nx-hi: var(--nx-dark-hi);
+  --nx-fg: var(--nx-dark-fg);
+  --nx-ac: var(--nx-dark-ac);
+  --nx-mu: var(--nx-dark-mu);
+  --nx-sh: var(--nx-dark-sh);
+}
+
 *,
 *::before,
 *::after {
