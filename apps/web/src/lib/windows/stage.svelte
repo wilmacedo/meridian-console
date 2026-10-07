@@ -8,7 +8,8 @@
   import DocWindowBody from '../docs/doc-window-body.svelte'
   import { docs } from '../docs/docs.svelte'
   import { stageSides } from '../dock/dock.svelte'
-  import { insetOf } from '../dock/stage-insets'
+  import { stageInsets } from '../dock/stage-insets'
+  import { isStacked } from '../workspace/layout.svelte'
   import { live } from '../live/stream.svelte'
   import { visibleServices } from '../workspace/prefs.svelte'
   import WindowFrame from './window-frame.svelte'
@@ -16,6 +17,8 @@
   import { arrange, isOpen, setStage, wm, type WindowId } from './window-manager.svelte'
 
   let el: HTMLDivElement
+
+  const insets = $derived(stageInsets(stageSides(), isStacked()))
 
   $effect(() => {
     const ro = new ResizeObserver(() => setStage({ w: el.clientWidth, h: el.clientHeight }))
@@ -44,7 +47,7 @@
   }
 </script>
 
-<div class="stage" bind:this={el} style:--inset-l={insetOf(stageSides().L)} style:--inset-r={insetOf(stageSides().R)}>
+<div class="stage" bind:this={el} style:--inset-l={insets.left} style:--inset-r={insets.right} style:--inset-t={insets.top} style:--inset-b={insets.bottom}>
   {#if wm.gesture}<div class="outline"></div>{/if}
   {#if liveCount > 1}
     <div class="count">
@@ -66,15 +69,17 @@
 <style>
   .stage {
     position: absolute;
-    top: 108px;
-    bottom: 178px;
+    top: calc(108px + var(--inset-t, 0px));
+    bottom: calc(178px + var(--inset-b, 0px));
     left: var(--inset-l, 20px);
     right: var(--inset-r, 20px);
     z-index: 4;
     pointer-events: none;
     transition:
       left 0.4s var(--ease-out),
-      right 0.4s var(--ease-out);
+      right 0.4s var(--ease-out),
+      top 0.4s var(--ease-out),
+      bottom 0.4s var(--ease-out);
   }
   .stage :global(.win) {
     pointer-events: auto;

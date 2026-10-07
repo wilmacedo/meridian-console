@@ -11,3 +11,20 @@ export function railSides(rails: Record<RailId, readonly string[]>, placing: boo
 }
 
 export const insetOf = (reserved: boolean): string => (reserved ? RAIL_INSET : BARE_INSET)
+
+// The room a rail takes at the stage's edge, as a CSS length, per side: sideways in the side layout, above or
+// below in the stacked one (where the strips are STRIP_H tall).
+export const STRIP_H = '200px'
+export const STRIP_EXTRA = `calc(${STRIP_H} + 10px)`
+
+export interface StageInsets {
+  left: string
+  right: string
+  top: string
+  bottom: string
+}
+
+export function stageInsets(sides: Record<RailId, boolean>, stacked: boolean): StageInsets {
+  if (stacked) return { left: BARE_INSET, right: BARE_INSET, top: sides.L ? STRIP_EXTRA : '0px', bottom: sides.R ? STRIP_EXTRA : '0px' }
+  return { left: insetOf(sides.L), right: insetOf(sides.R), top: '0px', bottom: '0px' }
+}

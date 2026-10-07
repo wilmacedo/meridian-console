@@ -6,6 +6,8 @@ import { docs, restoreDoc } from '../docs/docs.svelte'
 import type { PaletteId, ThemeMode } from '../theme/palettes'
 import { theme } from '../theme/theme.svelte'
 import { restoreWindows, snapshotWindows, type PersistedWindow } from '../windows/window-manager.svelte'
+import { layout } from './layout.svelte'
+import type { LayoutMode } from './layout-mode'
 import { prefs } from './prefs.svelte'
 
 // Writes are debounced so a drag doesn't send a request per pointer move.
@@ -21,6 +23,7 @@ interface WorkspaceState {
   doc?: DocSpec | null
   hiddenServices?: string[]
   hiddenModules?: string[]
+  layout?: LayoutMode
 }
 
 function snapshot(): WorkspaceState {
@@ -31,6 +34,7 @@ function snapshot(): WorkspaceState {
     doc: docs.current ? ($state.snapshot(docs.current) as DocSpec) : null,
     hiddenServices: [...prefs.hiddenServices],
     hiddenModules: [...prefs.hiddenModules],
+    layout: layout.mode,
   }
 }
 
@@ -43,6 +47,7 @@ function restore(state: WorkspaceState): void {
   restoreDoc(state.doc ?? null)
   prefs.hiddenServices = state.hiddenServices ?? []
   prefs.hiddenModules = state.hiddenModules ?? []
+  layout.mode = state.layout ?? 'auto'
 }
 
 // Which workspace this device opens is a device preference, not workspace state.

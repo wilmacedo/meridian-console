@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BARE_INSET, insetOf, railSides, RAIL_INSET } from './stage-insets'
+import { BARE_INSET, insetOf, railSides, RAIL_INSET, stageInsets, STRIP_EXTRA } from './stage-insets'
 
 describe('railSides', () => {
   it('reserves nothing when both rails are empty', () => {
@@ -22,5 +22,16 @@ describe('insetOf', () => {
   it('maps a reserved side to the rail inset and a bare one to the margin', () => {
     expect(insetOf(true)).toBe(RAIL_INSET)
     expect(insetOf(false)).toBe(BARE_INSET)
+  })
+})
+
+describe('stageInsets', () => {
+  it('makes room at the sides in the side layout', () => {
+    expect(stageInsets({ L: true, R: false }, false)).toEqual({ left: RAIL_INSET, right: BARE_INSET, top: '0px', bottom: '0px' })
+  })
+
+  it('makes room above and below in the stacked layout: L is the top strip, R the bottom one', () => {
+    expect(stageInsets({ L: true, R: false }, true)).toEqual({ left: BARE_INSET, right: BARE_INSET, top: STRIP_EXTRA, bottom: '0px' })
+    expect(stageInsets({ L: false, R: true }, true)).toEqual({ left: BARE_INSET, right: BARE_INSET, top: '0px', bottom: STRIP_EXTRA })
   })
 })

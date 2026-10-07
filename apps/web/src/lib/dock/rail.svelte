@@ -4,11 +4,14 @@
   import { dock, setRailEl } from './dock.svelte'
   import type { RailId } from './widgets'
   import WidgetCard from './widget-card.svelte'
+  import { STRIP_H } from './stage-insets'
+  import { isStacked } from '../workspace/layout.svelte'
 
   let { rail }: { rail: RailId } = $props()
 
   const pad = (n: number): string => String(n).padStart(2, '0')
   const left = $derived(rail === 'L')
+  const stacked = $derived(isStacked())
   const ids = $derived(dock.rails[rail])
   const visible = $derived(ids.length > 0 || dock.drag !== null || dock.pending !== null)
   const targeted = $derived(dock.drag?.rail === rail)
@@ -24,6 +27,8 @@
     return list
   })
   const slotHeight = $derived(targeted && dock.drag ? Math.max(64, Math.min(dock.drag.h, 320)) : 52)
+  // In a strip the slot is a card-wide gap instead of a card-high one.
+  const slotWidth = $derived(targeted && dock.drag ? dock.drag.w : 260)
 
   // cubic-bezier(.2,.8,.2,1), the design's easing for reflow.
   const ease = (t: number): number => {
@@ -41,21 +46,29 @@
 
   let list: HTMLElement
   let content: HTMLElement
-  let bar = $state({ on: false, top: 0, height: 100, atTop: true, atEnd: true, ticks: [] as number[] })
+  let bar = $state({ on: false, scrolls: false, top: 0, height: 100, atTop: true, atEnd: true, ticks: [] as number[] })
 
   function measure(): void {
-    const sh = list.scrollHeight
-    const ch = list.clientHeight
-    const st = list.scrollTop
+    const sh = stacked ? list.scrollWidth : list.scrollHeight
+    const ch = stacked ? list.clientWidth : list.clientHeight
+    const st = stacked ? list.scrollLeft : list.scrollTop
     const on = sh > ch + 2
     bar = {
-      on,
+      on: on && !stacked,
+      scrolls: on,
       top: on ? (st / sh) * 100 : 0,
       height: on ? (ch / sh) * 100 : 100,
       atTop: st < 2,
       atEnd: st + ch >= sh - 2,
-      ticks: on ? [...list.querySelectorAll<HTMLElement>('[data-wid]')].slice(1).map((n) => ((n.offsetTop - 5) / sh) * 100) : [],
+      ticks: on && !stacked ? [...list.querySelectorAll<HTMLElement>('[data-wid]')].slice(1).map((n) => ((n.offsetTop - 5) / sh) * 100) : [],
     }
+  }
+
+  // A mouse wheel only turns vertically; a strip scrolls sideways.
+  function wheel(e: WheelEvent): void {
+    if (!stacked || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+    list.scrollLeft += e.deltaY
+    e.preventDefault()
   }
 
   $effect(() => {
@@ -64,6 +77,7 @@
     ro.observe(list)
     ro.observe(content)
     measure()
+    void stacked
     return () => {
       ro.disconnect()
       setRailEl(rail, undefined)
@@ -77,10 +91,11 @@
     onEnd: () => {},
   }
 
-  const mask = $derived(bar.on ? `linear-gradient(to bottom, ${bar.atTop ? '#000' : 'transparent'} 0, #000 26px, #000 calc(100% - 26px), ${bar.atEnd ? '#000' : 'transparent'} 100%)` : 'none')
+  const edge = $derived(stacked ? 'to right' : 'to bottom')
+  const mask = $derived(bar.scrolls ? `linear-gradient(${edge}, ${bar.atTop ? '#000' : 'transparent'} 0, #000 26px, #000 calc(100% - 26px), ${bar.atEnd ? '#000' : 'transparent'} 100%)` : 'none')
 </script>
 
-<div class="rail" class:left class:right={!left} class:visible>
+<div class="rail" class:left class:right={!left} class:stacked class:visible style:--strip-h={STRIP_H}>
   <div class="head">
     <span class="label"><i></i>DOCK·{rail}</span>
     <span class="rule"></span>
@@ -88,7 +103,7 @@
   </div>
   <div class="well">
     <div class="hot" class:on={hot}></div>
-    <div class="list" bind:this={list} data-rail={rail} onscroll={measure} style:mask-image={mask} style:-webkit-mask-image={mask}>
+    <div class="list" bind:this={list} data-rail={rail} onscroll={measure} onwheel={wheel} style:mask-image={mask} style:-webkit-mask-image={mask}>
       <div class="content" bind:this={content}>
         {#each items as it, i (it.id)}
           {@const w = it.kind === 'widget' ? dock.widgets[it.id] : null}
@@ -100,7 +115,8 @@
             class:landed={w?.landed}
             data-wid={w ? it.id : undefined}
             data-slot={w ? undefined : it.id}
-            style:height={w ? undefined : `${slotHeight}px`}
+            style:height={w || stacked ? undefined : `${slotHeight}px`}
+            style:width={w || !stacked ? undefined : `${slotWidth}px`}
             style:--h="{w?.exitHeight ?? 0}px"
             style:--dx="{w?.exitDx ?? 0}px"
             animate:flip={{ duration: 300, easing: ease }}
@@ -145,6 +161,61 @@
   }
   .right {
     right: 26px;
+  }
+  /* Stacked layout: L is the strip above the stage, R the one below it. */
+  .rail.stacked {
+    left: 26px;
+    right: 26px;
+    width: auto;
+    height: var(--strip-h);
+  }
+  .rail.stacked.left {
+    top: 112px;
+    bottom: auto;
+  }
+  .rail.stacked.right {
+    top: auto;
+    bottom: 116px;
+  }
+  .stacked.right .head {
+    flex-direction: row;
+  }
+  .stacked.right .rule {
+    background: linear-gradient(90deg, rgba(var(--nx-ac), 0.3), transparent);
+  }
+  .stacked .list {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0;
+  }
+  .stacked .content {
+    flex-direction: row;
+    height: 100%;
+    align-items: flex-start;
+  }
+  .stacked .item {
+    width: min(300px, 24vw);
+    max-height: 100%;
+  }
+  .stacked .item.slot {
+    height: 100%;
+  }
+  /* A card taller than the strip fits it and scrolls inside, instead of being cut at the strip's edge. */
+  .stacked .item :global(.card) {
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .stacked .item :global(.rows) {
+    flex: 1;
+    min-height: 0;
+  }
+  .stacked .item :global(.clip) {
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .stacked .hot {
+    inset: -8px -8px -8px;
   }
   .head {
     display: flex;

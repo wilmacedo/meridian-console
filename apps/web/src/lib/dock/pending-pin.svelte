@@ -2,8 +2,10 @@
   import { pointerDrag } from '../windows/pointer-drag'
   import { cancelPending, dock, PENDING_ID } from './dock.svelte'
   import { dragEnd, dragMove, pressPending } from './dock-drag.svelte'
+  import { isStacked } from '../workspace/layout.svelte'
 
   const dragging = $derived(dock.drag?.id === PENDING_ID)
+  const stacked = $derived(isStacked())
 </script>
 
 <!-- Dims the screen under the rails while a pin waits to be dropped. Clicking it cancels. -->
@@ -21,7 +23,7 @@
           </div>
           <button aria-label="Cancel" onclick={cancelPending}>✕</button>
         </div>
-        <div class="hint"><span>←</span><span>DRAG TO A DOCK</span><span>→</span></div>
+        <div class="hint"><span>{stacked ? '↑' : '←'}</span><span>DRAG TO A DOCK</span><span>{stacked ? '↓' : '→'}</span></div>
         <span class="esc">ESC TO CANCEL</span>
       </div>
     {/key}

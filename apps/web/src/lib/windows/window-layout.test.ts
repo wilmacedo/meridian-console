@@ -140,3 +140,26 @@ describe('snapResize', () => {
     expect(rect.h).toBe(377)
   })
 })
+
+describe('tile on a portrait stage', () => {
+  const portrait: Size = { w: 1400, h: 2200 }
+  const rectsOf = (n: number): Rect[] => tile(n, portrait)!.map((f) => ({ x: f.fx * portrait.w, y: f.fy * portrait.h, w: f.fw * portrait.w, h: f.fh * portrait.h }))
+
+  it('stacks two windows one above the other', () => {
+    const [a, b] = rectsOf(2)
+    expect(a.w).toBeCloseTo(portrait.w)
+    expect(b.w).toBeCloseTo(portrait.w)
+    expect(b.y).toBeCloseTo(a.y + a.h + GAP)
+  })
+
+  it('puts the wide window of three on top, the other two below it side by side', () => {
+    const [a, b, c] = rectsOf(3)
+    expect(a.w).toBeCloseTo(portrait.w)
+    expect(b.y).toBeGreaterThan(a.y + a.h)
+    expect(c.x).toBeGreaterThan(b.x + b.w - 1)
+  })
+
+  it('leaves a landscape stage as it was', () => {
+    expect(tile(2, stage)![1].fx).toBeGreaterThan(0.4)
+  })
+})

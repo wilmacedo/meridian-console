@@ -1,4 +1,5 @@
 import { dock, dropPending, moveWidget, PENDING_ID, railEl } from './dock.svelte'
+import { isStacked } from '../workspace/layout.svelte'
 import type { RailId } from './widgets'
 
 const DRAG_THRESHOLD_PX = 5
@@ -43,28 +44,37 @@ export function pressPending(e: PointerEvent): void {
   if (!dock.drag) begin(e, PENDING_ID, true, e.currentTarget as HTMLElement)
 }
 
-const distanceTo = (rail: RailId, x: number): number => {
+// How far the pointer is from a rail along the axis the rails are laid out on: sideways for rails on the sides,
+// vertically for the strips.
+const distanceTo = (rail: RailId, e: PointerEvent): number => {
   const el = railEl(rail)
   if (!el) return Infinity
   const b = el.getBoundingClientRect()
   if (!b.width) return Infinity
-  return x < b.left ? b.left - x : x > b.right ? x - b.right : 0
+  const [p, lo, hi] = isStacked() ? [e.clientY, b.top, b.bottom] : [e.clientX, b.left, b.right]
+  return p < lo ? lo - p : p > hi ? p - hi : 0
 }
 
-// Number of widgets whose midpoint is above the pointer, ignoring the room the slot itself takes.
-function slotIndex(el: HTMLElement, y: number): number {
+// Number of widgets whose midpoint is before the pointer along the rail, ignoring the room the slot itself takes.
+function slotIndex(el: HTMLElement, e: PointerEvent): number {
+  const stacked = isStacked()
   const rr = el.getBoundingClientRect()
-  if (y < rr.top + AUTOSCROLL_EDGE_PX) el.scrollTop -= AUTOSCROLL_STEP_PX
-  else if (y > rr.bottom - AUTOSCROLL_EDGE_PX) el.scrollTop += AUTOSCROLL_STEP_PX
+  const p = stacked ? e.clientX : e.clientY
+  const [start, end] = stacked ? [rr.left, rr.right] : [rr.top, rr.bottom]
+  const step = p < start + AUTOSCROLL_EDGE_PX ? -AUTOSCROLL_STEP_PX : p > end - AUTOSCROLL_EDGE_PX ? AUTOSCROLL_STEP_PX : 0
+  if (stacked) el.scrollLeft += step
+  else el.scrollTop += step
   const slot = el.querySelector<HTMLElement>('[data-slot]')
-  const slotTop = slot ? slot.offsetTop : Infinity
-  const slotSpace = slot ? slot.offsetHeight + 10 : 0
-  const base = rr.top - el.scrollTop
+  const at = (n: HTMLElement): number => (stacked ? n.offsetLeft : n.offsetTop)
+  const size = (n: HTMLElement): number => (stacked ? n.offsetWidth : n.offsetHeight)
+  const slotStart = slot ? at(slot) : Infinity
+  const slotSpace = slot ? size(slot) + 10 : 0
+  const base = start - (stacked ? el.scrollLeft : el.scrollTop)
   let index = 0
   el.querySelectorAll<HTMLElement>('[data-wid]').forEach((n) => {
     if (n.dataset.wid === press?.id) return
-    const top = n.offsetTop - (n.offsetTop > slotTop ? slotSpace : 0)
-    if (y > base + top + n.offsetHeight / 2) index++
+    const pos = at(n) - (at(n) > slotStart ? slotSpace : 0)
+    if (p > base + pos + size(n) / 2) index++
   })
   return index
 }
@@ -85,8 +95,8 @@ export function dragMove(_dx: number, _dy: number, e: PointerEvent): void {
     if (dock.drag && !dock.drag.landing) dock.drag.rot = 0
   }, TILT_RESET_MS)
 
-  const dL = distanceTo('L', e.clientX)
-  const dR = distanceTo('R', e.clientX)
+  const dL = distanceTo('L', e)
+  const dR = distanceTo('R', e)
   const nearest: RailId = dL <= dR ? 'L' : 'R'
   const rail = p.pending && Math.min(dL, dR) >= PENDING_RAIL_RANGE_PX ? null : nearest
   const el = rail ? railEl(rail) : undefined
@@ -99,7 +109,7 @@ export function dragMove(_dx: number, _dy: number, e: PointerEvent): void {
     ox: p.ox,
     oy: p.oy,
     rail,
-    index: el ? slotIndex(el, e.clientY) : 0,
+    index: el ? slotIndex(el, e) : 0,
     rot: p.rot,
     landing: false,
   }

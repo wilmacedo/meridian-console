@@ -6,6 +6,8 @@
   import { MODULES } from '../modules'
   import { close } from '../windows/window-manager.svelte'
   import type { WorkspaceSummary } from '@meridian/service-sdk'
+  import { layout } from '../workspace/layout.svelte'
+  import { LAYOUT_MODES, type LayoutMode } from '../workspace/layout-mode'
   import { isHidden, isModuleHidden, toggleHidden, toggleModuleHidden } from '../workspace/prefs.svelte'
   import { createWorkspace, listWorkspaces, switchWorkspace, workspaceId } from '../workspace/workspace-sync.svelte'
 
@@ -17,6 +19,7 @@
     { id: 'high', label: 'High' },
     { id: 'low', label: 'Low' },
   ]
+  const layoutLabels: Record<LayoutMode, string> = { auto: 'Auto · by screen shape', side: 'Side rails', stacked: 'Top and bottom' }
   let workspaces = $state<WorkspaceSummary[]>([])
   // The list is read each time the menu opens, so a workspace made on another screen shows up.
   $effect(() => {
@@ -63,6 +66,14 @@
         <button role="menuitem" onclick={() => void createWorkspace()}>
           <i class="dot plus"></i>New workspace
         </button>
+      </div>
+      <div class="group">
+        <span class="title">LAYOUT</span>
+        {#each LAYOUT_MODES as m (m)}
+          <button role="menuitemradio" aria-checked={layout.mode === m} class:on={layout.mode === m} onclick={() => (layout.mode = m)}>
+            <i class="dot"></i>{layoutLabels[m]}
+          </button>
+        {/each}
       </div>
       <div class="group">
         <span class="title">ORB</span>

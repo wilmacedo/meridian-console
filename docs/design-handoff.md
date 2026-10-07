@@ -208,6 +208,18 @@ tiled layout is recomputed for the new size; windows the owner placed keep their
 
 **Rails** (docks): `top:112px; bottom:116px`, 26px from the left/right edge, width `min(300px, 24vw)`.
 
+**Stacked layout** (tall screens). A workspace has a `layout` setting, `auto` (default), `side` or `stacked`.
+`auto` is stacked when the viewport is taller than 1.15 × its width (a monitor turned to portrait) and side
+otherwise; `side` and `stacked` force it. The side layout is everything above. In the stacked layout the rails
+become horizontal strips: **L is the strip above the stage** (`top:112px; left/right:26px`, 200px tall) and
+**R the strip below it** (`bottom:116px`, same size), the stage keeps its 20px side inset and makes room at the
+top and bottom instead, `calc(112px + 200px + 10px)` and `calc(116px + 200px + 10px)`, for a strip that holds
+widgets (both while dragging or placing a pin, exactly as the side rule above). Cards keep their width
+(`min(300px, 24vw)`) and sit in a row that scrolls sideways (wheel, touch or drag; edges fade as in the
+vertical rail; no custom scrollbar). A dragged widget targets the strip nearest to the pointer **vertically**
+and its slot index follows the pointer **horizontally**. Tiled windows on a portrait stage stack (the layout of
+the landscape stage turned 90°): two windows one above the other, three as a wide one on top and two below.
+
 **Bottom dock**: `bottom:30px`, centred row, gap 26, side padding 20.
 
 ## Core (the orb)

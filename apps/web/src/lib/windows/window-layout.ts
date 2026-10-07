@@ -48,8 +48,19 @@ export function toRect(f: Frac, stage: Size): Rect {
   return clampRect({ x: f.fx * stage.w, y: f.fy * stage.h, w: f.fw * stage.w, h: f.fh * stage.h }, stage)
 }
 
+// A stage this much taller than wide is tiled as the landscape one turned 90°: windows stack instead of sitting side by side.
+const PORTRAIT_RATIO = 1.2
+
 // Auto layout for 1-4 windows in open order; null when the stage is too small to tile them.
 export function tile(n: number, stage: Size): Frac[] | null {
+  if (n >= 2 && stage.h > stage.w * PORTRAIT_RATIO) {
+    const turned = tileLandscape(n, { w: stage.h, h: stage.w })
+    if (turned) return turned.map((f) => ({ fx: f.fy, fy: f.fx, fw: f.fh, fh: f.fw }))
+  }
+  return tileLandscape(n, stage)
+}
+
+function tileLandscape(n: number, stage: Size): Frac[] | null {
   const { w: W, h: H } = stage
   const rects: Rect[] = []
   const put = (x: number, y: number, w: number, h: number): void => void rects.push({ x, y, w, h })
