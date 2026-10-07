@@ -1,4 +1,5 @@
 import { kick } from '../agent/agent-state.svelte'
+import { railSides } from './stage-insets'
 import { tele, type RailId, type WidgetDef } from './widgets'
 
 export interface Widget {
@@ -59,8 +60,8 @@ export const setRailEl = (rail: RailId, el: HTMLElement | undefined): void => vo
 export const railEl = (rail: RailId): HTMLElement | undefined => railEls[rail]
 
 export const railOf = (id: string): RailId => (dock.rails.L.includes(id) ? 'L' : 'R')
-// Rails show, and the stage makes room for them, while they hold widgets or a pin is being placed.
-export const railsShown = (): boolean => dock.rails.L.length > 0 || dock.rails.R.length > 0 || dock.pending !== null
+// Which sides of the stage make room for a rail (see railSides).
+export const stageSides = (): Record<RailId, boolean> => railSides(dock.rails, dock.drag !== null || dock.pending !== null)
 
 // A system widget is unique per type and service; asking for one that exists must not duplicate it.
 export function findSystemWidget(def: WidgetDef): string | undefined {

@@ -7,7 +7,8 @@
   import EventsWindow from '../module-windows/events-window.svelte'
   import DocWindowBody from '../docs/doc-window-body.svelte'
   import { docs } from '../docs/docs.svelte'
-  import { railsShown } from '../dock/dock.svelte'
+  import { stageSides } from '../dock/dock.svelte'
+  import { insetOf } from '../dock/stage-insets'
   import { live } from '../live/stream.svelte'
   import { visibleServices } from '../workspace/prefs.svelte'
   import WindowFrame from './window-frame.svelte'
@@ -43,7 +44,7 @@
   }
 </script>
 
-<div class="stage" bind:this={el} style:--stage-inset={railsShown() ? 'calc(min(300px, 24vw) + 55px)' : '20px'}>
+<div class="stage" bind:this={el} style:--inset-l={insetOf(stageSides().L)} style:--inset-r={insetOf(stageSides().R)}>
   {#if wm.gesture}<div class="outline"></div>{/if}
   {#if liveCount > 1}
     <div class="count">
@@ -67,8 +68,8 @@
     position: absolute;
     top: 108px;
     bottom: 178px;
-    left: var(--stage-inset, 20px);
-    right: var(--stage-inset, 20px);
+    left: var(--inset-l, 20px);
+    right: var(--inset-r, 20px);
     z-index: 4;
     pointer-events: none;
     transition:

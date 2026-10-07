@@ -30,7 +30,7 @@ export const MIN_W = 340
 export const MIN_H = 230
 export const GAP = 14
 export const SNAP = 8
-const MAX_SINGLE_W = 940
+export const MAX_SINGLE_W = 940
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 

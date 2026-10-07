@@ -200,8 +200,11 @@ is lit when `sin(t·.9 + i·.7) > .3` (`> -.2` while thinking; *t* = frame count
 producing a travelling pattern. Lit = opacity .85, unlit = .2.
 
 **Stage** (windows): `top:108px; bottom:178px`, horizontal inset **20px**, or
-`calc(min(300px, 24vw) + 55px)` on both sides when either rail has widgets or a pin is pending
-(the stage shrinks to leave room for the rails; transition on `left`/`right` `.4s cubic-bezier(.2,.8,.2,1)`).
+`calc(min(300px, 24vw) + 55px)` on a side whose rail has widgets, and on both sides while a widget is
+being dragged or a pin is pending (both rails appear then, empty ones included, to take the drop). A side
+whose rail is empty keeps the 20px inset, so the stage grows into it; the other side is unaffected.
+Transition on `left`/`right` `.4s cubic-bezier(.2,.8,.2,1)`. Once the stage stops changing (120ms), a
+tiled layout is recomputed for the new size; windows the owner placed keep their fractions.
 
 **Rails** (docks): `top:112px; bottom:116px`, 26px from the left/right edge, width `min(300px, 24vw)`.
 

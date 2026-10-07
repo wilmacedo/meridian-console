@@ -39,8 +39,19 @@ const rectOf = (w: WindowState): Rect => toRect(w.frac, wm.stage)
 
 export const isOpen = (id: WindowId): boolean => live().some((w) => w.id === id)
 
+const RETILE_AFTER_MS = 120
+let retileTimer: ReturnType<typeof setTimeout> | undefined
+
 export function setStage(size: Size): void {
-  if (Math.abs(size.w - wm.stage.w) > 0.5 || Math.abs(size.h - wm.stage.h) > 0.5) wm.stage = size
+  if (Math.abs(size.w - wm.stage.w) <= 0.5 && Math.abs(size.h - wm.stage.h) <= 0.5) return
+  wm.stage = size
+  // A tiled layout is a function of the stage (one window is capped in width, four need room for two columns),
+  // so it is recomputed once the stage stops changing, not on every frame of a rail sliding in or out. Windows
+  // follow the stage by their fractions meanwhile; ones the owner placed keep them.
+  clearTimeout(retileTimer)
+  retileTimer = setTimeout(() => {
+    if (!wm.custom) applyTile(live().map((w) => w.id))
+  }, RETILE_AFTER_MS)
 }
 
 export function rectFor(w: WindowState): Rect {
