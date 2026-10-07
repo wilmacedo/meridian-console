@@ -1,22 +1,26 @@
-import { hostname } from 'node:os'
 import Fastify from 'fastify'
 import websocket from '@fastify/websocket'
 import { EventBus } from './event-bus.js'
 import { registerServices } from './service-registry.js'
+import { hostName, registerStream } from './stream.js'
+import { HostTelemetry } from './telemetry.js'
 
 const app = Fastify({ logger: true })
 const bus = new EventBus()
+const telemetry = new HostTelemetry(app.log)
 
 await app.register(websocket)
 
 app.get('/health', async () => ({ status: 'ok' }))
 
-app.get('/api/host', async () => ({ name: process.env.MERIDIAN_HOST || hostname() }))
+app.get('/api/host', async () => ({ name: hostName() }))
 
 const registry = await registerServices(app, bus)
+await telemetry.start()
 
 app.get('/api/services', async () => registry.summaries())
 app.get('/api/events', async () => bus.recent())
+registerStream(app, { bus, registry, telemetry })
 
 const port = Number(process.env.PORT ?? 4000)
 
