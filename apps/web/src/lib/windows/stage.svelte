@@ -1,4 +1,6 @@
 <script lang="ts">
+  import DocWindowBody from '../docs/doc-window-body.svelte'
+  import { docs } from '../docs/docs.svelte'
   import { registry } from '../services/registry.svelte'
   import { host } from '../shell/host.svelte'
   import WindowFrame from './window-frame.svelte'
@@ -18,6 +20,7 @@
 
   function footLeft(id: WindowId): string {
     if (id === 'services') return `${registry.services.filter((s) => s.status.state === 'ok').length}/${registry.services.length} SERVICES ONLINE`
+    if (id === 'doc') return `COMPOSED BY NOX · ${docs.current?.blocks.length ?? 0} BLOCKS`
     if (id === 'telemetry') return `${host.name.toUpperCase()} · LIVE`
     return ''
   }
@@ -40,9 +43,10 @@
     </div>
   {/if}
   {#if wm.stage.w}
-    {#each wm.wins as win (win.id)}
+    <!-- A new document replaces the old one with a fresh open animation, hence the title in the key. -->
+    {#each wm.wins as win (win.id === 'doc' ? `doc:${docs.current?.title}` : win.id)}
       <WindowFrame {win} footLeft={footLeft(win.id)}>
-        <WindowPlaceholder />
+        {#if win.id === 'doc'}<DocWindowBody />{:else}<WindowPlaceholder />{/if}
       </WindowFrame>
     {/each}
   {/if}

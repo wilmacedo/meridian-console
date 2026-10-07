@@ -9,6 +9,7 @@ export interface WindowMeta {
 
 export interface MetaContext {
   hostName: string
+  doc: { title: string; kicker: string } | null
 }
 
 const KICKERS: Record<string, (ctx: MetaContext) => string> = {
@@ -19,7 +20,7 @@ const KICKERS: Record<string, (ctx: MetaContext) => string> = {
 }
 
 export function windowMeta(id: WindowId, ctx: MetaContext): WindowMeta {
-  if (id === 'doc') return { index: 'NX', title: 'Document', kicker: '' }
+  if (id === 'doc') return { index: 'NX', title: ctx.doc?.title ?? 'Document', kicker: ctx.doc?.kicker ?? '' }
   const at = MODULES.findIndex((m) => m.id === id)
   return { index: String(at + 1).padStart(2, '0'), title: MODULES[at].label, kicker: KICKERS[id]?.(ctx) ?? '' }
 }

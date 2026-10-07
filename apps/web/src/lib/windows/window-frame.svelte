@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
   import { clock } from '../clock.svelte'
+  import { docs } from '../docs/docs.svelte'
   import { host } from '../shell/host.svelte'
   import { pointerDrag, type PointerDragOptions } from './pointer-drag'
   import { windowMeta } from './window-meta'
@@ -9,7 +10,7 @@
   let { win, footLeft = '', children }: { win: WindowState; footLeft?: string; children?: Snippet } = $props()
 
   const rect = $derived(rectFor(win))
-  const meta = $derived(windowMeta(win.id, { hostName: host.name }))
+  const meta = $derived(windowMeta(win.id, { hostName: host.name, doc: docs.current }))
   const focused = $derived(wm.active === win.id)
   const dragging = $derived(wm.gesture === win.id)
   const pad = (n: number): string => String(n).padStart(2, '0')
