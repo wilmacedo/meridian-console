@@ -1,11 +1,23 @@
 import { agent, kick } from '../agent/agent-state.svelte'
+import { cancelPending } from '../dock/dock.svelte'
 import { approvals } from '../agent/approval.svelte'
 import { workspaceId } from '../workspace/workspace-sync.svelte'
 import { live, screenId, sendToServer } from '../live/stream.svelte'
 import { play } from '../sound/sfx.svelte'
 import { audioContext, interruptPlayback } from './voice-player.svelte'
 
-export const mic = $state({ phase: 'idle' as 'idle' | 'recording' | 'sending' })
+export const mic = $state({
+  phase: 'idle' as 'idle' | 'recording' | 'sending',
+  // When the recording began (ms), for the timer under the button.
+  startedAt: 0,
+  // The owner just stopped NOX; the button says so for a moment.
+  halted: false,
+  // When that happened (performance.now), for the burst around the button.
+  haltedAt: 0,
+})
+
+const HALTED_MS = 1600
+let haltedTimer: ReturnType<typeof setTimeout> | undefined
 
 // Voice input needs a secure context (HTTPS or localhost) and a recorder; without them the mic button is
 // inert and NOX is still reachable through `pnpm nox`.
@@ -112,6 +124,8 @@ async function begin(followUp = false): Promise<void> {
   const data = new Float32Array(analyser.fftSize)
 
   agent.mode = 'listening'
+  mic.startedAt = Date.now()
+  mic.halted = false
   kick(1)
   if (!followUp) play('mic-on')
   recorder.start()
@@ -135,13 +149,39 @@ async function begin(followUp = false): Promise<void> {
   stopEarly = () => finish(true, heardSpeech)
 }
 
+// NOX has something running that the owner can stop: a turn in flight, its voice, a background task or a pin.
+export const busy = (): boolean => mic.phase === 'sending' || agent.mode === 'thinking' || agent.mode === 'speaking' || agent.working
+
+// Stops everything NOX is doing: the turn, its voice, the workspace's background tasks and a pending pin.
+export function halt(): void {
+  cutOff()
+  interruptPlayback()
+  sendToServer({ type: 'stop_tasks' })
+  cancelPending()
+  mic.phase = 'idle'
+  agent.mode = 'idle'
+  agent.amplitude = 0
+  mic.halted = true
+  mic.haltedAt = performance.now()
+  kick(1)
+  play('mic-off')
+  clearTimeout(haltedTimer)
+  haltedTimer = setTimeout(() => (mic.halted = false), HALTED_MS)
+}
+
+// Esc: stop NOX if it is busy. Returns true when there was something to stop.
+export function haltIfBusy(): boolean {
+  if (!busy()) return false
+  halt()
+  return true
+}
+
 // Tap to talk, tap again to send now; a pause in the speech sends it by itself. Tapping while NOX is
-// speaking or thinking interrupts it, for real: the server stops the turn and the voice.
+// busy stops it, for real: the server stops the turn, the voice and the workspace's background tasks.
 export async function toggleListening(): Promise<void> {
   if (!micAvailable() || live.link === 'offline') return play('unavailable')
   if (mic.phase === 'recording') return stopEarly?.()
-  if (mic.phase === 'sending' || agent.mode === 'thinking' || agent.mode === 'speaking') cutOff()
-  interruptPlayback()
+  if (busy()) return halt()
   await begin()
 }
 
