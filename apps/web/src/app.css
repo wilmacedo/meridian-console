@@ -1,131 +1,53 @@
-/* Design tokens — see /docs/design-handoff.md#design-tokens for the source spec. */
+/* Colour tokens (--nx-*) are written onto <html> by lib/theme/theme.svelte.ts; the values here are only the
+   pre-hydration fallback and match the mono dark palette. See docs/design-handoff.md. */
 :root {
-  --bg-root: #050706;
-  --bg-console: linear-gradient(180deg, rgba(10, 18, 16, 0.96), rgba(6, 10, 9, 0.98));
-  --bg-page-glow: radial-gradient(900px 620px at 50% 40%, #0b1210, #050706 70%);
-  --bg-panel-solid: #080e0d;
-  --bg-inset: rgba(4, 8, 7, 0.7);
+  --nx-bg: 3, 3, 3;
+  --nx-pn: 7, 7, 7;
+  --nx-hi: 255, 255, 255;
+  --nx-fg: 255, 255, 255;
+  --nx-ac: 206, 206, 206;
+  --nx-mu: 140, 140, 140;
+  --nx-sh: 0, 0, 0;
+  --nx-vg: 0, 0, 0;
+  --nx-vga: 0.75;
+  --nx-page: #030303;
 
-  --accent-teal: #4fd6b8;
-  --accent-amber: #e07b28;
-  --state-err: #e0705f;
+  --font-ui: 'Inter', sans-serif;
+  --font-serif: 'Instrument Serif', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  --text-primary: #e6f4ef;
-  --text-body: rgba(196, 220, 212, 0.78);
-  --text-muted: rgba(150, 185, 175, 0.45);
-  --text-faint: rgba(160, 196, 187, 0.28);
-
-  --line-hairline: rgba(79, 214, 184, 0.14);
-  --line-strong: rgba(79, 214, 184, 0.35);
-  --line-row: rgba(79, 214, 184, 0.06);
-
-  --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
-
-  color-scheme: dark;
-  font-family: var(--font-mono);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(79, 214, 184, 0.35) transparent;
-}
-
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(79, 214, 184, 0.35);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(79, 214, 184, 0.55);
-}
-
-::-webkit-scrollbar-corner {
-  background: transparent;
 }
 
 html,
 body {
   margin: 0;
-  height: 100vh;
-  overflow: hidden;
-  background: var(--bg-root);
-  color: var(--text-body);
-}
-
-#app {
   height: 100%;
+  overflow: hidden;
+  background: var(--nx-page);
+  transition: background 0.6s ease;
 }
 
-/* Shared keyframes — reused across shell/screen components, defined once per
-   /docs/design-handoff.md#spacing-borders-motion. */
-@keyframes orbit {
-  to {
-    transform: rotate(360deg);
-  }
+body {
+  font-family: var(--font-ui);
+  color: rgb(var(--nx-ac));
+  user-select: none;
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+button {
+  font: inherit;
+  color: inherit;
 }
 
-@keyframes packet-travel {
-  0% {
-    offset-distance: 0%;
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  85% {
-    opacity: 1;
-  }
-  100% {
-    offset-distance: 100%;
-    opacity: 0;
-  }
+::-webkit-scrollbar {
+  width: 4px;
 }
-
-@keyframes blink-dot {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.2;
-  }
-}
-
-@keyframes flicker {
-  0%,
-  100% {
-    opacity: 0.25;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-
-@keyframes scan-sweep {
-  0% {
-    transform: translateY(-20%);
-  }
-  100% {
-    transform: translateY(120%);
-  }
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--nx-ac), 0.3);
 }
