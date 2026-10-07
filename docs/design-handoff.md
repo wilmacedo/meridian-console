@@ -779,6 +779,113 @@ widget docked, service action run) is also written to the event stream under sou
   NOX widgets are not; pinning something already docked flashes it.
 - Pin flow: pending card + scrim, drag to a rail, cancel with ✕ / scrim / `Esc`.
 
+## v9 additions (workspace chip, settings window, task card, mic rework)
+
+From `NIX v9.dc.html`. These supersede the matching "Additions not in the prototype" paragraphs below as
+each lands; an item marked *ours* is a project decision the design does not draw.
+
+### Warning token
+
+`--nx-wn` (RGB triplet): the amber for "NOX is busy and can be stopped" and for thinking tints.
+Dark `255,205,80`, light `168,112,0`. It replaces the hard-coded `255,205,80`; offline stays `#ff6b8a`.
+
+### Header collapse
+
+Below 1180px wide the host is dropped, below 980px `SVC n/m` too, and below 760px the side padding is 0
+(otherwise 250px, to stay clear of the two top pills).
+
+### Workspace chip and panel (top-left)
+
+Chip at `top:12; left:20`, h30, glass pill (`pn/.55`, blur 14, radius 8, 1px border `ac/.25`, `ac/.65` while open):
+`◇  WS·01  Name  1/3  ▾` (diamond 5px rotated; code mono 9.5 `.18em`; name 12.5/500 max 180px ellipsised,
+re-entering with `nxSub` when it changes; count mono 9; chevron rotates 180° with an overshoot ease).
+
+Panel under it, 330px wide, glass (`pn/.9→.95`, blur 18, radius 14), `nxIn` from the top left plus a one-off
+`nxSweep` and a glowing top line. Header `WORKSPACES ───── ⌥1–9`. One row per workspace (grid `58px 1fr auto`,
+radius 10, active row `mu/.12` with an `ac/.5` border): a **58×38 layout thumbnail** (1px `ac/.28` border,
+left and right rail blocks 9px wide, window outlines in two columns in the middle, an empty workspace shows
+a glowing 9px circle), name 13.5/500, mono meta (`3 WINDOWS · 2 WIDGETS`) and a tag (`ACTIVE`). Click
+switches; double-click the name renames in place (Enter or blur commits, Esc cancels, 28 chars). Footer: a
+dashed `+ NEW WORKSPACE` that becomes a name field + `CREATE` + `✕`, then the hint
+`DOUBLE-CLICK TO RENAME · , SETTINGS`. Keys: `W` toggles, `⌥1–9` jumps, Esc closes.
+
+**Switch**: the panel closes, the core blurs and dims, a banner at `top: calc(46% - 60px)` shows
+`WORKSPACE 02` (mono 10, `.34em`) over the name (Instrument Serif 64px) and a 240px drawn underline
+(`nxBar`); it fades out (`nxFade`) about 1s later. On first load the label reads `BOOTING · WORKSPACE`.
+The layout is snapshotted before leaving and restored after, in place, without a page load.
+
+### Settings button and window
+
+Button top-right (`top:12; right:20`), same pill as the chip: three horizontal lines with square knobs that
+slide when the window is open (positions 1/7/3px → 9/1/6px, overshoot ease, staggered .05s), label
+`SETTINGS` mono 9.5 `.18em`. It toggles the `settings` **module window** (it goes through the window
+system; it is not on the bottom dock). `,` opens it.
+
+Window body, one column, max 680px, sections each led by `◇ NN · TITLE ────`:
+a `SCOPE · Saved to workspace "X" · ● AUTOSAVE` strip; `01 APPEARANCE` (mode segmented control with a
+sliding thumb, palette cards with a dark and a light preview); `02 DOCK` (rows: number, label, code,
+↑ ↓, on/off switch; Core stays on; number keys follow the order); `03 CORE` (strands slider 16–80 step 4,
+grid switch); `04 WORKSPACE` (name field, `DUPLICATE`, `RESET SETTINGS`, `DELETE` which asks for a second
+click within 3s and is disabled with a single workspace). *Ours:* `05 SERVICES` (retire/restore),
+`06 LAYOUT` (`Auto` / `Side rails` / `Top and bottom`), `07 DEVICE` (orb quality, per device), same style.
+
+Per workspace: theme, palette, grid, strands, dock order and hidden modules, and our layout and retired services.
+
+### Task card (background tasks)
+
+Centred card (`left:50%`, z 9) under the orb at `top: min(calc(38% + 30vmin + 18px), calc(100% - 300px))`
+when the viewport is at least 720px tall and the stage is empty (**tall**); otherwise **compact**, sitting
+`bottom:100px`. Width `max(260px, min(500px | 560px, 100% - 2 × rail - 120px))`. Glass, radius 14, top glow
+line, a slow `nxSweep` while running, two `nxFlash` pulses on completion, entry `nxIn` + `nxEdge`, exit `nxClose`.
+
+Rows: (1) a mono 9.5 header: pulsing diamond, `NOX · WORKING` (`NOX · COMPLETE` when done), a line,
+`STEP 02/04`, elapsed `mm:ss` in `fg`, `−`/`+` minimise, `✕` stop (22px square buttons); (2) the title in
+Instrument Serif (23px tall, 17px compact) and, when compact or minimised, `→ current step` in mono 10;
+(3) the body, which collapses with `grid-template-rows 1fr→0fr`, blur and a -8px lift: a row of one 3px
+**segment per step** (filled in `ac` with a glow; the active one fills by elapsed time against the step's
+expected duration, capped at 97%, and carries a moving highlight), and in tall mode the **step list**:
+16px icon / label 13px / result mono 9.5. Done = filled square with `✓` (`nxLand`), active = ringed dot with
+`nxFlash` and an `nxPing` ring, todo = dashed square. Done labels `fg/.55`, active `fg`, todo `ac/.55`.
+
+The header chip `● N TASK` stays as the way to reach a task whose card is not shown (several tasks, or none
+visible on the stage).
+
+### Agent state WORKING
+
+A fifth active state. Label `WORKING` (`fg`), orb: a **72-tick progress ring** at `1.3R` (lit up to the
+progress, a bright head orbiting at .3 turns/s, long ticks every 6th), two counter-rotating arcs at
+`1.2R` and a glowing head sprite at the progress point. Mic: the ring head is slower and bars behind the
+progress stay lit. It lasts while a task runs; speaking and listening take precedence and the mode returns to
+`WORKING` or `STANDBY` after them.
+
+| State | Orb | Label | Mic |
+|---|---|---|---|
+| working | progress ring | `WORKING` (`fg`) | amber halt button |
+
+### Mic button (replaces "Mic button" above)
+
+A 72px box holds the 56px button (`inset:8px`) and a **140px canvas** offset -34px, pointer-events none.
+Button: radius 50%, glass (`pn/.86→.94`, blur 18), 1px border in the state colour, glow
+`0 0 <blur> <halo>`, scale 1.06 while listening, `.9` on press; a dashed inner ring (`inset:5px`, `ac/.14`).
+
+Canvas: 56 radial bars from radius 36, length `2 + v·16`, line 1.6, round caps, each eased toward a
+target at .25 per frame, plus a faint circle at radius 60 with one orbiting dot (two while listening).
+Targets: idle `.06 + .05·sin(1.4t + .45j)`; listening `.12 + mic·(.35 + .65|sin(1.7j + 9t)|)·(.55 + .45 sin(.9j - 5t))`;
+speaking `.1 + amp·.9·|sin(3τf + 4t)|`; thinking/working `.08` with a bright head sweeping (1.3 / .45 turns/s).
+Alpha `.2 + v·1.1`; bars above `v>.3` use colour B, the rest A.
+
+Glyphs (each enters with `nxLand`): microphone (capsule with two level ticks, cradle, stem), **stop** (13px
+rounded square, while listening), **three blinking dots** (thinking: sending), **halt** (18px framed square
+with an `nxPing` ring, while busy), **halted** (16×2 bar, for 1.6s after a halt).
+
+Halt: while thinking, speaking or working the button is the amber `--nx-wn` stop for NOX; one tap cancels
+speech, the running task and a pending pin and logs `agent halted by operator`; the canvas fires an expanding
+amber circle (900ms) and dims the bars. Tooltips: `Talk (space)` / `Stop & send (space)` / `Stop NOX (esc)`.
+
+Hint under the button (mono 9, `.2em`, `nxSub` on change): listening `00:07 · TAP TO SEND` with a blinking
+dot; thinking `SENDING · TAP TO STOP`; working `WORKING · TAP TO STOP NOX`; speaking `TAP TO STOP NOX`;
+halted `NOX HALTED`; boot `BOOTING`; else `TAP TO TALK`. Tapping while listening **sends**; Esc cancels.
+
 ## Additions not in the prototype
 
 Decided for the project; drawn from the design's own tokens, kept minimal.
