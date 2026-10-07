@@ -26,8 +26,8 @@ The Vite dev server proxies `/api` (including the WebSocket) to the Fastify serv
 HTTPS endpoint is enough. `apps/web/vite.config.ts` allows `*.ts.net` hosts; without that Vite answers
 "Blocked request. This host is not allowed".
 
-Once Meridian is built and served by the Fastify server itself (run-permanently work), point `serve` at
-that port instead of 5173.
+Once Meridian runs as a service (see [`running.md`](running.md)), the Fastify server serves the built
+frontend itself: point `serve` at port 4000 instead of 5173 and Vite is no longer involved.
 
 ## Check
 

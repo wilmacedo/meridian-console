@@ -1,0 +1,16 @@
+# systemd user unit for Meridian Console. Install with the steps in docs/running.md.
+# WorkingDirectory is where the repository is checked out; change it if yours is elsewhere.
+[Unit]
+Description=Meridian Console
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/jarvis
+# Node comes from nvm (see .nvmrc), so start through a shell that loads it.
+ExecStart=/bin/bash -c '. "$HOME/.nvm/nvm.sh" && nvm use 24 >/dev/null && exec pnpm --filter @meridian/server start'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

@@ -11,6 +11,7 @@
     "dev:web": "pnpm --filter @meridian/web dev",
     "dev:server": "pnpm --filter @meridian/server dev",
     "build": "pnpm --filter @meridian/web build",
+    "start": "pnpm build && pnpm --filter @meridian/server start",
     "typecheck": "pnpm -r typecheck",
     "tuya": "pnpm --filter @meridian/service-tuya-feeder tuya",
     "test": "pnpm -r --if-present test",
