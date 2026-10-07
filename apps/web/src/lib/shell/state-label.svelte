@@ -1,0 +1,69 @@
+<script lang="ts">
+  import { agent, type AgentMode } from '../agent/agent-state.svelte'
+
+  const LABELS: Record<AgentMode, string> = { boot: 'BOOTING', idle: 'STANDBY', listening: 'LISTENING', thinking: 'THINKING', speaking: 'SPEAKING' }
+  const TICKS = 24
+
+  let frame = $state(0)
+  $effect(() => {
+    const timer = setInterval(() => frame++, 140)
+    return () => clearInterval(timer)
+  })
+
+  const color = $derived(agent.mode === 'thinking' ? 'rgb(var(--nx-fg))' : 'rgb(var(--nx-ac))')
+  const active = $derived(agent.mode !== 'idle' && agent.mode !== 'boot')
+  const ticks = $derived(
+    Array.from({ length: TICKS }, (_, i) => {
+      const wide = i % 6 === 0
+      const lit = active ? Math.sin(frame * 0.9 + i * 0.7) > (agent.mode === 'thinking' ? -0.2 : 0.3) : wide
+      return { wide, lit }
+    }),
+  )
+</script>
+
+<div class="state" style:color style:--glow={color}>
+  <div class="label">{LABELS[agent.mode]}</div>
+  <div class="ticks">
+    {#each ticks as tick}
+      <span class:wide={tick.wide} class:lit={tick.lit}></span>
+    {/each}
+  </div>
+</div>
+
+<style>
+  .state {
+    position: absolute;
+    top: 58px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    pointer-events: none;
+    transition: color 0.4s;
+  }
+  .label {
+    font: 600 15px/1 var(--font-mono);
+    letter-spacing: 0.62em;
+    padding-left: 0.62em;
+    text-shadow: 0 0 12px var(--glow);
+  }
+  .ticks {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+  }
+  .ticks span {
+    width: 3px;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.2;
+  }
+  .ticks span.wide {
+    width: 8px;
+  }
+  .ticks span.lit {
+    opacity: 0.85;
+  }
+</style>
