@@ -34,6 +34,8 @@ export const micAvailable = (): boolean => isSecureContext && !!navigator.mediaD
 const NO_SPEECH_MS = 7000
 // After NOX has spoken the mic reopens by itself; this is how long it waits for the owner to carry on.
 const FOLLOW_UP_MS = 5000
+// How long after its answer ends NOX may still reopen the mic: the end of the speech plays a little later.
+const FOLLOW_UP_GRACE_MS = 10_000
 const TICK_MS = 50
 // The voice band, which the level is read from when the noise filter is on: engine and road noise sit below it.
 const VOICE_BAND = { low: 300, high: 3400 }
@@ -72,8 +74,13 @@ let conversationEnded = false
 
 export const endConversation = (): void => void (conversationEnded = true)
 
+// The mic reopens only for the answer to something the owner said: NOX speaking on its own (an agent that
+// finished) must not start listening. Infinity while a request is in flight.
+let followUpUntil = 0
+
 async function ask(blob: Blob): Promise<void> {
   conversationEnded = false
+  followUpUntil = Infinity
   mic.phase = 'sending'
   agent.mode = 'thinking'
   startWarmup()
@@ -100,6 +107,7 @@ async function ask(blob: Blob): Promise<void> {
     stopWarmup()
   } finally {
     if (asking === controller) asking = undefined
+    if (followUpUntil === Infinity) followUpUntil = performance.now() + FOLLOW_UP_GRACE_MS
     settleWarmup()
   }
 }
@@ -179,6 +187,7 @@ export const busy = (): boolean => mic.phase === 'sending' || agent.mode === 'th
 
 // Stops everything NOX is doing: the turn, its voice, the workspace's background tasks and a pending pin.
 export function halt(): void {
+  followUpUntil = 0
   cutOff()
   interruptPlayback()
   sendToServer({ type: 'stop_tasks' })
@@ -231,6 +240,8 @@ export function spaceAction(): void {
 // NOX finished speaking: keep listening for a while, so a conversation does not need a tap per turn. Quiet for
 // FOLLOW_UP_MS ends it, with the same sound as any other recording that is dropped.
 export async function continueListening(): Promise<void> {
+  if (performance.now() > followUpUntil) return
+  followUpUntil = 0
   if (conversationEnded) {
     conversationEnded = false
     return
