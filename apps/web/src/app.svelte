@@ -10,6 +10,10 @@
   import PendingPin from './lib/dock/pending-pin.svelte'
   import Rail from './lib/dock/rail.svelte'
   import BottomDock from './lib/shell/bottom-dock.svelte'
+  import CarBar from './lib/shell/car-bar.svelte'
+  import CarCore from './lib/shell/car-core.svelte'
+  import CarTiles from './lib/shell/car-tiles.svelte'
+  import { isCar } from './lib/shell/car.svelte'
   import Header from './lib/shell/header.svelte'
   import { handleShortcut } from './lib/shell/keyboard'
   import SettingsButton from './lib/shell/settings-button.svelte'
@@ -76,15 +80,23 @@
 
 <div class="root">
   <CoreLayer />
-  <Header />
+  {#if !isCar()}<Header />{/if}
   <StateLabel />
   <Stage />
-  <PendingPin />
-  <Rail rail="L" />
-  <Rail rail="R" />
+  {#if isCar()}
+    <CarCore />
+    <CarTiles />
+    <CarBar />
+  {:else}
+    <PendingPin />
+    <Rail rail="L" />
+    <Rail rail="R" />
+  {/if}
   <TaskCard />
-  <BottomDock />
-  <SettingsButton />
+  {#if !isCar()}
+    <BottomDock />
+    <SettingsButton />
+  {/if}
   <WorkspaceChip />
   <WorkspaceBanner />
   <ApprovalCard />

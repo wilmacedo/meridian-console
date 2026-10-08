@@ -6,9 +6,13 @@
   import { workspaceCard, workspaceCode } from '../workspace/workspace-card'
   import { createWorkspace, currentIndex, currentWorkspace, refreshWorkspaces, renameWorkspace, snapshot, switchWorkspace, workspaceId, workspaces } from '../workspace/workspace-sync.svelte'
   import { open as openWindow } from '../windows/window-manager.svelte'
+  import { prefs } from '../workspace/prefs.svelte'
+  import { carGeometry } from './car.svelte'
   import { shellUi } from './shell-ui.svelte'
 
   const open = $derived(shellUi.workspacesOpen)
+  // In the car the list opens from the bar's own button, above it.
+  const car = $derived(prefs.carplay ? carGeometry() : undefined)
   // The panel stays mounted while it plays its exit.
   const CLOSE_MS = 260
   let shown = $state(false)
@@ -73,14 +77,14 @@
 
 {#if open}<div class="catch" role="presentation" onclick={() => (shellUi.workspacesOpen = false)}></div>{/if}
 
-<div class="place">
-  <button class="chip" class:open title="Workspaces (W)" onclick={() => (shellUi.workspacesOpen = !open)}>
+<div class="place" class:car style:bottom={car && `${car.bar + 24}px`}>
+  {#if !car}<button class="chip" class:open title="Workspaces (W)" onclick={() => (shellUi.workspacesOpen = !open)}>
     <span class="diamond"></span>
     <span class="code">WS·{code}</span>
     {#key current?.id}<span class="name">{current?.name ?? ''}</span>{/key}
     <span class="count">{currentIndex() + 1}/{Math.max(1, list.length)}</span>
     <span class="chev" style:transform="rotate({open ? 180 : 0}deg)">▾</span>
-  </button>
+  </button>{/if}
 
   {#if shown}
     <div class="panel" class:leaving={!open}>
@@ -163,6 +167,13 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+  .place.car {
+    top: auto;
+    left: 12px;
+  }
+  .place.car .panel {
+    transform-origin: bottom left;
   }
   .chip {
     height: 30px;

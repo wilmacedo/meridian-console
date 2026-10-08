@@ -214,7 +214,7 @@
     <SettingRow title="Rails" note="Auto lays them along the top and bottom on a screen turned to portrait." wide>
       <SegmentedControl options={LAYOUT_MODES.map((id) => ({ id, label: LAYOUT_LABELS[id] }))} value={layout.mode} onPick={(m) => (layout.mode = m)} />
     </SettingRow>
-    <SettingRow title="CarPlay" note="For the workspace opened in the car: starts the voice options in their car defaults (noise filter, Bluetooth warm-up). The car layout comes next.">
+    <SettingRow title="CarPlay layout" note="Touch-first car layout for this workspace: tap the core to talk, glanceable tiles, large controls. Starts the voice options in their car defaults.">
       <SwitchToggle on={prefs.carplay} label="CarPlay" onToggle={() => setCarplay(!prefs.carplay)} />
     </SettingRow>
   </SettingSection>

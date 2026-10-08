@@ -11,6 +11,7 @@
   import { docs } from '../docs/docs.svelte'
   import { stageSides } from '../dock/dock.svelte'
   import { stageInsets } from '../dock/stage-insets'
+  import { carGeometry, carStageInsets, isCar } from '../shell/car.svelte'
   import { isStacked } from '../workspace/layout.svelte'
   import { live } from '../live/stream.svelte'
   import { visibleServices } from '../workspace/prefs.svelte'
@@ -20,7 +21,7 @@
 
   let el: HTMLDivElement
 
-  const insets = $derived(stageInsets(stageSides(), isStacked()))
+  const insets = $derived(isCar() ? carStageInsets(carGeometry()) : stageInsets(stageSides(), isStacked()))
 
   $effect(() => {
     const ro = new ResizeObserver(() => setStage({ w: el.clientWidth, h: el.clientHeight }))
@@ -49,7 +50,7 @@
   }
 </script>
 
-<div class="stage" bind:this={el} style:--inset-l={insets.left} style:--inset-r={insets.right} style:--inset-t={insets.top} style:--inset-b={insets.bottom}>
+<div class="stage" bind:this={el} style:--base-t={isCar() ? "0px" : undefined} style:--base-b={isCar() ? "0px" : undefined} style:--inset-l={insets.left} style:--inset-r={insets.right} style:--inset-t={insets.top} style:--inset-b={insets.bottom}>
   {#if wm.gesture}<div class="outline"></div>{/if}
   {#if liveCount > 1}
     <div class="count">
@@ -71,8 +72,8 @@
 <style>
   .stage {
     position: absolute;
-    top: calc(108px + var(--inset-t, 0px));
-    bottom: calc(178px + var(--inset-b, 0px));
+    top: calc(var(--base-t, 108px) + var(--inset-t, 0px));
+    bottom: calc(var(--base-b, 178px) + var(--inset-b, 0px));
     left: var(--inset-l, 20px);
     right: var(--inset-r, 20px);
     z-index: 4;

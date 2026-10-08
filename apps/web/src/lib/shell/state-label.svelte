@@ -1,6 +1,7 @@
 <script lang="ts">
   import { agent, viewMode, type ViewMode } from '../agent/agent-state.svelte'
   import { live } from '../live/stream.svelte'
+  import { carGeometry, isCar } from './car.svelte'
 
   const LABELS: Record<ViewMode, string> = { boot: 'BOOTING', idle: 'STANDBY', listening: 'LISTENING', thinking: 'THINKING', working: 'WORKING', speaking: 'SPEAKING' }
   const TICKS = 24
@@ -12,6 +13,7 @@
   })
 
   const mode = $derived(viewMode())
+  const car = $derived(isCar() ? carGeometry() : undefined)
   const offline = $derived(live.link === 'offline')
   const color = $derived(offline ? '#ff6b8a' : mode === 'thinking' || mode === 'working' ? 'rgb(var(--nx-fg))' : 'rgb(var(--nx-ac))')
   const active = $derived(!offline && mode !== 'idle' && mode !== 'boot')
@@ -25,7 +27,7 @@
   )
 </script>
 
-<div class="state" style:color style:--glow={color}>
+<div class="state" style:color style:--glow={color} style:top={car && `${car.labelTop}px`} style:right={car && "auto"} style:width={car && `${car.zoneW}px`}>
   <div class="label">{offline ? 'OFFLINE' : LABELS[mode]}</div>
   <div class="ticks">
     {#each ticks as tick}

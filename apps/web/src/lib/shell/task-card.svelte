@@ -7,6 +7,7 @@
   import { live, sendToServer } from '../live/stream.svelte'
   import { wm } from '../windows/window-manager.svelte'
   import { layout } from '../workspace/layout.svelte'
+  import { carGeometry, isCar } from './car.svelte'
 
   // The task is gone from the server's list as soon as it ends, so the card keeps the last view of it
   // for a moment: COMPLETE, then it leaves.
@@ -52,7 +53,8 @@
   }
 
   const home = $derived(wm.active === 'core')
-  const tall = $derived(home && layout.h >= 720)
+  const car = $derived(isCar() ? carGeometry() : undefined)
+  const tall = $derived(!car && home && layout.h >= 720)
   const compact = $derived(!tall || minimized)
 
   const steps = $derived(shown?.task.steps ?? [])
@@ -66,7 +68,13 @@
 
 {#if shown}
   {@const t = shown.task}
-  <div class="place" class:tall style:width="max(260px, min({tall ? '500px' : '560px'}, calc(100% - 2 * min(300px, 24vw) - 120px)))">
+  <div
+    class="place"
+    class:tall
+    style:width={car ? `${Math.min(460, car.zoneW - 32)}px` : `max(260px, min(${tall ? '500px' : '560px'}, calc(100% - 2 * min(300px, 24vw) - 120px)))`}
+    style:left={car && `${car.zoneW / 2}px`}
+    style:bottom={car && `${car.bar + 22}px`}
+  >
     {#key t.id}
       <section class:compact class:out={shown.phase === 'out'} style:--gap={tall ? '11px' : '7px'} style:--pad={tall ? '14px 16px 10px' : '10px 14px 12px'}>
         <i class="glow"></i>
