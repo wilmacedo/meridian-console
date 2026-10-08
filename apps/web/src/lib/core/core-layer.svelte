@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { agent, kick, onKick, viewMode } from '../agent/agent-state.svelte'
-  import { toggleListening } from '../voice/microphone.svelte'
   import { layout } from '../workspace/layout.svelte'
   import { prefs } from '../workspace/prefs.svelte'
   import { switchFx } from '../workspace/switch-fx.svelte'
@@ -13,7 +12,6 @@
 
   let canvas: HTMLCanvasElement
   let orb: CoreOrb | undefined
-  let pointer = $state(false)
 
   const dimmed = $derived(wm.active !== 'core')
   const car = $derived(isCar() ? carGeometry() : undefined)
@@ -43,13 +41,6 @@
 
   function onPointerMove(e: PointerEvent): void {
     orb?.setPointer(e.clientX / window.innerWidth - 0.5, e.clientY / window.innerHeight - 0.5)
-    pointer = !dimmed && !!orb?.hits(e.clientX / layout.scale, e.clientY / layout.scale)
-  }
-
-  function onClick(e: MouseEvent): void {
-    // In the car the core has a button of its own.
-    if (car || dimmed || !orb?.hits(e.clientX / layout.scale, e.clientY / layout.scale)) return
-    void toggleListening()
   }
 </script>
 
@@ -59,7 +50,7 @@
   <div class="grid fine" class:car style:--zone-w="{car?.zoneW}px" style:--zone-h="{car?.zoneH}px"></div>
   <div class="grid coarse" class:car style:--zone-w="{car?.zoneW}px" style:--zone-h="{car?.zoneH}px"></div>
 {/if}
-<canvas bind:this={canvas} onclick={onClick} style:filter style:cursor={pointer ? 'pointer' : 'default'}></canvas>
+<canvas bind:this={canvas} style:filter></canvas>
 <div class="vignette"></div>
 
 <style>

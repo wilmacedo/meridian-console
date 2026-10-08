@@ -163,10 +163,6 @@ export class CoreOrb {
     this.my = my
   }
 
-  hits(x: number, y: number, margin = 1.2): boolean {
-    return Math.hypot(x - this.cx, y - this.cy) < this.radius * margin
-  }
-
   private ensureSprites(c: OrbFrameInputs['colors']): void {
     const key = `${c.a}|${c.w}`
     if (key === this.spriteKey) return
