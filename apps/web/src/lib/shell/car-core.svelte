@@ -20,7 +20,7 @@
     const timer = setInterval(() => (now = performance.now()), 500)
     return () => clearInterval(timer)
   })
-  const hint = $derived(carHint({ mode, listenedSeconds: listening ? Math.max(0, Math.floor((now - mic.since) / 1000)) : 0, halted, busy: stoppable }))
+  const hint = $derived(carHint({ mode, listenedSeconds: listening ? Math.max(0, Math.floor((now - mic.since) / 1000)) : 0, halted, busy: stoppable, cancelled: mic.cancelled }))
   const ring = $derived(listening ? 'rgba(var(--nx-ac), 0.6)' : stoppable || halted ? 'rgba(var(--nx-wn), 0.55)' : 'rgba(var(--nx-ac), 0.16)')
   const hidden = $derived(wm.wins.some((w) => !w.closing))
 
@@ -35,6 +35,7 @@
     style:width="{g.ringDiameter}px"
     style:height="{g.ringDiameter}px"
     style:--ring={ring}
+    style:cursor={halted ? 'default' : 'pointer'}
     style:opacity={switchFx.current ? 0 : 1}
     onclick={() => void toggleListening()}
   ></button>

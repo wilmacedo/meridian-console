@@ -17,10 +17,14 @@ export const mic = $state({
   halted: false,
   // When that happened (performance.now), for the burst around the button.
   haltedAt: 0,
+  // The owner just dropped a recording; the car hint says nothing was sent.
+  cancelled: false,
 })
 
 const HALTED_MS = 1600
+const CANCELLED_MS = 1800
 let haltedTimer: ReturnType<typeof setTimeout> | undefined
+let cancelledTimer: ReturnType<typeof setTimeout> | undefined
 
 // Voice input needs a secure context (HTTPS or localhost) and a recorder; without them the mic button is
 // inert and NOX is still reachable through `pnpm nox`.
@@ -152,6 +156,7 @@ async function begin(followUp = false): Promise<void> {
   agent.mode = 'listening'
   mic.since = performance.now()
   mic.halted = false
+  mic.cancelled = false
   kick(1)
   if (!followUp) play('mic-on')
   recorder.start()
@@ -201,15 +206,26 @@ export function haltIfBusy(): boolean {
 export async function toggleListening(): Promise<void> {
   if (!micAvailable() || live.link === 'offline') return play('unavailable')
   if (mic.phase === 'recording') return stopEarly?.()
+  // The confirmation of a halt is not a button: a tap on it must not open the microphone.
+  if (mic.halted) return
   if (busy()) return halt()
   await begin()
 }
 
-// Esc: drop the recording. Returns true when there was one to drop.
+// Esc or the cancel button: drop the recording. Returns true when there was one to drop.
 export function cancelListening(): boolean {
   if (mic.phase !== 'recording') return false
   finish(false, false)
+  mic.cancelled = true
+  clearTimeout(cancelledTimer)
+  cancelledTimer = setTimeout(() => (mic.cancelled = false), CANCELLED_MS)
   return true
+}
+
+// Space: send the recording, or stop NOX when it is busy. It never starts listening.
+export function spaceAction(): void {
+  if (mic.phase === 'recording') stopEarly?.()
+  else if (busy()) halt()
 }
 
 // NOX finished speaking: keep listening for a while, so a conversation does not need a tap per turn. Quiet for

@@ -1,6 +1,7 @@
 import { visibleModules } from '../workspace/prefs.svelte'
 import { switchWorkspace, workspaces } from '../workspace/workspace-sync.svelte'
 import { close, closeActive, isOpen, open, openModule } from '../windows/window-manager.svelte'
+import { spaceAction } from '../voice/microphone.svelte'
 import { shellUi } from './shell-ui.svelte'
 
 // Esc closes an open overlay (settings menu, pending pin) before it closes a window.
@@ -15,6 +16,9 @@ export function handleShortcut(e: KeyboardEvent, closeOverlay: () => boolean): v
     return
   } else if (e.key === 'Escape') {
     if (!closeOverlay()) closeActive()
+  } else if (e.key === ' ') {
+    e.preventDefault()
+    if (!e.repeat) spaceAction()
   } else if (e.key === 'w' || e.key === 'W') {
     shellUi.workspacesOpen = !shellUi.workspacesOpen
   } else if (e.key === ',') {

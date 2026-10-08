@@ -212,6 +212,18 @@ button {
   }
 }
 
+/* A glyph swapping in (no ring: nx-land's box-shadow would outline the icon's square). */
+@keyframes nx-glyph {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @keyframes nx-jiggle {
   0% {
     transform: rotate(-1.4deg) translateY(0);
@@ -305,5 +317,75 @@ button {
     opacity: 0;
     transform: scale(0.985);
     filter: blur(10px);
+  }
+}
+
+@keyframes nx-cap-out {
+  0% {
+    width: 56px;
+    opacity: 0;
+    border-color: rgba(var(--nx-ac), 0.9);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    width: 164px;
+    opacity: 1;
+  }
+}
+
+@keyframes nx-cap-in {
+  0% {
+    width: 164px;
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    width: 56px;
+    opacity: 0;
+    border-color: rgba(var(--nx-ac), 0.9);
+  }
+}
+
+@keyframes nx-cap-x {
+  0% {
+    opacity: 0;
+    transform: translateX(40px) scale(0.4) rotate(-90deg);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes nx-cap-x-out {
+  0% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(44px) scale(0.4) rotate(90deg);
+    filter: blur(6px);
+  }
+}
+
+@keyframes nx-cap-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-108px);
   }
 }

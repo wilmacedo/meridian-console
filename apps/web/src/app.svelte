@@ -10,6 +10,7 @@
   import PendingPin from './lib/dock/pending-pin.svelte'
   import Rail from './lib/dock/rail.svelte'
   import BottomDock from './lib/shell/bottom-dock.svelte'
+  import CarListenBar from './lib/shell/car-listen-bar.svelte'
   import CarBar from './lib/shell/car-bar.svelte'
   import CarCore from './lib/shell/car-core.svelte'
   import CarTiles from './lib/shell/car-tiles.svelte'
@@ -90,6 +91,7 @@
     <CarCore />
     <CarTiles />
     <CarBar />
+    <CarListenBar />
   {:else}
     <PendingPin />
     <Rail rail="L" />

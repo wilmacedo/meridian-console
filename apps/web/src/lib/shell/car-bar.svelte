@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { viewMode } from '../agent/agent-state.svelte'
   import { visibleModules } from '../workspace/prefs.svelte'
   import { switchFx } from '../workspace/switch-fx.svelte'
   import { workspaceCode } from '../workspace/workspace-card'
@@ -10,6 +11,7 @@
   const g = $derived(carGeometry())
   const modules = $derived(visibleModules())
   const anyWindow = $derived(wm.wins.some((w) => !w.closing))
+  const listening = $derived(viewMode() === 'listening')
   const settingsOpen = $derived(isOpen('settings'))
 
   function toggleSettings(): void {
@@ -19,7 +21,7 @@
   }
 </script>
 
-<div class="bar" style:height="{g.bar}px" style:opacity={switchFx.current ? 0 : 1}>
+<div class="bar" style:height="{g.bar}px" style:opacity={switchFx.current || listening ? 0 : 1} style:pointer-events={listening ? 'none' : 'auto'}>
   <button class="square" style:width="{g.bar}px" class:open={shellUi.workspacesOpen} aria-label="Workspaces" onclick={() => (shellUi.workspacesOpen = !shellUi.workspacesOpen)}>
     <span class="diamond"></span>
     <span class="code">{workspaceCode(currentIndex())}</span>

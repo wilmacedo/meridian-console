@@ -2,8 +2,10 @@
   import type { ModuleDef } from '../modules'
   import { visibleModules } from '../workspace/prefs.svelte'
   import { isOpen, openModule } from '../windows/window-manager.svelte'
+  import { viewMode } from '../agent/agent-state.svelte'
   import MicButton from './mic-button.svelte'
 
+  const listening = $derived(viewMode() === 'listening')
   const modules = $derived(visibleModules())
   const half = $derived(Math.ceil(modules.length / 2))
   const left = $derived(modules.slice(0, half))
@@ -19,11 +21,11 @@
 {/snippet}
 
 <nav>
-  <div class="side left">
+  <div class="side left" class:away={listening}>
     {#each left as m (m.id)}{@render moduleButton(m)}{/each}
   </div>
   <MicButton />
-  <div class="side right">
+  <div class="side right" class:away={listening}>
     {#each right as m (m.id)}{@render moduleButton(m)}{/each}
   </div>
 </nav>
@@ -46,6 +48,14 @@
     display: flex;
     gap: 22px;
     min-width: 0;
+  }
+  /* The recording capsule opens over the modules beside the mic. */
+  .side {
+    transition: opacity 0.3s ease;
+  }
+  .away {
+    opacity: 0;
+    pointer-events: none;
   }
   .left {
     justify-content: flex-end;

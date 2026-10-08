@@ -306,8 +306,7 @@ composed 1; speech start 1; orb clicked 1.
 
 When any window is open the whole canvas is also CSS-filtered, transition `.7s ease`: dark
 `blur(6px) brightness(.55) saturate(1.2)`, light `blur(6px) opacity(.45)` (after the light-mode
-inversion). The orb is **clickable** only while no window is open: a click within `R·1.2` of the
-centre shows `cursor:pointer`, fires a kick and starts listening.
+inversion). The orb is not clickable: only the mic button starts listening (in CarPlay, the ring around the core).
 
 ## Bottom dock
 
@@ -327,7 +326,7 @@ Inactive: label `ac/.55`, bar width 0. Active (its window is open and not closin
 
 **Keyboard**: `1`–`9` open the *n*th module (so `1` closes all windows); `Esc` stops NOX when it is busy
 (thinking, speaking, a task running), else drops a recording, else cancels a pending pin, otherwise closes the
-active window. There is no key to start listening: the mic button and the orb do that. `W` toggles the
+active window. There is no key to start listening: only the mic button does that (in CarPlay, the ring around the core). `W` toggles the
 workspace panel, `⌥1–9` jumps to a workspace and `,` toggles Settings.
 
 ## Windows
@@ -886,7 +885,10 @@ speech, the running task and a pending pin and logs `agent halted by operator`; 
 amber circle (900ms) and dims the bars. Tooltips: `Talk` / `Stop & send` / `Stop NOX (esc)`.
 
 There is no text under the button; the state shows in the glyph, the ring and the tooltip.
-Tapping while listening **sends**; Esc drops the recording.
+Tapping while listening **sends**; the stop square becomes an up arrow. While listening a 164x56 capsule opens to the
+left of the button (`nxCapOut`, .52s; it folds back with `nxCapIn` when the recording ends) with a 44px round cancel
+button (an X) at its left end that drops the recording, like Esc; the dock modules beside the mic fade out meanwhile.
+Space sends while listening and stops NOX when busy; it never starts listening.
 
 ## v10 additions (calendar)
 
@@ -961,8 +963,8 @@ Decided for the project; drawn from the design's own tokens, kept minimal.
   and the 1-9 shortcuts count what is left.
 - **Voice input is feature-detected**: if the page is not in a secure context (no HTTPS) or the browser has
   no recorder, the mic button is dimmed and does nothing, and NOX remains reachable through the dev CLI
-  (see architecture). The mic button and a click on the orb start and stop listening, and
-  `Esc` drops a recording, or stops NOX when it is busy.
+  (see architecture). The mic button starts and stops listening (a click on the orb does nothing), and
+  `Esc` or the cancel button drops a recording, or stops NOX when it is busy.
 
 ## Out of scope for now
 
@@ -993,7 +995,8 @@ the right, a bar along the bottom. All sizes come from `car-layout.ts` (a port o
 - **Core:** centred in what the tiles leave, radius a quarter of the smaller side of that zone (56 px at least). A
   dashed ring 2.5 radii wide is the talk button; its colour follows the state (listening: accent, stoppable or
   halted: warning, otherwise faint). The hint under it says what a tap does: `TAP TO TALK`, `00:07 · TAP TO SEND`,
-  `SENDING · TAP TO STOP`, `TAP TO STOP NOX`, `NOX HALTED`, `BOOTING`. The state label sits above it, centred in the
+  `SENDING · TAP TO STOP`, `TAP TO STOP NOX`, `NOX HALTED`, `BOOTING`. While listening the bar is replaced by a `CANCEL` button (2.6 bars wide) and a wide
+  `SEND` button with the recording time; cancelling shows `CANCELLED · NOTHING SENT` under the core for 1.8 s. The state label sits above it, centred in the
   same zone, and the task card compact above the bar.
 - **Windows:** one at a time, over the whole stage above the bar; opening one closes the others.
 - **Pins:** there is no rail to drop a card on, so a pin becomes the last tile at once.

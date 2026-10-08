@@ -23,6 +23,10 @@ describe('carHint', () => {
     expect(carHint(state({ mode: 'listening', halted: true }))).toContain('TAP TO SEND')
   })
 
+  it('says a dropped recording sent nothing', () => {
+    expect(carHint(state({ cancelled: true }))).toBe('CANCELLED · NOTHING SENT')
+  })
+
   it('says it is booting', () => {
     expect(carHint(state({ mode: 'boot' }))).toBe('BOOTING')
   })
