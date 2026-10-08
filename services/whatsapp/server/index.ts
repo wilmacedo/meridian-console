@@ -1,7 +1,10 @@
 import { defineServerService, type ServiceStatus } from '@meridian/service-sdk/server'
 import { getRuntime, stopRuntime } from './runtime.js'
+import { sweepSpoken } from './tts.js'
 import { whatsappActions } from './whatsapp-actions.js'
 import { whatsappRoutes } from './whatsapp-routes.js'
+
+const STALE_SPOKEN_MS = 10 * 60_000
 
 async function status(): Promise<ServiceStatus> {
   const { client, process: bridge } = getRuntime()
@@ -27,7 +30,9 @@ export default defineServerService({
   status,
   actions: whatsappActions,
   events: (emit) => {
-    getRuntime(emit).process.start()
+    const runtime = getRuntime(emit)
+    runtime.process.start()
+    void sweepSpoken(runtime.config.outbox, STALE_SPOKEN_MS)
     return stopRuntime
   },
 })

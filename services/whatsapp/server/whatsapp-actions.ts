@@ -1,3 +1,4 @@
+import { rm } from 'node:fs/promises'
 import type { ActionContext, ServiceAction } from '@meridian/service-sdk/server'
 import { parseWhen, resolveChat } from './chat-ref.js'
 import { audit, getRuntime } from './runtime.js'
@@ -202,9 +203,14 @@ export const whatsappActions: ServiceAction<never>[] = [
       const { client, config } = getRuntime()
       const jid = await resolveChat(client, chat)
       const file = path ? await allowedFile(path, config.sendDirs) : undefined
-      return approvedSend(ctx, text ? `a voice note saying "${clip(text)}"` : `a voice note from ${file}`, jid, async () =>
-        client.send({ chat: jid, path: file ?? (await speakToFile(text!, config.outbox)), voice: true }),
-      )
+      return approvedSend(ctx, text ? `a voice note saying "${clip(text)}"` : `a voice note from ${file}`, jid, async () => {
+        const spoken = file ? undefined : await speakToFile(text!, config.outbox)
+        try {
+          return await client.send({ chat: jid, path: file ?? spoken!, voice: true })
+        } finally {
+          if (spoken) await rm(spoken, { force: true })
+        }
+      })
     },
   },
 ]
