@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"mime"
@@ -10,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"go.mau.fi/whatsmeow"
@@ -97,7 +97,7 @@ func (a *App) voiceMessage(ctx context.Context, path string) (*waE2E.Message, er
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("ffmpeg: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
-	seconds := audioSeconds(ctx, path)
+	seconds := oggSeconds(out.Bytes())
 	up, err := a.client.Upload(ctx, out.Bytes(), whatsmeow.MediaAudio)
 	if err != nil {
 		return nil, err
@@ -110,17 +110,18 @@ func (a *App) voiceMessage(ctx context.Context, path string) (*waE2E.Message, er
 	}}, nil
 }
 
-func audioSeconds(ctx context.Context, path string) uint32 {
-	out, err := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-show_entries", "format=duration",
-		"-of", "default=nw=1:nk=1", path).Output()
-	if err != nil {
+// The length of an Ogg Opus stream, from the granule position of its last page (always counted at 48 kHz). A
+// recording from a browser has no duration in its header, so the source file cannot tell.
+func oggSeconds(ogg []byte) uint32 {
+	i := bytes.LastIndex(ogg, []byte("OggS"))
+	if i < 0 || len(ogg) < i+14 {
 		return 1
 	}
-	secs, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
-	if err != nil || secs < 1 {
-		return 1
+	granule := int64(binary.LittleEndian.Uint64(ogg[i+6 : i+14]))
+	if secs := (granule + 24000) / 48000; secs > 1 {
+		return uint32(secs)
 	}
-	return uint32(secs + 0.5)
+	return 1
 }
 
 // The app draws the bars from this; a constant one is enough for the note to play.

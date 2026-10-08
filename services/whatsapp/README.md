@@ -88,6 +88,6 @@ several chats is refused with the candidates listed, never guessed.
 
 - `pnpm --filter @meridian/service-whatsapp test`: chat resolution, time parsing, the untrusted framing, the send
   limit, file policy, the confirm-then-send flow and the transcription call.
-- `go test ./...` in `bridge/`: the message store queries.
+- `go test ./...` in `bridge/`: the message store queries and the voice note's length.
 - Not covered by automated tests: the live connection to WhatsApp (pairing, history sync, sending media), which
   needs a real phone.
