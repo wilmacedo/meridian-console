@@ -21,7 +21,7 @@
 
   const tip = $derived(
     offline ? 'Offline: NOX cannot hear you right now'
-    : !micAvailable() ? 'The microphone needs HTTPS (see docs/https.md)'
+    : !micAvailable() ? 'The microphone needs HTTPS'
     : listening ? 'Stop & send'
     : stoppable || thinking ? 'Stop NOX (esc)'
     : 'Talk',

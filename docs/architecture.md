@@ -425,7 +425,7 @@ freezing the server process. Cards on screen are cleared when the link drops.
   process survives and the next turn needs no restart), stops synthesising the rest of the answer, and
   denies the confirmation cards of that conversation (a background task's cards stay). The "error"
   Claude Code reports for an interrupted turn is turned into a normal end. Needs a secure context
-  (`docs/https.md`); without one the mic button is shown inert.
+  (HTTPS or localhost); without one the mic button is shown inert.
 - **Audio autoplay:** browsers play audio only after a gesture, so the first click or key on the page
   unlocks the audio context; speech that arrives earlier waits for it.
 - **Cost:** TTS bills per character; every spoken turn logs `voice: N of LIMIT characters used this period`

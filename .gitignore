@@ -12,6 +12,10 @@ build/
 .playwright-mcp/
 docs/local/
 docs/plans/
+# Describe this host's network and domain
+docs/custom-domain.md
+docs/https.md
+docs/running.md
 design/
 
 # Python virtualenvs and caches (services/browser-harness)

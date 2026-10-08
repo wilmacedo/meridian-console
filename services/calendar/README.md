@@ -13,7 +13,7 @@ and deleting events is done by asking NOX.
    continue* is enough.
 3. **Clients → Create client → Web application.** Under *Authorized redirect URIs* add
    `https://<address>/api/services/calendar/oauth/callback` for every address Meridian is opened from (for
-   example the custom domain and the `*.ts.net` name; see [`docs/https.md`](../../docs/https.md)).
+   example the custom domain and the `*.ts.net` name).
 4. Put the client in `.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `CALENDAR_TOKEN_KEY`
    (`openssl rand -base64 32`). Restart the server.
 5. Open the Calendar window and press **CONNECT CALENDAR**. Sign in on Google's page; the tab closes itself and the
