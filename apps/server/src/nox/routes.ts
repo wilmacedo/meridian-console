@@ -5,7 +5,7 @@ import type { Registry } from '../service-registry.js'
 import { usage, voiceConfig } from '../voice/elevenlabs.js'
 import { playbackDone, waitForPlayback } from '../voice/playback.js'
 import { TurnSpeaker } from '../voice/speaker.js'
-import { keytermsFor, transcribe } from '../voice/transcribe.js'
+import { isSpeech, keytermsFor, transcribe } from '../voice/transcribe.js'
 import { isSlowTool, pickAck } from './acknowledge.js'
 import { spokenAnswer, type Approvals } from './approvals.js'
 import { commandNote, type Nox } from './process.js'
@@ -140,7 +140,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
   // A recording in: transcribed first, with the service names as hints, then answered like any other
   // request. The first line of the stream tells the caller what was heard.
   app.addContentTypeParser(/^audio\/.*/, { parseAs: 'buffer', bodyLimit: MAX_AUDIO_BYTES }, (_request, body, done) => done(null, body))
-  app.post<{ Querystring: { workspace?: string; screen?: string } }>('/api/voice/ask', async (request, reply) => {
+  app.post<{ Querystring: { workspace?: string; screen?: string; noise?: string } }>('/api/voice/ask', async (request, reply) => {
     const voice = voiceConfig()
     if (!voice) return reply.code(503).send({ error: 'voice is not configured (ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID)' })
     const audio = request.body as Buffer
@@ -149,7 +149,10 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     let heard: string
     try {
       const names = registry.summaries().flatMap((s) => [s.id, s.name])
-      heard = await transcribe(voice, audio, request.headers['content-type'] ?? 'audio/webm', keytermsFor(names))
+      const result = await transcribe(voice, audio, request.headers['content-type'] ?? 'audio/webm', keytermsFor(names))
+      // Only a screen that asks for it (the car) is strict: elsewhere anything with a word in it is answered.
+      if (!isSpeech(result, request.query.noise === 'strict' ? 'strict' : 'normal')) return reply.code(422).send({ error: 'nothing heard' })
+      heard = result.text
     } catch (err) {
       const message = err instanceof Error ? err.message : 'transcription failed'
       bus.emit('nox', 'error', `voice: ${message}`)
