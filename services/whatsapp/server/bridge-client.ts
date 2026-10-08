@@ -51,6 +51,13 @@ export interface SendBody {
   replyTo?: string
 }
 
+export interface BackfillResult {
+  added: number
+  oldest: number
+  reachedStart: boolean
+  stopped: string
+}
+
 type Fetch = typeof fetch
 
 // Thin typed wrapper over the bridge's loopback API. It carries no policy: what may be sent, and when, is decided
@@ -83,4 +90,6 @@ export class BridgeClient {
   send = (body: SendBody): Promise<{ id: string }> => this.call('POST', '/send', undefined, body)
   download = (chat: string, message: string): Promise<{ path: string; type: string; bytes: number }> =>
     this.call('POST', '/download', undefined, { chat, message })
+  backfill = (chat: string, since: number | undefined, max: number | undefined): Promise<BackfillResult> =>
+    this.call('POST', '/backfill', undefined, { chat, since, max })
 }

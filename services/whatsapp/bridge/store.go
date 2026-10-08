@@ -180,3 +180,16 @@ func (s *Store) Messages(q MessageQuery) ([]Message, error) {
 func escapeLike(s string) string {
 	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
 }
+
+func (s *Store) Oldest(chat string) (Message, bool) {
+	var m Message
+	err := s.db.QueryRow(`SELECT id, chat, sender, from_me, ts FROM messages WHERE chat = ? ORDER BY ts ASC LIMIT 1`, chat).
+		Scan(&m.ID, &m.Chat, &m.Sender, &m.FromMe, &m.TS)
+	return m, err == nil
+}
+
+func (s *Store) Count(chat string) int {
+	var n int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM messages WHERE chat = ?`, chat).Scan(&n)
+	return n
+}

@@ -5,7 +5,7 @@ import { transcribeFile } from './scribe.js'
 import { confirmedSend } from './send-flow.js'
 import { allowedFile } from './send-policy.js'
 import { speakToFile } from './tts.js'
-import { presentMessage, untrusted } from './untrusted.js'
+import { presentMessage, untrusted, whenText } from './untrusted.js'
 
 const CHAT = { type: 'string', description: 'A chat id from an earlier result, a phone number with country code, or the name of a person or group' } as const
 const LIMIT = (def: number) => ({ type: 'integer', minimum: 1, maximum: 100, description: `How many; default ${def}` }) as const
@@ -102,6 +102,28 @@ export const whatsappActions: ServiceAction<never>[] = [
         before: parseWhen(to, 'to', true),
       })
       return untrusted({ messages: messages.reverse().map((m) => presentMessage(m, true)) })
+    },
+  },
+  {
+    id: 'load-older',
+    method: 'POST',
+    path: '/load-older',
+    title: 'Load older messages',
+    description:
+      'Asks the owner\'s phone for messages older than the oldest this machine has for a chat, round after round, until it covers "since" (YYYY-MM-DD or ISO date-time), reaches the start of the chat, or hits the cap, and saves them so read-chat and search-messages can see them. Use it when the owner asks about a period or a conversation and what you read does not go back far enough. Give "since" as the earliest moment you need, a little before it if unsure. It can take up to two minutes; say you are fetching older messages. The phone must be on; the answer says where it stopped and the oldest date now available. Call it again to go further back.',
+    mutating: false,
+    input: { type: 'object', required: ['chat'], additionalProperties: false, properties: { chat: CHAT, since: { type: 'string' }, maxMessages: { type: 'integer', minimum: 1, maximum: 3000, description: 'Cap on messages to fetch in this call; default 500' } } },
+    run: async ({ chat, since, maxMessages }: { chat: string; since?: string; maxMessages?: number }) => {
+      const { client } = getRuntime()
+      const jid = await resolveChat(client, chat)
+      const result = await client.backfill(jid, parseWhen(since, 'since'), maxMessages)
+      return {
+        chatId: jid,
+        fetched: result.added,
+        oldestAvailable: result.oldest ? whenText(result.oldest) : undefined,
+        reachedStartOfChat: result.reachedStart,
+        stopped: result.stopped,
+      }
     },
   },
   {

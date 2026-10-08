@@ -37,6 +37,7 @@ The session and the message history live in `$MERIDIAN_DATA_DIR/whatsapp/` (defa
 are as private as the phone: keep them out of backups that leave the machine. If the phone is offline for about
 two weeks WhatsApp drops the linked device and the window asks for the QR code again. A fresh link brings only the
 recent history the phone chooses to send, and everything after it; search covers only what this machine has seen.
+`load-older` fetches more of one chat from the phone on demand (the phone has to be on).
 
 | Variable | Meaning |
 |---|---|
@@ -56,6 +57,7 @@ A dev or test server must use its own `MERIDIAN_DATA_DIR`, or the prod bridge's 
 | `list-chats {limit?, query?}` | read | Recent chats with the last message |
 | `read-chat {chat, limit?, from?, to?}` | read | Messages of one chat, oldest first, with local time |
 | `search-messages {query, chat?, limit?, from?, to?}` | read | Text search over everything this machine has seen |
+| `load-older {chat, since?, maxMessages?}` | read | Asks the phone for older messages of a chat, in rounds of 50, until `since` is covered, the start of the chat is reached or the cap is hit |
 | `download-media {chat, id}` | read | Saves an image, video, voice note or file; returns the path |
 | `transcribe-voice {chat, id}` | read | Voice note to text (ElevenLabs Scribe, any language) |
 | `send-message {chat, text, replyTo?}` | confirms | Text |

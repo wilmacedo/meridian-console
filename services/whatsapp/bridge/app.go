@@ -11,6 +11,7 @@ import (
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
+	"go.mau.fi/whatsmeow/proto/waHistorySync"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	"google.golang.org/protobuf/proto"
@@ -20,6 +21,10 @@ type App struct {
 	client  *whatsmeow.Client
 	store   *Store
 	dataDir string
+
+	// One older-history request at a time; the phone answers each with an ON_DEMAND history sync.
+	backfilling sync.Mutex
+	onDemand    chan struct{}
 
 	mu    sync.Mutex
 	state string
@@ -103,6 +108,12 @@ func (a *App) onEvent(raw any) {
 			}
 			if name := conv.GetName(); name != "" && chat.Server == types.GroupServer {
 				_ = a.store.UpsertChat(a.normalize(ctx, chat).String(), name, true, 0)
+			}
+		}
+		if evt.Data.GetSyncType() == waHistorySync.HistorySync_ON_DEMAND {
+			select {
+			case a.onDemand <- struct{}{}:
+			default:
 			}
 		}
 	case *events.GroupInfo:

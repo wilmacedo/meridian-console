@@ -70,7 +70,7 @@ func main() {
 		die(err)
 	}
 
-	app := &App{client: whatsmeow.NewClient(device, log), store: store, dataDir: dataDir, state: "connecting"}
+	app := &App{client: whatsmeow.NewClient(device, log), store: store, dataDir: dataDir, state: "connecting", onDemand: make(chan struct{}, 1)}
 	app.client.AddEventHandler(app.onEvent)
 
 	srv := &http.Server{Addr: addr, Handler: app.handler(token), ReadHeaderTimeout: 10 * time.Second}

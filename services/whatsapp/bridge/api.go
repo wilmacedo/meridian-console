@@ -28,6 +28,7 @@ func (a *App) handler(token string) http.Handler {
 	mux.HandleFunc("GET /messages", a.handleMessages)
 	mux.HandleFunc("POST /send", a.handleSend)
 	mux.HandleFunc("POST /download", a.handleDownload)
+	mux.HandleFunc("POST /backfill", a.handleBackfill)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		given := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if subtle.ConstantTimeCompare([]byte(given), []byte(token)) != 1 {
