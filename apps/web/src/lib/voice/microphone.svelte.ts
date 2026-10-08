@@ -4,6 +4,7 @@ import { approvals } from '../agent/approval.svelte'
 import { workspaceId } from '../workspace/workspace-sync.svelte'
 import { live, screenId, sendToServer } from '../live/stream.svelte'
 import { play } from '../sound/sfx.svelte'
+import { deliver } from './deliver'
 import { createDetector } from './speech-detector'
 import { tuningFor } from './voice-prefs'
 import { applyAudioSession, voicePrefs } from './voice-prefs.svelte'
@@ -97,13 +98,12 @@ async function ask(blob: Blob, message: boolean): Promise<void> {
   try {
     const strict = voicePrefs.noise === 'strict' ? '&noise=strict' : ''
     const capture = message ? '&capture=1' : ''
-    const res = await fetch(`/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}${strict}${capture}`, {
-      method: 'POST',
-      headers: { 'Content-Type': blob.type.split(';')[0] },
-      body: blob,
-      signal: controller.signal,
-    })
+    const url = `/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}${strict}${capture}`
+    const init = { method: 'POST', headers: { 'Content-Type': blob.type.split(';')[0] }, body: blob, signal: controller.signal }
+    const res = await (message ? deliver(url, init) : fetch(url, init))
     if (!res.ok || !res.body) {
+      // The owner spoke a whole message and is waiting for it to go: say that it did not.
+      if (message) play('unavailable')
       stopWarmup()
       return idle()
     }
@@ -113,7 +113,10 @@ async function ask(blob: Blob, message: boolean): Promise<void> {
     if (mic.phase === 'sending') mic.phase = 'idle'
   } catch {
     // Cut off by the owner, who is already starting to talk: not ours to reset.
-    if (!controller.signal.aborted) idle()
+    if (!controller.signal.aborted) {
+      if (message) play('unavailable')
+      idle()
+    }
     stopWarmup()
   } finally {
     if (asking === controller) asking = undefined
