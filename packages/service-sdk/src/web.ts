@@ -32,6 +32,8 @@ export interface WidgetTile {
   sub?: string
   // The dot beside the kicker; `ok` when absent.
   tone?: WidgetTone
+  // A CSS colour that replaces the tone's for the dot and the bar (a calendar's own colour).
+  accent?: string
   // The sub line takes the tone's colour instead of the muted one.
   subTone?: 'dim' | WidgetTone
   // A thin bar under the sub line, 0 to 100.
@@ -44,9 +46,14 @@ export interface ServiceWidget {
   title: string
   kicker: string
   component: Contribution
-  // The summary the car layout shows for this widget. Read while rendering, so it follows the service's own
-  // reactive state. Without it the tile shows the widget's title and kicker.
-  tile?: () => WidgetTile
+  // The summary the car layout shows for this widget; without it the tile shows the widget's title and kicker.
+  tile?: {
+    // Starts what feeds the tile (polling, a stream) and returns how to stop it. Called inside an effect, so it
+    // may read reactive state and runs again, after stopping, when that changes.
+    watch?: () => () => void
+    // Read while rendering, so the tile follows the service's own reactive state.
+    read: () => WidgetTile
+  }
   // The window a tap on the tile opens: a dock module id or one of the service's windows.
   opens?: string
 }
