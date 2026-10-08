@@ -42,11 +42,20 @@ These values are starting points to be tuned in the car.
 
 ## Interface scale
 
-An in-car browser can hand the page a window much larger than the screen it ends up on: the Tiguan's 8" screen, through
-AB TV, showed a page laid out at about 1280 x 850 px (measured from a photo of the layout, whose fixed-size parts, the
-76 px bar and the 380 px column of tiles, give the scale), on a screen 800 px wide. Everything is then drawn at about
-60% of its size and the text is unreadable. The workspace's **Interface scale** (Settings → Layout) enlarges the whole
-page: it is laid out as if the window were smaller (`layout.w` and `layout.h` are the window divided by the scale) and
-scaled up to fill it. `auto` does that in CarPlay mode, until the page is about 800 px wide (1.6x for 1280 px), and
-leaves any other workspace alone; 1x, 1.5x, 2x and 2.5x fix it. The Display row in Settings → Device shows the window,
-the pixel density and how the page is laid out.
+The interface is made for a page about 800 px wide, and the window an in-car browser hands over can be very different.
+With AB TV/APTV on the Tiguan's 8" screen (800 px wide) it was measured twice:
+
+- **Desktop site:** a window of about 1280 x 850 px at 1x (worked out from a photo, from the parts of the layout with a
+  fixed size: the 76 px bar and the 380 px column of tiles). Everything is drawn at about 60% of its size and the
+  image is soft.
+- **Mobile site ("request mobile site" in APTV's browser):** a window of 413 x 277 CSS px at 2x. The page is drawn with
+  twice the pixels, so it is sharp, but it lays out cramped: labels cut ("H…", "S…"), two tiles, a squeezed core.
+
+The workspace's **Interface scale** (Settings → Layout) lays the page out as if the window were another size
+(`layout.w` and `layout.h` are the window divided by the scale) and scales it to fill the window. `auto` does that in
+CarPlay mode until the page lays out about 800 px wide: 1.6x for 1280 px, 0.52x for 413 px (it scales down, and the
+2x pixel density keeps it sharp). Any other workspace stays at 1x. 0.5x to 2.5x can be fixed by hand.
+
+The window is measured on `resize`, on the visual viewport's, on `orientationchange` and once a second, because an
+embedded browser can resize its window without any event. The Display row in Settings → Device shows the window, the
+pixel density and how the page is laid out.

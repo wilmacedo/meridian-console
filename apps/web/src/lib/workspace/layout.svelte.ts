@@ -10,10 +10,22 @@ let carplay = false
 
 function measure(): void {
   const scale = uiScaleFor(setting, carplay, window.innerWidth)
+  seen = `${window.innerWidth}x${window.innerHeight}`
   Object.assign(layout, { scale, w: window.innerWidth / scale, h: window.innerHeight / scale })
 }
 
 window.addEventListener('resize', measure)
+window.visualViewport?.addEventListener('resize', measure)
+window.addEventListener('orientationchange', measure)
+// An embedded browser can resize its window without telling the page; looking now and then is cheap.
+const CHECK_MS = 1000
+let seen = `${window.innerWidth}x${window.innerHeight}`
+setInterval(() => {
+  const now = `${window.innerWidth}x${window.innerHeight}`
+  if (now === seen) return
+  seen = now
+  measure()
+}, CHECK_MS)
 
 // The workspace's scale setting, and whether it is in CarPlay mode (which `auto` depends on).
 export function configureScale(next: UiScaleSetting, inCar: boolean): void {

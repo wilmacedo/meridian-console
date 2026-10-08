@@ -11,9 +11,14 @@ describe('uiScaleFor', () => {
     expect(uiScaleFor('auto', true, 1920)).toBeCloseTo(2.4)
   })
 
-  it('does not shrink a page that is already narrow', () => {
+  it('shrinks the layout of a window that is narrow in CSS pixels, so it lays out as about 800 wide', () => {
+    expect(uiScaleFor('auto', true, 413)).toBeCloseTo(0.5, 1)
     expect(uiScaleFor('auto', true, 844)).toBeCloseTo(1.05)
-    expect(uiScaleFor('auto', true, 600)).toBe(1)
+    expect(uiScaleFor('auto', true, 600)).toBeCloseTo(0.75)
+  })
+
+  it('does not shrink below 0.4', () => {
+    expect(uiScaleFor('auto', true, 200)).toBe(0.4)
   })
 
   it('stops enlarging at 2.5', () => {
@@ -30,7 +35,8 @@ describe('sanitizeScale', () => {
   it('keeps a number inside the range and falls back to auto for anything else', () => {
     expect(sanitizeScale(1.5)).toBe(1.5)
     expect(sanitizeScale(9)).toBe(2.5)
-    expect(sanitizeScale(0.2)).toBe(1)
+    expect(sanitizeScale(0.2)).toBe(0.4)
+    expect(sanitizeScale(0.75)).toBe(0.75)
     expect(sanitizeScale('big')).toBe('auto')
     expect(sanitizeScale(undefined)).toBe('auto')
     expect(sanitizeScale(Number.NaN)).toBe('auto')

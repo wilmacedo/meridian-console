@@ -1,13 +1,14 @@
-// How much the whole interface is enlarged. An in-car browser can hand the page a window of about 1280 px that is then
-// shown on a screen 800 px wide, so everything is drawn at about 60% of its size and cannot be read; scaling the page
-// up makes it lay out as if the window were smaller.
+// How much the whole interface is scaled. The interface is made for a page about 800 px wide. An in-car browser can
+// hand over a window of about 1280 px (everything is then drawn small, and scaling up makes it lay out like a smaller
+// window) or, in its mobile mode, one of about 400 px with twice the pixels (it lays out cramped, and scaling down makes
+// it lay out like a larger window, still sharp).
 export type UiScaleSetting = 'auto' | number
 
-export const UI_SCALES: readonly number[] = [1, 1.5, 2, 2.5]
+export const UI_SCALES: readonly number[] = [0.5, 0.75, 1, 1.5, 2, 2.5]
 
-const MIN_SCALE = 1
+const MIN_SCALE = 0.4
 const MAX_SCALE = 2.5
-// In CarPlay mode `auto` scales until the page is about this wide, which lays out like a phone turned sideways.
+// In CarPlay mode `auto` scales until the page lays out about this wide, which is like a phone turned sideways.
 export const CAR_TARGET_WIDTH = 800
 const STEP = 0.05
 
