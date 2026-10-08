@@ -434,7 +434,10 @@ freezing the server process. Cards on screen are cleared when the link drops.
   what the owner said into the message is never taken as an instruction. NOX sends it like any file
   (WhatsApp's `send-voice` with `path`, behind its card). The file is deleted as soon as a service action
   that was given its path succeeds, two minutes after its turn otherwise, and anything older than ten
-  minutes is swept. A recording without `capture=1`, or an interruption, disarms it.
+  minutes is swept. A recording without `capture=1`, or an interruption, disarms it; a recording with
+  `capture=1` that nobody awaits any more is dropped with a 409, never transcribed. The screen retries a
+  message whose upload the network dropped (three tries; not one the owner cut off), and plays the
+  "unavailable" sound when it could not be delivered.
 - **Audio autoplay:** browsers play audio only after a gesture, so the first click or key on the page
   unlocks the audio context; speech that arrives earlier waits for it.
 - **Cost:** TTS bills per character; every spoken turn logs `voice: N of LIMIT characters used this period`

@@ -162,8 +162,14 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
 
     // NOX asked for a message to send, and the screen recorded it as one (both must agree, so a later tap on the
     // mic is never mistaken for it): the recording is the owner's voice to pass on, never transcribed or obeyed.
+    // One recorded as a message that nobody waits for any more (expired, interrupted, a retry of one that already
+    // got through) is dropped, never taken for a request.
     const to = messages.take(workspace)
-    if (to !== undefined && request.query.capture === '1' && !approvals.has(workspace)) {
+    if (request.query.capture === '1') {
+      if (to === undefined || approvals.has(workspace)) {
+        bus.emit('nox', 'warn', 'voice: a recorded message arrived when none was awaited, dropped')
+        return reply.code(409).send({ error: 'no message was asked for' })
+      }
       const path = await messages.save(audio, request.headers['content-type'] ?? 'audio/webm')
       bus.emit('nox', 'info', `voice message recorded for ${to}`)
       try {
