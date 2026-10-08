@@ -245,6 +245,13 @@
     <SettingRow title="Sound effects" note="Interface sounds.">
       <SwitchToggle on={sound.on} label="Sound effects" onToggle={() => setSound(!sound.on)} />
     </SettingRow>
+    <SettingRow title="Display" note="What this browser reports about its screen. The square is 80 by 80 pixels: if it looks like a rectangle, the screen is stretching the page.">
+      <div class="display">
+        <i class="square"></i>
+        <span class="readout">{layout.w} × {layout.h}</span>
+        <span class="readout dim">{(layout.w / layout.h).toFixed(2)}:1 · {window.devicePixelRatio}x · screen {screen.width} × {screen.height}</span>
+      </div>
+    </SettingRow>
   </SettingSection>
 </div>
 
@@ -471,6 +478,26 @@
     text-align: right;
     font: 400 12px/1 var(--font-mono);
     color: rgb(var(--nx-fg));
+  }
+  .display {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  .square {
+    width: 80px;
+    height: 80px;
+    box-sizing: border-box;
+    border: 1px solid rgba(var(--nx-ac), 0.7);
+  }
+  .readout {
+    font: 400 12px/1 var(--font-mono);
+    color: rgb(var(--nx-fg));
+  }
+  .readout.dim {
+    font-size: 10px;
+    color: rgba(var(--nx-ac), 0.7);
   }
   .slider .ms {
     width: 40px;
