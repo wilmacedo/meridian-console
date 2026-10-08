@@ -11,6 +11,8 @@ import { audioContext, interruptPlayback, settleWarmup, startWarmup, stopWarmup 
 
 export const mic = $state({
   phase: 'idle' as 'idle' | 'recording' | 'sending',
+  // When the microphone opened (performance.now), for the time counter of the car layout.
+  since: 0,
   // The owner just stopped NOX; the button says so for a moment.
   halted: false,
   // When that happened (performance.now), for the burst around the button.
@@ -148,6 +150,7 @@ async function begin(followUp = false): Promise<void> {
   const data = new Float32Array(analyser.fftSize)
 
   agent.mode = 'listening'
+  mic.since = performance.now()
   mic.halted = false
   kick(1)
   if (!followUp) play('mic-on')
