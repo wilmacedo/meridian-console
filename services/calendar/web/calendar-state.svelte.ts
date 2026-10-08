@@ -140,6 +140,28 @@ export function trackRange(from: Date, to: Date): () => void {
   }
 }
 
+// The day the clock is on; reading it inside an effect makes that effect run again at midnight and no sooner.
+const today = $derived(sod(cal.now).getTime())
+
+// Keeps today and tomorrow loaded for the tile in the car layout, which has no widget of its own to do it.
+export function watchToday(): () => void {
+  const stop = watchCalendar()
+  const from = new Date(today)
+  const release = trackRange(from, addD(from, 2))
+  return () => {
+    release()
+    stop()
+  }
+}
+
+// What the car layout's tile reads: the timed events of today, in order.
+export function todayTimed(): { title: string; start: Date; end: Date; color: string }[] {
+  const from = sod(cal.now)
+  return eventsOn(eventsIn(from, addD(from, 2)), from)
+    .filter((e) => !e.allDay)
+    .map((e) => ({ title: e.title, start: e.start, end: e.end, color: toneOf(e.sourceId).color }))
+}
+
 export function eventsIn(from: Date, to: Date): CalEvent[] {
   return loaded[keyOf(from, to)]?.events ?? []
 }
