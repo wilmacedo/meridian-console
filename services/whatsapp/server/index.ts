@@ -1,5 +1,6 @@
 import { defineServerService, type ServiceStatus } from '@meridian/service-sdk/server'
 import { getRuntime, stopRuntime } from './runtime.js'
+import { whatsappActions } from './whatsapp-actions.js'
 import { whatsappRoutes } from './whatsapp-routes.js'
 
 async function status(): Promise<ServiceStatus> {
@@ -24,6 +25,7 @@ export default defineServerService({
   },
   routes: whatsappRoutes,
   status,
+  actions: whatsappActions,
   events: (emit) => {
     getRuntime(emit).process.start()
     return stopRuntime
