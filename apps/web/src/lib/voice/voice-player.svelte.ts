@@ -94,6 +94,8 @@ export function settleWarmup(): void {
 
 function finishIfDone(): void {
   if (!ended || playing || decoding > 0 || ready.size > 0) return
+  // Once per turn: every tap and key press retries playback, which lands here again.
+  ended = false
   stop()
   onFinished?.(turn)
   if (!warmup) return onSpoken?.()
