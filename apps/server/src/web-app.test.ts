@@ -26,6 +26,20 @@ describe('registerWebApp', () => {
     expect(asset.headers['cache-control']).toBe('public, max-age=31536000, immutable')
   })
 
+  it('sends the compressed copy of an asset when the build has one and the browser takes it', async () => {
+    const app = Fastify()
+    const root = build()
+    writeFileSync(join(root, 'assets', 'ort-abc123.wasm'), 'wasm')
+    writeFileSync(join(root, 'assets', 'ort-abc123.wasm.br'), 'br')
+    await registerWebApp(app, root)
+    const br = await app.inject({ url: '/assets/ort-abc123.wasm', headers: { 'accept-encoding': 'br, gzip' } })
+    expect(br.headers['content-encoding']).toBe('br')
+    expect(br.body).toBe('br')
+    expect(br.headers['cache-control']).toBe('public, max-age=31536000, immutable')
+    const plain = await app.inject({ url: '/assets/ort-abc123.wasm', headers: { 'accept-encoding': 'identity' } })
+    expect(plain.body).toBe('wasm')
+  })
+
   it('leaves the API routes alone', async () => {
     const app = Fastify()
     app.get('/health', async () => ({ status: 'ok' }))

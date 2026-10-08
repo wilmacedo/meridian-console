@@ -15,6 +15,7 @@ export async function registerWebApp(app: FastifyInstance, root: string): Promis
   if (!existsSync(join(root, 'index.html'))) return false
   await app.register(fastifyStatic, {
     root,
+    preCompressed: true,
     cacheControl: false,
     setHeaders: (res, path) => {
       res.header('Cache-Control', path.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache')

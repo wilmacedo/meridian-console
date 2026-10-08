@@ -1,9 +1,27 @@
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { brotliCompressSync, gzipSync } from 'node:zlib'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+
+// The ONNX runtime the wake word loads is 14 MB of wasm, about 4 MB compressed: the server sends the compressed copy
+// (`preCompressed` in web-app.ts), which matters on mobile data.
+const compressWasm = (): Plugin => ({
+  name: 'compress-wasm',
+  apply: 'build',
+  closeBundle() {
+    const dir = 'dist/assets'
+    for (const file of readdirSync(dir).filter((f) => f.endsWith('.wasm'))) {
+      const bytes = readFileSync(join(dir, file))
+      writeFileSync(join(dir, `${file}.br`), brotliCompressSync(bytes))
+      writeFileSync(join(dir, `${file}.gz`), gzipSync(bytes, { level: 9 }))
+    }
+  },
+})
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [svelte(), compressWasm()],
   // The wake word's worker loads the ONNX runtime, which an IIFE worker bundle cannot hold.
   worker: { format: 'es' },
   server: {
