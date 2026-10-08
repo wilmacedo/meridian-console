@@ -35,7 +35,7 @@ fi
 
 build() {
   git -C "$PROD" checkout --detach --quiet "$1"
-  (cd "$PROD" && pnpm install --frozen-lockfile --silent && pnpm typecheck && pnpm build)
+  (cd "$PROD" && pnpm install --frozen-lockfile --silent && pnpm typecheck && pnpm test && pnpm build)
 }
 
 healthy() {

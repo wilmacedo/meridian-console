@@ -14,8 +14,8 @@ git commit on main
        4. wait for http://127.0.0.1:4000/health; if any step fails, go back to the previous commit
 ```
 
-The log is `~/.meridian/deploy.log`. The gate is `typecheck` only: the server and calendar test suites
-already fail on `main`. Deploys are serialised with a lock, so a commit that lands during one waits.
+The log is `~/.meridian/deploy.log`. The gate is `typecheck` and the test suites, under Node 24 (the
+project needs it; with an older Node pnpm refuses to run). Deploys are serialised with a lock, so a commit that lands during one waits.
 
 A restart interrupts a NOX turn in flight; NOX resumes its session afterwards.
 
