@@ -22,7 +22,6 @@ The detector is `speech-detector.ts`; the numbers per level are in `voice-prefs.
 - A loud stretch whose level barely varies for half a second (a truck idling, a fan) is noise, not speech. After
   the last speech the recording ends on a 1 s pause in a quiet room and on 3.5 s when the noise stays loud.
   Caveat: speech held at one level for half a second (a flat hum, a whisper) can be mistaken for it.
-- A recording is capped at 1 minute.
 - **strict** raises all of that and also asks the server to drop recordings with a single word or a low
   confidence. **off** is the plain detector.
 

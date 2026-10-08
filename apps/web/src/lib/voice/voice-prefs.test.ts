@@ -27,6 +27,6 @@ describe('voice prefs', () => {
   it('use the plain detector when the filter is off', () => {
     expect(tuningFor('off')).toBe(DEFAULT_TUNING)
     expect(tuningFor('strict').minVoicedMs).toBeGreaterThan(tuningFor('normal').minVoicedMs)
-    expect(tuningFor('normal').maxMs).toBe(60_000)
+    expect(tuningFor('normal').maxMs).toBe(DEFAULT_TUNING.maxMs)
   })
 })

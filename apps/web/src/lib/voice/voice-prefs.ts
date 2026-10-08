@@ -41,8 +41,8 @@ export function sanitizeVoice(stored: unknown, workspace: string): VoicePrefs {
 }
 
 const TUNING: Record<Exclude<NoiseLevel, 'off'>, Tuning> = {
-  normal: { minLevel: 0.02, floorRatio: 2.5, minVoicedMs: 250, silenceMs: 1000, noiseEndMs: 3500, flatCv: 0.15, maxMs: 60_000 },
-  strict: { minLevel: 0.03, floorRatio: 3.5, minVoicedMs: 400, silenceMs: 900, noiseEndMs: 3000, flatCv: 0.2, maxMs: 60_000 },
+  normal: { minLevel: 0.02, floorRatio: 2.5, minVoicedMs: 250, silenceMs: 1000, noiseEndMs: 3500, flatCv: 0.15, maxMs: DEFAULT_TUNING.maxMs },
+  strict: { minLevel: 0.03, floorRatio: 3.5, minVoicedMs: 400, silenceMs: 900, noiseEndMs: 3000, flatCv: 0.2, maxMs: DEFAULT_TUNING.maxMs },
 }
 
 export const tuningFor = (noise: NoiseLevel): Tuning => (noise === 'off' ? DEFAULT_TUNING : TUNING[noise])
