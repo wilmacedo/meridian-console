@@ -22,13 +22,6 @@
   .row.wide {
     grid-template-columns: minmax(0, 1fr) minmax(0, 240px);
   }
-  /* On a phone the control would leave the text a few letters wide. */
-  @media (max-width: 520px) {
-    .row.wide {
-      grid-template-columns: minmax(0, 1fr);
-      gap: 8px;
-    }
-  }
   .text {
     display: flex;
     flex-direction: column;
