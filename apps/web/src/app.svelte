@@ -28,6 +28,8 @@
   import { retryPlayback, setPlaybackFinished, setPlaybackSpoken, unlockAudio } from './lib/voice/voice-player.svelte'
   import { runCommand } from './lib/workspace/commands'
   import { playBootFx } from './lib/workspace/switch-fx.svelte'
+  import { layout, configureScale } from './lib/workspace/layout.svelte'
+  import { prefs } from './lib/workspace/prefs.svelte'
   import { currentIndex, currentWorkspace, deviceWorkspaceId, loadWorkspace, receiveWorkspace, refreshWorkspaces, startWorkspaceSync } from './lib/workspace/workspace-sync.svelte'
   import { activeVariant, applyTheme, darkVariant } from './lib/theme/theme.svelte'
 
@@ -39,6 +41,7 @@
     return denyApproval() || cancelListening() || haltIfBusy() || cancelPending()
   }
 
+  $effect(() => configureScale(prefs.uiScale, prefs.carplay))
   $effect(() => applyTheme(document.documentElement, activeVariant(), darkVariant()))
 
   onMount(() => {
@@ -78,7 +81,7 @@
 
 <svelte:window onkeydown={(e) => handleShortcut(e, closeOverlay)} />
 
-<div class="root">
+<div class="root" class:scaled={layout.scale !== 1} style:width={layout.scale !== 1 ? `${layout.w}px` : undefined} style:height={layout.scale !== 1 ? `${layout.h}px` : undefined} style:transform={layout.scale !== 1 ? `scale(${layout.scale})` : undefined}>
   <CoreLayer />
   {#if !isCar()}<Header />{/if}
   <StateLabel />
@@ -107,7 +110,14 @@
   .root {
     position: fixed;
     inset: 0;
+    transform-origin: 0 0;
     overflow: hidden;
     background: rgb(var(--nx-bg));
+  }
+  /* Enlarged: it is laid out at a smaller size and scaled up to fill the window, so it is not stretched by inset. */
+  .root.scaled {
+    inset: auto;
+    left: 0;
+    top: 0;
   }
 </style>

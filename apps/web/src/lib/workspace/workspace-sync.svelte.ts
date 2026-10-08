@@ -16,6 +16,7 @@ import { voicePrefs } from '../voice/voice-prefs.svelte'
 import { contributedWidgets } from '../services/service-ui'
 import { carSeed, CAR_STRANDS, isDefaultDock } from './car-seed'
 import { prefs } from './prefs.svelte'
+import { sanitizeScale, type UiScaleSetting } from './ui-scale'
 import { finishSwitchFx, sleep, startSwitchFx, switchFx } from './switch-fx.svelte'
 import { workspaceCode } from './workspace-card'
 
@@ -37,6 +38,7 @@ interface WorkspaceState {
   moduleOrder?: ModuleId[]
   voice?: VoicePrefs
   carplay?: boolean
+  uiScale?: UiScaleSetting
 }
 
 // What is on screen right now, which the stored copy trails by the write debounce.
@@ -54,6 +56,7 @@ export function snapshot(): WorkspaceState {
     moduleOrder: [...prefs.moduleOrder],
     voice: { ...voicePrefs },
     carplay: prefs.carplay,
+    uiScale: prefs.uiScale,
   }
 }
 
@@ -86,6 +89,7 @@ function restore(state: WorkspaceState): void {
   prefs.strands = clampStrands(state.strands ?? STRANDS_DEFAULT)
   prefs.moduleOrder = sanitizeModuleOrder(state.moduleOrder)
   prefs.carplay = state.carplay ?? id === CAR_WORKSPACE
+  prefs.uiScale = sanitizeScale(state.uiScale)
   Object.assign(voicePrefs, sanitizeVoice(state.voice, prefs.carplay))
   // A workspace in CarPlay mode that never saved the option (the carplay one before it existed, or a new one).
   seeded = prefs.carplay && state.carplay === undefined && seedCar()
@@ -280,6 +284,7 @@ export function resetWorkspaceSettings(): void {
   prefs.strands = STRANDS_DEFAULT
   prefs.moduleOrder = sanitizeModuleOrder(undefined)
   prefs.carplay = id === CAR_WORKSPACE
+  prefs.uiScale = 'auto'
   Object.assign(voicePrefs, defaultVoicePrefs(prefs.carplay))
   layout.mode = 'auto'
 }

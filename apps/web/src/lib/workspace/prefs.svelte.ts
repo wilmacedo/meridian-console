@@ -2,6 +2,7 @@ import type { ServiceSummary } from '@meridian/service-sdk'
 import { live } from '../live/stream.svelte'
 import { MODULES, type ModuleDef, type ModuleId } from '../modules'
 import { sanitizeModuleOrder } from './module-order'
+import type { UiScaleSetting } from './ui-scale'
 
 // Settings that belong to the workspace but aren't layout: what the screen chooses to show.
 export const prefs = $state({
@@ -13,6 +14,8 @@ export const prefs = $state({
   grid: true,
   // Density of the orb's strands.
   strands: 32,
+  // How much the interface is enlarged: `auto` follows the window (and the car mode), or a fixed factor.
+  uiScale: 'auto' as UiScaleSetting,
   // The workspace is the one opened in a car: it gets the car's voice defaults (and, later, the car layout).
   carplay: false,
   // The dock order, which is also what the 1-9 shortcuts count.

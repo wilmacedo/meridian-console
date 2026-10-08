@@ -10,6 +10,8 @@ export interface OrbFrameInputs {
   working: boolean
   workProgress: number
   lift: boolean
+  // The interface is enlarged by this much: the canvas is drawn at that many times the pixels, to stay sharp.
+  scale?: number
   // Where the orb sits and how big it is (CSS px), instead of the middle of the screen: the car layout's.
   place?: { x: number; y: number; r: number }
   // "r,g,b" triples: primary and secondary strand colours, and the spark colour.
@@ -187,7 +189,7 @@ export class CoreOrb {
     const c = this.canvas
     const input = this.inputs()
     if (input.dimmed && now - this.last < DIMMED_FRAME_MS - 2) return
-    const dpr = input.dimmed ? DIMMED_SCALE : input.lowQuality ? 1 : Math.min(window.devicePixelRatio || 1, DPR_CAP)
+    const dpr = (input.dimmed ? DIMMED_SCALE : input.lowQuality ? 1 : Math.min(window.devicePixelRatio || 1, DPR_CAP)) * (input.scale ?? 1)
     const w = c.clientWidth
     const h = c.clientHeight
     if (!w || !h) return

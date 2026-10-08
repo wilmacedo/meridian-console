@@ -27,7 +27,7 @@
   onMount(() => {
     const o = new CoreOrb(canvas, () => {
       const v = activeVariant()
-      return { mode: viewMode(), amplitude: agent.amplitude, micLevel: agent.micLevel, dimmed, working: agent.working, workProgress: agent.workProgress, lift: (car !== undefined || layout.h >= 720) && !dimmed, place: car && { x: car.ox, y: car.oy, r: car.radius }, colors: { a: v.orbA, b: v.orbB, w: v.orbW }, lowQuality: orbQuality.value === 'low' }
+      return { mode: viewMode(), amplitude: agent.amplitude, micLevel: agent.micLevel, dimmed, working: agent.working, workProgress: agent.workProgress, lift: (car !== undefined || layout.h >= 720) && !dimmed, place: car && { x: car.ox, y: car.oy, r: car.radius }, scale: layout.scale, colors: { a: v.orbA, b: v.orbB, w: v.orbW }, lowQuality: orbQuality.value === 'low' }
     })
     orb = o
     o.setStrandCount(prefs.strands)
@@ -43,12 +43,12 @@
 
   function onPointerMove(e: PointerEvent): void {
     orb?.setPointer(e.clientX / window.innerWidth - 0.5, e.clientY / window.innerHeight - 0.5)
-    pointer = !dimmed && !!orb?.hits(e.clientX, e.clientY)
+    pointer = !dimmed && !!orb?.hits(e.clientX / layout.scale, e.clientY / layout.scale)
   }
 
   function onClick(e: MouseEvent): void {
     // In the car the core has a button of its own.
-    if (car || dimmed || !orb?.hits(e.clientX, e.clientY)) return
+    if (car || dimmed || !orb?.hits(e.clientX / layout.scale, e.clientY / layout.scale)) return
     void toggleListening()
   }
 </script>

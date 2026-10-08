@@ -4,6 +4,7 @@
   import { setSound, sound } from '../sound/sfx.svelte'
   import { PALETTES, PALETTE_LABELS, type PaletteId, type ThemeMode } from '../theme/palettes'
   import { hasLightVariant, theme } from '../theme/theme.svelte'
+  import { UI_SCALES, type UiScaleSetting } from '../workspace/ui-scale'
   import { TAIL_MAX, TAIL_MIN, TAIL_STEP, type AudioSession, type NoiseLevel } from '../voice/voice-prefs'
   import { voicePrefs } from '../voice/voice-prefs.svelte'
   import { close } from '../windows/window-manager.svelte'
@@ -43,6 +44,8 @@
     normal: 'Learns the room, ignores bangs and steady noise, ends on a pause.',
     strict: 'Also drops one-word and low-confidence recordings.',
   }
+  const SCALE_OPTIONS: { id: string; label: string }[] = [{ id: 'auto', label: 'AUTO' }, ...UI_SCALES.map((s) => ({ id: String(s), label: `${s}×` }))]
+  const pickScale = (id: string): void => void (prefs.uiScale = (id === 'auto' ? 'auto' : Number(id)) as UiScaleSetting)
   const DELETE_CONFIRM_MS = 3000
 
   const name = $derived(currentWorkspace()?.name ?? '')
@@ -214,6 +217,9 @@
     <SettingRow title="Rails" note="Auto lays them along the top and bottom on a screen turned to portrait." wide>
       <SegmentedControl options={LAYOUT_MODES.map((id) => ({ id, label: LAYOUT_LABELS[id] }))} value={layout.mode} onPick={(m) => (layout.mode = m)} />
     </SettingRow>
+    <SettingRow title="Interface scale" note={`Enlarges everything, for a screen that shows the page small. Auto enlarges the CarPlay layout until the page is about 800 px wide. Now ×${layout.scale.toFixed(2)}.`} wide>
+      <SegmentedControl options={SCALE_OPTIONS} value={String(prefs.uiScale)} onPick={pickScale} />
+    </SettingRow>
     <SettingRow title="CarPlay layout" note="Touch-first car layout for this workspace: tap the core to talk, glanceable tiles, large controls. Starts the voice options in their car defaults.">
       <SwitchToggle on={prefs.carplay} label="CarPlay" onToggle={() => setCarplay(!prefs.carplay)} />
     </SettingRow>
@@ -248,8 +254,9 @@
     <SettingRow title="Display" note="What this browser reports about its screen. The square is 80 by 80 pixels: if it looks like a rectangle, the screen is stretching the page.">
       <div class="display">
         <i class="square"></i>
-        <span class="readout">{layout.w} × {layout.h}</span>
-        <span class="readout dim">{(layout.w / layout.h).toFixed(2)}:1 · {window.devicePixelRatio}x · screen {screen.width} × {screen.height}</span>
+        <span class="readout">{window.innerWidth} × {window.innerHeight}</span>
+        <span class="readout dim">{(window.innerWidth / window.innerHeight).toFixed(2)}:1 · {window.devicePixelRatio}x · screen {screen.width} × {screen.height}</span>
+        <span class="readout dim">laid out as {Math.round(layout.w)} × {Math.round(layout.h)} (×{layout.scale.toFixed(2)})</span>
       </div>
     </SettingRow>
   </SettingSection>
