@@ -58,7 +58,13 @@ function idle(): void {
 // The request in flight, so the owner can cut it off.
 let asking: AbortController | undefined
 
+// NOX judged the owner's last words a goodbye: after its reply the mic stays closed.
+let conversationEnded = false
+
+export const endConversation = (): void => void (conversationEnded = true)
+
 async function ask(blob: Blob): Promise<void> {
+  conversationEnded = false
   mic.phase = 'sending'
   agent.mode = 'thinking'
   const controller = (asking = new AbortController())
@@ -192,6 +198,10 @@ export function cancelListening(): boolean {
 // NOX finished speaking: keep listening for a while, so a conversation does not need a tap per turn. Quiet for
 // FOLLOW_UP_MS ends it, with the same sound as any other recording that is dropped.
 export async function continueListening(): Promise<void> {
+  if (conversationEnded) {
+    conversationEnded = false
+    return
+  }
   if (!micAvailable() || live.link === 'offline' || mic.phase === 'recording' || approvals.pending.length) return
   await begin(true)
 }

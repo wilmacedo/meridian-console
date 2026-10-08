@@ -127,6 +127,12 @@ export function buildTools(d: ToolDeps): McpTool[] {
       handler: (a) => command(a, { name: 'close_window', window: windowArg(a) }, `closed window ${windowArg(a)}`),
     },
     {
+      name: 'end_conversation',
+      description: 'Ends the conversation: after you finish speaking the microphone stays closed instead of reopening. Call it when the owner\'s last words close the matter and expect no answer ("certo, deixa como está", "valeu", "é só isso").',
+      inputSchema: { type: 'object', properties: { workspace: workspaceProperty } },
+      handler: (a) => command(a, { name: 'end_conversation' }, 'ended the conversation'),
+    },
+    {
       name: 'close_all_windows',
       description: 'Closes every window and returns to the core (the orb alone).',
       inputSchema: { type: 'object', properties: { workspace: workspaceProperty } },

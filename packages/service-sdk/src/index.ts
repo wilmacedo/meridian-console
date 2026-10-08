@@ -195,6 +195,8 @@ export type ScreenCommand =
   | { name: 'open_window'; window: string }
   | { name: 'close_window'; window: string }
   | { name: 'close_all' }
+  // The owner is done: the mic does not reopen after NOX finishes speaking.
+  | { name: 'end_conversation' }
   | { name: 'arrange' }
   // Shows the pin card for the widget a window would dock (the user drops it on a rail).
   | { name: 'pin_widget'; window: string }

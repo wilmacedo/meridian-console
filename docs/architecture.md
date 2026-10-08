@@ -315,7 +315,7 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   (default `~/.meridian/nox/`) is appended as the owner's notes. `NOX_MODEL` picks the model (Sonnet).
 - **Meridian MCP server:** `POST /mcp`, a stateless JSON-RPC implementation of the tools part of MCP
   (`nox/mcp.ts`), served by the same Fastify process. Tools: `list_workspaces`, `open_window`,
-  `close_window`, `close_all_windows`, `arrange_windows`, `pin_widget`, `clear_agent_widgets`,
+  `close_window`, `close_all_windows`, `end_conversation`, `arrange_windows`, `pin_widget`, `clear_agent_widgets`,
   `set_theme`, `compose_doc` (validated server-side by `nox/doc-validation.ts`; an error message names the
   bad path so NOX can fix its call), `get_status`, `query_events`, `get_telemetry`, and one
   `service_<id>_<action>` per service action. Read-only ones run at once; ones marked `mutating` wait for the
