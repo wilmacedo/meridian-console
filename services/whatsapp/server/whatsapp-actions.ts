@@ -194,7 +194,7 @@ export const whatsappActions: ServiceAction<never>[] = [
     path: '/send-voice',
     title: 'Send a voice note',
     description:
-      'Sends a voice note: either "text", which is spoken in NOX\'s voice, or "path" to an audio file in an allowed folder. Same rules as send-message: only when the owner asked, and they confirm on the screen first (for a spoken text the card shows the words).',
+      'Sends a voice note: either "text", which is spoken in NOX\'s voice, or "path" to an audio file in an allowed folder, such as the message the owner recorded in their own voice after record_voice_message. Same rules as send-message: only when the owner asked, and they confirm on the screen first (for a spoken text the card shows the words).',
     mutating: false,
     gated: true,
     input: { type: 'object', required: ['chat'], additionalProperties: false, properties: { chat: CHAT, text: { type: 'string', minLength: 1, maxLength: 1_500 }, path: { type: 'string', description: 'Absolute path of an audio file' } } },

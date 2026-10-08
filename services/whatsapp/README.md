@@ -44,7 +44,7 @@ recent history the phone chooses to send, and everything after it; search covers
 | `WHATSAPP_DATA_DIR` | Session, messages, downloads, outbox. Default `$MERIDIAN_DATA_DIR/whatsapp` |
 | `WHATSAPP_BRIDGE_BIN` | Path of the bridge binary. Default `<data dir>/bin/bridge` |
 | `WHATSAPP_BRIDGE_PORT` | Loopback port of the bridge. Default `7420` |
-| `WHATSAPP_SEND_DIRS` | Extra folders a file may be sent from, separated by `:` |
+| `WHATSAPP_SEND_DIRS` | Extra folders a file may be sent from, separated by `:` (downloads, the outbox and `$MERIDIAN_DATA_DIR/recordings` always are) |
 | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | The same ones NOX's voice uses: transcribe voice notes, speak a text as a voice note |
 
 A dev or test server must use its own `MERIDIAN_DATA_DIR`, or the prod bridge's lock keeps its bridge out.
@@ -64,6 +64,13 @@ A dev or test server must use its own `MERIDIAN_DATA_DIR`, or the prod bridge's 
 | `send-file {chat, path, caption?}` | confirms | Image, video or document from an allowed folder |
 | `send-voice {chat, text \| path}` | confirms | A voice note: a text spoken in NOX's voice, or an audio file |
 
+A voice note in the owner's own voice: NOX calls the core's `record_voice_message`, the owner records the message
+in the next turn, and NOX sends the file it is given (from `$MERIDIAN_DATA_DIR/recordings/`, an allowed folder) with
+`send-voice` and `path`; see `docs/architecture.md`. The bridge converts any container the browser records (WebM or
+MP4) to Ogg Opus with ffmpeg and reads the note's length from the converted stream, since a browser recording has
+no duration in its header. A note spoken in NOX's voice is deleted from the outbox once it is sent or fails, and
+leftovers older than ten minutes are swept at start.
+
 `chat` is a chat id from an earlier result, a phone number with country code, or a name; a name that matches
 several chats is refused with the candidates listed, never guessed.
 
@@ -77,7 +84,7 @@ several chats is refused with the candidates listed, never guessed.
 - **Every send asks the owner on the screen**, naming the recipient and the text (`server/send-flow.ts`). A caller
   with no screen is always refused. NOX sends only what the owner asked for in that conversation.
 - **Send limit**: 6 a minute and 40 an hour, checked before the owner is asked and counted only for sends that went.
-- **Files leave only from allowed folders** (downloads, the outbox, `WHATSAPP_SEND_DIRS`), with symlinks resolved,
+- **Files leave only from allowed folders** (downloads, the outbox, the owner's recordings, `WHATSAPP_SEND_DIRS`), with symlinks resolved,
   so a tricked NOX cannot mail out an arbitrary file.
 - **Nothing sensitive is returned**: no session keys, no QR payload outside the pairing view. The event stream gets
   one line per send (recipient, never the text).

@@ -29,6 +29,8 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   const sentToAnywh: unknown[][] = []
   const endpointCalls: unknown[][] = []
   const announced: unknown[][] = []
+  const armed: unknown[][] = []
+  const removed: string[] = []
   let resolveReply!: (r: { text: string; stopped: boolean; failed: boolean }) => void
   let rejectReply!: (e: Error) => void
   const replies = { promise: new Promise<{ text: string; stopped: boolean; failed: boolean }>((ok, fail) => ((resolveReply = ok), (rejectReply = fail))) }
@@ -40,7 +42,12 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   }
   const registry = {
     summaries: () => [...services, ...[...managedSpecs.values()].map((m) => ({ ...summary(m.id, []), name: m.name, managed: true }))],
-    run: async (s: string, a: string, _input?: unknown, ctx?: unknown) => (ran.push(`${s}/${a}`), ranWith.push(ctx), { ms: 1, result: runResult.value }),
+    run: async (s: string, a: string, _input?: unknown, ctx?: unknown) => {
+      ran.push(`${s}/${a}`)
+      ranWith.push(ctx)
+      if (runResult.value instanceof Error) throw runResult.value
+      return { ms: 1, result: runResult.value }
+    },
     endpoints: { upsert: (service: string, spec: unknown) => void endpointCalls.push([service, spec]), remove: (_s: string, id: string) => id === 'known' },
     managed: {
       get: (id: string) => managedSpecs.get(id),
@@ -50,14 +57,14 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   } as unknown as Registry
   const existingContainers = ['baixa-baixa-1']
   const telemetry = { samples: () => [{ cpu: 23.4, mem: 4.2, temp: 55, net: 0 }], containers: () => [], memTotalGb: 15.3 } as unknown as HostTelemetry
-  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const, startedAt: 0, steps: [] }), stop: (id: string) => id === 't1', list: () => [], report: () => undefined }, anywh, announce: (...a: unknown[]) => void announced.push(a), containers: async () => existingContainers.map((name) => ({ name, image: 'img', state: 'running', status: 'Up', ports: [] })), docker: { inspect: async (name: string) => (existingContainers.includes(name) ? { state: 'running', startedAt: '', image: 'img' } : undefined) }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default', currentScreen: () => 'tab-a' })
+  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const, startedAt: 0, steps: [] }), stop: (id: string) => id === 't1', list: () => [], report: () => undefined }, anywh, messages: { arm: (...a: unknown[]) => void armed.push(a), remove: async (path: string) => void removed.push(path) }, announce: (...a: unknown[]) => void announced.push(a), containers: async () => existingContainers.map((name) => ({ name, image: 'img', state: 'running', status: 'Up', ports: [] })), docker: { inspect: async (name: string) => (existingContainers.includes(name) ? { state: 'running', startedAt: '', image: 'img' } : undefined) }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default', currentScreen: () => 'tab-a' })
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const tool = tools.find((t) => t.name === name)
     if (!tool) throw new Error(`no tool ${name}`)
     return tool.handler(args)
   }
   const commands = () => sent.filter((m) => m.type === 'command').map((m) => (m as { command: unknown }).command)
-  return { call, commands, bus, ran, ranWith, runResult, tools, asked, started, managedSpecs, others, sentToAnywh, endpointCalls, announced, resolveReply, rejectReply }
+  return { call, commands, bus, ran, ranWith, runResult, tools, asked, started, managedSpecs, others, sentToAnywh, endpointCalls, announced, armed, removed, resolveReply, rejectReply }
 }
 
 describe('NOX tools', () => {
@@ -177,6 +184,17 @@ describe('NOX tools', () => {
       })
     })
 
+    it('lets go of a recorded message once an action that was given it succeeds, and only then', async () => {
+      const send = { id: 'send-voice', method: 'POST' as const, path: '/send-voice', title: 'Send', description: 'Sends', mutating: false, gated: true, input: { type: 'object' } }
+      const { call, removed, runResult } = setup([summary('whatsapp', [send])])
+      runResult.value = new Error('The owner did not confirm this, so it was not sent.')
+      await expect(call('service_whatsapp_send-voice', { chat: 'Maria', path: '/data/recordings/message-1-ab.webm' })).rejects.toThrow('not sent')
+      expect(removed).toEqual([])
+      runResult.value = { sent: true }
+      await call('service_whatsapp_send-voice', { chat: 'Maria', path: '/data/recordings/message-1-ab.webm' })
+      expect(removed).toEqual(['Maria', '/data/recordings/message-1-ab.webm'])
+    })
+
     it('hands text an action wrote for reading through as it is, and anything else as JSON', async () => {
       const { call, runResult } = setup([summary('browser', [read])])
       runResult.value = 'Page: a.com\n[k-1] button "Go"'
@@ -184,6 +202,21 @@ describe('NOX tools', () => {
       runResult.value = { ok: true }
       expect(await call('service_browser_status')).toBe('{"ok":true}')
     })
+  })
+
+  it('makes the next recording on the screen that asked a message to send, for the person named', async () => {
+    const { call, commands, armed, others } = setup()
+    expect(await call('record_voice_message', { to: 'Maria' })).toContain('next recording')
+    expect(commands()).toEqual([{ name: 'capture_message' }])
+    expect(others.filter((m) => m.type === 'command')).toEqual([])
+    expect(armed).toEqual([['default', 'Maria']])
+    await expect(call('record_voice_message', {})).rejects.toThrow('to is required')
+  })
+
+  it('does not wait for a message when no screen can record it', async () => {
+    const { call, armed } = setup()
+    await expect(call('record_voice_message', { to: 'Maria', workspace: 'nope' })).rejects.toThrow('no workspace')
+    expect(armed).toEqual([])
   })
 
   it('starts a background task on the current workspace and stops it by id', async () => {

@@ -1,6 +1,7 @@
 import Fastify from 'fastify'
 import websocket from '@fastify/websocket'
-import { openDatabase } from './database.js'
+import { join } from 'node:path'
+import { dataDir, openDatabase } from './database.js'
 import { allContainers, docker } from './docker.js'
 import { ManagedServiceStore } from './managed-services.js'
 import { McpServer, registerMcp } from './nox/mcp.js'
@@ -10,6 +11,7 @@ import { registerNox } from './nox/routes.js'
 import { Tasks } from './nox/tasks.js'
 import { buildTools } from './nox/tools.js'
 import { Anywh } from './nox/anywh.js'
+import { VoiceMessages } from './voice/voice-messages.js'
 import { EventBus } from './event-bus.js'
 import { ScreenRegistry } from './screens.js'
 import { registerServices } from './service-registry.js'
@@ -26,6 +28,7 @@ const telemetry = new HostTelemetry(app.log)
 const db = openDatabase()
 const workspaces = new WorkspaceStore(db)
 const screens = new ScreenRegistry()
+const messages = new VoiceMessages(join(dataDir(), 'recordings'))
 
 await app.register(websocket)
 
@@ -50,7 +53,7 @@ app.get<{ Params: { id: string } }>('/api/docs/:id', async (request, reply) => s
 let turnWorkspace = 'default'
 // The tab that spoke: what NOX shows and says for the request goes to it, not to whichever tab is newest.
 let turnScreen: string | undefined
-registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, anywh: new Anywh(), announce: (text, workspace, screen) => noxRoutes.announce(text, workspace, screen), hostName, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen })))
+registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, anywh: new Anywh(), messages, announce: (text, workspace, screen) => noxRoutes.announce(text, workspace, screen), hostName, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen })))
 // Claude Code asks this server before anything its classifier doesn't settle. It is a separate MCP
 // server so that NOX, who only gets the Meridian one, can never approve its own actions. NOX's turns
 // ask on the workspace being answered; a background task has its own URL naming the workspace it serves.
@@ -69,7 +72,7 @@ const nox = new Nox(
   { port },
   { setTurn: (workspace, screen) => ((turnWorkspace = workspace), (turnScreen = screen)), log: (message) => app.log.info(message) },
 )
-const noxRoutes = registerNox(app, { nox, bus, screens, registry, approvals })
+const noxRoutes = registerNox(app, { nox, bus, screens, registry, approvals, messages })
 app.addHook('onClose', async () => nox.stop())
 
 if (await registerWebApp(app, defaultWebRoot())) app.log.info(`serving the web app from ${defaultWebRoot()}`)

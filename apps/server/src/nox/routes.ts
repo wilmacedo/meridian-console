@@ -6,6 +6,7 @@ import { usage, voiceConfig } from '../voice/elevenlabs.js'
 import { playbackDone, waitForPlayback } from '../voice/playback.js'
 import { TurnSpeaker } from '../voice/speaker.js'
 import { isSpeech, keytermsFor, transcribe } from '../voice/transcribe.js'
+import type { VoiceMessages } from '../voice/voice-messages.js'
 import { isSlowTool, pickAck } from './acknowledge.js'
 import { spokenAnswer, type Approvals } from './approvals.js'
 import { commandNote, type Nox } from './process.js'
@@ -16,6 +17,9 @@ const MAX_AUDIO_BYTES = 10 * 1024 * 1024
 const PLAYBACK_TIMEOUT_MS = 90_000
 // How long a spoken update waits for the owner's own turn to end before it goes ahead anyway.
 const ANNOUNCE_WAIT_MS = 5 * 60_000
+// A recorded message that was not sent (declined, failed) stays this long, so "manda de novo" still finds it.
+const UNSENT_MESSAGE_MS = 2 * 60_000
+const STALE_MESSAGE_MS = 10 * 60_000
 
 // Numbers each answer so a screen can tell one turn's speech from another's. It starts from the clock, not
 // from zero: a screen that stayed open across a server restart still remembers the last turn it played,
@@ -35,12 +39,20 @@ interface Deps {
   screens: ScreenRegistry
   registry: Registry
   approvals: Approvals
+  messages: VoiceMessages
 }
+
+// What NOX is told in place of a transcript when the owner records the message it asked for. It has not heard
+// the audio, and the owner's spoken request is what authorizes sending it.
+export const recordedMessageNote = (to: string, path: string): string =>
+  `[voice message recorded] The owner has just recorded, in their own voice, the message for ${to} that you asked them to record. It is the audio file ${path}. ` +
+  'Send it now as they asked (for WhatsApp, send-voice with this path), so the owner confirms on the screen. You have not heard it: do not guess or describe what it says. ' +
+  'Once it is sent, say only that it was sent and call end_conversation; if it was not, say so in one sentence.'
 
 // The entry points to NOX. Both answer as newline-delimited JSON events (text, tool, done, error); when
 // voice is configured and a screen is showing the workspace, the answer is also spoken there, sentence
 // by sentence, while it is still being written.
-export function registerNox(app: FastifyInstance, { nox, bus, screens, registry, approvals }: Deps): { interrupt: () => void; announce: (text: string, workspace: string, screen?: string) => void } {
+export function registerNox(app: FastifyInstance, { nox, bus, screens, registry, approvals, messages }: Deps): { interrupt: () => void; announce: (text: string, workspace: string, screen?: string) => void } {
   // The turn whose answer is being written or spoken, for the owner to cut off.
   let active: { turn: number; speaker?: TurnSpeaker } | undefined
 
@@ -49,6 +61,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
   function interrupt(): void {
     nox.interrupt()
     approvals.denyTurn('interrupted')
+    messages.disarm()
     if (!active) return
     active.speaker?.cancel()
     playbackDone(active.turn)
@@ -140,11 +153,26 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
   // A recording in: transcribed first, with the service names as hints, then answered like any other
   // request. The first line of the stream tells the caller what was heard.
   app.addContentTypeParser(/^audio\/.*/, { parseAs: 'buffer', bodyLimit: MAX_AUDIO_BYTES }, (_request, body, done) => done(null, body))
-  app.post<{ Querystring: { workspace?: string; screen?: string; noise?: string } }>('/api/voice/ask', async (request, reply) => {
+  app.post<{ Querystring: { workspace?: string; screen?: string; noise?: string; capture?: string } }>('/api/voice/ask', async (request, reply) => {
     const voice = voiceConfig()
     if (!voice) return reply.code(503).send({ error: 'voice is not configured (ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID)' })
     const audio = request.body as Buffer
     if (!Buffer.isBuffer(audio) || audio.length === 0) return reply.code(400).send({ error: 'send the recording as the request body' })
+    const workspace = request.query.workspace ?? 'default'
+
+    // NOX asked for a message to send, and the screen recorded it as one (both must agree, so a later tap on the
+    // mic is never mistaken for it): the recording is the owner's voice to pass on, never transcribed or obeyed.
+    const to = messages.take(workspace)
+    if (to !== undefined && request.query.capture === '1' && !approvals.has(workspace)) {
+      const path = await messages.save(audio, request.headers['content-type'] ?? 'audio/webm')
+      bus.emit('nox', 'info', `voice message recorded for ${to}`)
+      try {
+        await answer(recordedMessageNote(to, path), workspace, reply, undefined, request.query.screen)
+      } finally {
+        messages.removeLater(path, UNSENT_MESSAGE_MS)
+      }
+      return
+    }
 
     let heard: string
     try {
@@ -162,7 +190,6 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     // The owner gave up while it was being transcribed: a request nobody is waiting for is not run.
     if (request.socket.destroyed) return
     // NOX is waiting on a card: what was said is the owner's answer to it, not a new request.
-    const workspace = request.query.workspace ?? 'default'
     if (approvals.has(workspace)) {
       const allow = spokenAnswer(heard)
       if (allow !== undefined) approvals.answerLatest(workspace, allow)
@@ -170,6 +197,9 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     }
     return answer(heard, workspace, reply, heard, request.query.screen)
   })
+
+  void messages.sweep(STALE_MESSAGE_MS)
+  setInterval(() => void messages.sweep(STALE_MESSAGE_MS), STALE_MESSAGE_MS).unref()
 
   // NOX speaks first: something it was waiting for happened (an agent finished). It waits for the owner's own
   // turn to end, and its text goes nowhere but the screens of the workspace.

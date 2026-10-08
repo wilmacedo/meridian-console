@@ -12,6 +12,7 @@ import type { Tasks } from './tasks.js'
 import { validateDoc } from './doc-validation.js'
 import type { McpTool } from './mcp.js'
 import type { AnywhApi } from './anywh.js'
+import type { VoiceMessages } from '../voice/voice-messages.js'
 
 interface ToolDeps {
   bus: EventBus
@@ -24,6 +25,7 @@ interface ToolDeps {
   containers: () => Promise<ContainerSummary[]>
   docker: Pick<DockerApi, 'inspect'>
   anywh: AnywhApi
+  messages: Pick<VoiceMessages, 'arm' | 'remove'>
   // Starts a turn of NOX on its own, outside any request of the owner.
   announce: (text: string, workspace: string, screen?: string) => void
   hostName: () => string
@@ -131,6 +133,19 @@ export function buildTools(d: ToolDeps): McpTool[] {
       description: 'Ends the conversation: after you finish speaking the microphone stays closed instead of reopening. Call it when the owner\'s last words close the matter and expect no answer ("certo, deixa como está", "valeu", "é só isso").',
       inputSchema: { type: 'object', properties: { workspace: workspaceProperty } },
       handler: (a) => command(a, { name: 'end_conversation' }, 'ended the conversation'),
+    },
+    {
+      name: 'record_voice_message',
+      description:
+        'Makes the owner\'s next recording a message in their own voice to send, instead of something said to you. Call it when the owner asks to send an audio or voice note in their own voice ("manda um áudio pra Maria"), with "to" saying who it is for. Then ask them, in one short sentence, to record the message now, and end your turn. You are not told what they say: you get the audio file in a message that starts with [voice message recorded], and send it from there.',
+      inputSchema: { type: 'object', required: ['to'], properties: { to: { type: 'string', description: 'Who the message is for, as the owner said it.' }, workspace: workspaceProperty } },
+      handler: (a) => {
+        const to = text(a, 'to')
+        if (!to) throw new Error('to is required')
+        const done = command(a, { name: 'capture_message' }, `waiting for a voice message for ${to}`)
+        d.messages.arm(workspaceOf(a), to)
+        return `${done} The owner's next recording on this screen will be the message.`
+      },
     },
     {
       name: 'close_all_windows',
@@ -344,6 +359,8 @@ export function buildTools(d: ToolDeps): McpTool[] {
     }
     // Text an action already wrote for reading (a page outline) goes through as it is, not as an escaped JSON string.
     const result = (await d.registry.run(service.id, action.id, input, ctx)).result ?? null
+    // A recorded message has served its purpose once an action that was given it succeeds.
+    for (const value of Object.values(input ?? {})) if (typeof value === 'string') await d.messages.remove(value)
     return clip(typeof result === 'string' ? result : JSON.stringify(result))
   }
 

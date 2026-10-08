@@ -197,6 +197,8 @@ export type ScreenCommand =
   | { name: 'close_all' }
   // The owner is done: the mic does not reopen after NOX finishes speaking.
   | { name: 'end_conversation' }
+  // NOX asked the owner to record a message to send: the next recording is that message, given time for pauses.
+  | { name: 'capture_message' }
   | { name: 'arrange' }
   // Shows the pin card for the widget a window would dock (the user drops it on a rail).
   | { name: 'pin_widget'; window: string }

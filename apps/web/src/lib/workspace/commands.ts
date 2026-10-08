@@ -7,7 +7,7 @@ import { MODULES } from '../modules'
 import { contributedWindow } from '../services/service-ui'
 import { theme } from '../theme/theme.svelte'
 import { arrange, close, closeAll, open } from '../windows/window-manager.svelte'
-import { endConversation } from '../voice/microphone.svelte'
+import { captureNextMessage, endConversation } from '../voice/microphone.svelte'
 
 // A window the screen can actually show: a dock module (the server says "logs" for Events) or one a
 // service contributes.
@@ -28,6 +28,9 @@ export function runCommand(command: ScreenCommand): void {
       break
     case 'end_conversation':
       endConversation()
+      break
+    case 'capture_message':
+      captureNextMessage()
       break
     case 'arrange':
       arrange()

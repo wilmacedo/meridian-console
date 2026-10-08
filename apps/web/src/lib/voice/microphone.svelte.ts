@@ -36,6 +36,10 @@ const NO_SPEECH_MS = 7000
 const FOLLOW_UP_MS = 5000
 // How long after its answer ends NOX may still reopen the mic: the end of the speech plays a little later.
 const FOLLOW_UP_GRACE_MS = 10_000
+// A message to be sent (a WhatsApp voice note) has pauses a question to NOX does not, and the owner may take a
+// moment to start.
+const MESSAGE_START_MS = 10_000
+const MESSAGE_PAUSE_MS = 3000
 const TICK_MS = 50
 // The voice band, which the level is read from when the noise filter is on: engine and road noise sit below it.
 const VOICE_BAND = { low: 300, high: 3400 }
@@ -74,11 +78,16 @@ let conversationEnded = false
 
 export const endConversation = (): void => void (conversationEnded = true)
 
+// NOX asked the owner to record a message to send: the next recording is that message, not something said to NOX.
+let messageNext = false
+
+export const captureNextMessage = (): void => void (messageNext = true)
+
 // The mic reopens only for the answer to something the owner said: NOX speaking on its own (an agent that
 // finished) must not start listening. Infinity while a request is in flight.
 let followUpUntil = 0
 
-async function ask(blob: Blob): Promise<void> {
+async function ask(blob: Blob, message: boolean): Promise<void> {
   conversationEnded = false
   followUpUntil = Infinity
   mic.phase = 'sending'
@@ -87,7 +96,8 @@ async function ask(blob: Blob): Promise<void> {
   const controller = (asking = new AbortController())
   try {
     const strict = voicePrefs.noise === 'strict' ? '&noise=strict' : ''
-    const res = await fetch(`/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}${strict}`, {
+    const capture = message ? '&capture=1' : ''
+    const res = await fetch(`/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}${strict}${capture}`, {
       method: 'POST',
       headers: { 'Content-Type': blob.type.split(';')[0] },
       body: blob,
@@ -120,7 +130,7 @@ function cutOff(): void {
 }
 
 // Stops recording. `send` false throws the recording away.
-function finish(send: boolean, heardSpeech: boolean): void {
+function finish(send: boolean, heardSpeech: boolean, message = false): void {
   const r = recorder
   recorder = undefined
   release()
@@ -128,12 +138,15 @@ function finish(send: boolean, heardSpeech: boolean): void {
   play(send && heardSpeech ? 'speech-end' : 'mic-off')
   const chunks: Blob[] = []
   r.ondataavailable = (e) => chunks.push(e.data)
-  r.onstop = () => (send && heardSpeech && chunks.length ? void ask(new Blob(chunks, { type: r.mimeType })) : idle())
+  r.onstop = () => (send && heardSpeech && chunks.length ? void ask(new Blob(chunks, { type: r.mimeType }), message) : idle())
   r.stop()
 }
 
 async function begin(followUp = false): Promise<void> {
   mic.phase = 'recording'
+  // Used up by this recording, whatever becomes of it: the server forgets the request just as fast.
+  const message = messageNext
+  messageNext = false
   stopWarmup()
   applyAudioSession()
   try {
@@ -166,20 +179,23 @@ async function begin(followUp = false): Promise<void> {
   mic.halted = false
   mic.cancelled = false
   kick(1)
-  if (!followUp) play('mic-on')
+  if (!followUp || message) play('mic-on')
   recorder.start()
 
   const startedAt = performance.now()
-  const detector = createDetector(tuningFor(voicePrefs.noise), startedAt, followUp ? FOLLOW_UP_MS : NO_SPEECH_MS, roomFloor)
+  const tuning = tuningFor(voicePrefs.noise)
+  const detector = message
+    ? createDetector({ ...tuning, silenceMs: Math.max(tuning.silenceMs, MESSAGE_PAUSE_MS), noiseEndMs: Math.max(tuning.noiseEndMs, MESSAGE_PAUSE_MS) }, startedAt, MESSAGE_START_MS, roomFloor)
+    : createDetector(tuning, startedAt, followUp ? FOLLOW_UP_MS : NO_SPEECH_MS, roomFloor)
   timer = setInterval(() => {
     analyser.getFloatTimeDomainData(data)
     const level = Math.sqrt(data.reduce((sum, v) => sum + v * v, 0) / data.length)
     agent.micLevel = Math.min(1, level * MIC_LEVEL_GAIN)
     const verdict = detector.push(level, performance.now())
     roomFloor = detector.floor
-    if (verdict) finish(verdict === 'send', detector.heardSpeech)
+    if (verdict) finish(verdict === 'send', detector.heardSpeech, message)
   }, TICK_MS)
-  stopEarly = () => finish(true, detector.heardSpeech)
+  stopEarly = () => finish(true, detector.heardSpeech, message)
 }
 
 // NOX has something running that the owner can stop: a turn in flight, its voice, a background task or a pin.
@@ -188,6 +204,7 @@ export const busy = (): boolean => mic.phase === 'sending' || agent.mode === 'th
 // Stops everything NOX is doing: the turn, its voice, the workspace's background tasks and a pending pin.
 export function halt(): void {
   followUpUntil = 0
+  messageNext = false
   cutOff()
   interruptPlayback()
   sendToServer({ type: 'stop_tasks' })

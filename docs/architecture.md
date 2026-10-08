@@ -426,6 +426,15 @@ freezing the server process. Cards on screen are cleared when the link drops.
   denies the confirmation cards of that conversation (a background task's cards stay). The "error"
   Claude Code reports for an interrupted turn is turned into a normal end. Needs a secure context
   (HTTPS or localhost); without one the mic button is shown inert.
+- **A message in the owner's own voice:** NOX's `record_voice_message` tool (for "manda um áudio pra
+  Maria") sends the screen `capture_message` and arms the workspace for two minutes. The screen's next
+  recording waits up to 10 s for speech and 3 s of pause before it ends, and is posted with `capture=1`;
+  only when both agree (`voice/voice-messages.ts`) is the clip saved to `$MERIDIAN_DATA_DIR/recordings/`
+  untranscribed, and NOX gets a `[voice message recorded]` turn with the path instead of a transcript, so
+  what the owner said into the message is never taken as an instruction. NOX sends it like any file
+  (WhatsApp's `send-voice` with `path`, behind its card). The file is deleted as soon as a service action
+  that was given its path succeeds, two minutes after its turn otherwise, and anything older than ten
+  minutes is swept. A recording without `capture=1`, or an interruption, disarms it.
 - **Audio autoplay:** browsers play audio only after a gesture, so the first click or key on the page
   unlocks the audio context; speech that arrives earlier waits for it.
 - **Cost:** TTS bills per character; every spoken turn logs `voice: N of LIMIT characters used this period`
