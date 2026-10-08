@@ -7,6 +7,7 @@
   import { switchFx } from '../workspace/switch-fx.svelte'
   import { wm } from '../windows/window-manager.svelte'
   import { activeVariant, isLight } from '../theme/theme.svelte'
+  import { carGeometry, isCar } from '../shell/car.svelte'
   import { CoreOrb } from './core-orb'
   import { orbQuality } from './orb-quality.svelte'
 
@@ -15,6 +16,7 @@
   let pointer = $state(false)
 
   const dimmed = $derived(wm.active !== 'core')
+  const car = $derived(isCar() ? carGeometry() : undefined)
   const filter = $derived.by(() => {
     const invert = isLight() ? 'invert(1) hue-rotate(180deg)' : ''
     const recede = dimmed ? (isLight() ? 'opacity(.45)' : 'brightness(.55) saturate(1.2)') : ''
@@ -25,7 +27,7 @@
   onMount(() => {
     const o = new CoreOrb(canvas, () => {
       const v = activeVariant()
-      return { mode: viewMode(), amplitude: agent.amplitude, micLevel: agent.micLevel, dimmed, working: agent.working, workProgress: agent.workProgress, lift: layout.h >= 720 && !dimmed, colors: { a: v.orbA, b: v.orbB, w: v.orbW }, lowQuality: orbQuality.value === 'low' }
+      return { mode: viewMode(), amplitude: agent.amplitude, micLevel: agent.micLevel, dimmed, working: agent.working, workProgress: agent.workProgress, lift: (car !== undefined || layout.h >= 720) && !dimmed, place: car && { x: car.ox, y: car.oy, r: car.radius }, colors: { a: v.orbA, b: v.orbB, w: v.orbW }, lowQuality: orbQuality.value === 'low' }
     })
     orb = o
     o.setStrandCount(prefs.strands)
@@ -45,7 +47,8 @@
   }
 
   function onClick(e: MouseEvent): void {
-    if (dimmed || !orb?.hits(e.clientX, e.clientY)) return
+    // In the car the core has a button of its own.
+    if (car || dimmed || !orb?.hits(e.clientX, e.clientY)) return
     void toggleListening()
   }
 </script>
@@ -53,8 +56,8 @@
 <svelte:window onpointermove={onPointerMove} />
 
 {#if prefs.grid}
-  <div class="grid fine"></div>
-  <div class="grid coarse"></div>
+  <div class="grid fine" class:car style:--zone-w="{car?.zoneW}px" style:--zone-h="{car?.zoneH}px"></div>
+  <div class="grid coarse" class:car style:--zone-w="{car?.zoneW}px" style:--zone-h="{car?.zoneH}px"></div>
 {/if}
 <canvas bind:this={canvas} onclick={onClick} style:filter style:cursor={pointer ? 'pointer' : 'default'}></canvas>
 <div class="vignette"></div>
@@ -75,6 +78,20 @@
       linear-gradient(90deg, rgba(var(--nx-hi), 0.17) 1px, transparent 1px);
     background-size: 44px 44px;
     mask-image: radial-gradient(ellipse 75% 70% at 50% 46%, rgb(var(--nx-bg)) 30%, transparent 100%);
+  }
+  /* In the car the grid fades out around the core, which sits in the room the tiles leave. */
+  .grid.car {
+    inset: auto;
+    left: 0;
+    top: 0;
+    width: var(--zone-w);
+    height: var(--zone-h);
+  }
+  .coarse.car {
+    mask-image: radial-gradient(farthest-side at 50% 47%, rgb(var(--nx-bg)) 30%, transparent 100%);
+  }
+  .fine.car {
+    mask-image: radial-gradient(closest-side at 50% 47%, rgb(var(--nx-bg)) 15%, transparent 100%);
   }
   .fine {
     background-image:

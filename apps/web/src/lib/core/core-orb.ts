@@ -10,6 +10,8 @@ export interface OrbFrameInputs {
   working: boolean
   workProgress: number
   lift: boolean
+  // Where the orb sits and how big it is (CSS px), instead of the middle of the screen: the car layout's.
+  place?: { x: number; y: number; r: number }
   // "r,g,b" triples: primary and secondary strand colours, and the spark colour.
   colors: { a: string; b: string; w: string }
   // Half the strands, no wide glow and no sub-pixel scaling, for devices that struggle.
@@ -220,9 +222,9 @@ export class CoreOrb {
     const { energy, amp, listen, think, mic, kickSmooth } = this
     const ab = Math.min(1, Math.max(0, (now - this.bootAt - BOOT_DELAY_MS) / BOOT_RISE_MS))
     const boot = 1 - Math.pow(1 - ab, 3)
-    const R = Math.min(w, h) * 0.25 * this.scale * (0.6 + 0.4 * boot) * (1 - think * 0.06 - listen * (0.04 - mic * 0.05) + amp * 0.03 + kickSmooth * 0.05)
-    const cx = w / 2 + this.mx * 14
-    const cy = h * (0.46 - (input.lift && !input.dimmed ? this.work * 0.08 : 0)) + this.my * 10
+    const R = (input.place?.r ?? Math.min(w, h) * 0.25) * this.scale * (0.6 + 0.4 * boot) * (1 - think * 0.06 - listen * (0.04 - mic * 0.05) + amp * 0.03 + kickSmooth * 0.05)
+    const cx = (input.place?.x ?? w / 2) + this.mx * 14
+    const cy = (input.place ? input.place.y : h * (0.46 - (input.lift && !input.dimmed ? this.work * 0.08 : 0))) + this.my * 10
     this.cx = cx
     this.cy = cy
     this.radius = R
