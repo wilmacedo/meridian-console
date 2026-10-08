@@ -29,7 +29,7 @@ import policy  # noqa: E402
 
 STATE = Path(os.environ.get("MERIDIAN_BROWSER_STATE_DIR") or Path.home() / ".meridian" / "browser-harness").expanduser()
 CDP_URL = (os.environ.get("MERIDIAN_BROWSER_CDP_URL") or "http://127.0.0.1:9222").rstrip("/")
-ALLOWED = [d.strip().lower().lstrip(".") for d in (os.environ.get("MERIDIAN_BROWSER_ALLOWED_DOMAINS") or "appstoreconnect.apple.com").split(",") if d.strip()]
+ALLOWED = [d.strip().lower().lstrip(".") for d in (os.environ.get("MERIDIAN_BROWSER_ALLOWED_DOMAINS") or "*").split(",") if d.strip()]
 DEFAULT_READ_CHARS = 6_000
 MAX_READ_CHARS = 7_000
 MAX_TYPE_CHARS = 2_000

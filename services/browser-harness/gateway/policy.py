@@ -16,6 +16,8 @@ LOGIN_HOSTS = {"idmsa.apple.com", "appleid.apple.com"}
 
 def host_allowed(host, allowed):
     host = (host or "").lower()
+    if "*" in allowed:
+        return bool(host)
     return any(host == d or host.endswith("." + d) for d in allowed)
 
 

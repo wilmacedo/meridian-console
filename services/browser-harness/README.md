@@ -33,8 +33,8 @@ and put the rest on screen with `compose_doc`.
 
 ## Guardrails
 
-- **Allowlist** (`MERIDIAN_BROWSER_ALLOWED_DOMAINS`, default `appstoreconnect.apple.com`; a host matches itself and
-  its subdomains; `https` only). Checked on the page before every step and again after: a link to another domain is
+- **Allowlist** (`MERIDIAN_BROWSER_ALLOWED_DOMAINS`, comma-separated, default `*`: any host; otherwise a host
+  matches itself and its subdomains; `https` only in both cases). Checked on the page before every step and again after: a link to another domain is
   refused before it is clicked, a tab that opens on another domain is closed (one on an allowed domain is followed),
   a page that wandered off is sent back. A sign-in page is reported, never touched.
 - **Risk is decided per call, from the element the click will actually land on** (`gateway/policy.py`, unit-tested).
@@ -60,7 +60,8 @@ port listens on loopback, so anything local, NOX's Bash included, could speak CD
 NOX's persona and the auto mode classifier forbid that, which is a guard-rail. The real protection is that the
 Chrome profile holds only the sessions the owner chose to put there, and that the allowlist and the owner's card
 sit on the only path NOX is meant to use. Text on an allowed page is returned as it is, so the allowlist is also a
-statement of what NOX may read; page text is told to NOX as untrusted data.
+statement of what NOX may read; with the default `*` that is any site the Chrome profile can open, so what stands
+behind it is the owner's card for risky actions. Page text is told to NOX as untrusted data.
 
 Not handled yet: native `alert`/`confirm` dialogs, file upload and download, native `<select>` menus, signing in
 (left to the owner; a password manager integration can come later), iframes in other origins.

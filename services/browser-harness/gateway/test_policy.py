@@ -31,6 +31,18 @@ class Urls(unittest.TestCase):
         self.assertTrue(p.tab_is_ours("https://idmsa.apple.com/x", ALLOWED))
         self.assertFalse(p.tab_is_ours("https://mail.example.com/", ALLOWED))
 
+    def test_wildcard_allows_any_https_host(self):
+        anywhere = ["*"]
+        self.assertTrue(p.host_allowed("www.ingresso.com", anywhere))
+        self.assertFalse(p.host_allowed("", anywhere))
+        self.assertFalse(p.host_allowed(None, anywhere))
+        self.assertEqual(p.classify_url("https://www.ingresso.com/filmes", anywhere), "ready")
+        self.assertEqual(p.classify_url("https://www.ingresso.com/login", anywhere), "needs_login")
+        self.assertEqual(p.classify_url("https://idmsa.apple.com/appleauth", anywhere), "needs_login")
+        self.assertEqual(p.classify_url("http://www.ingresso.com/", anywhere), "blocked")
+        self.assertEqual(p.classify_url("javascript:alert(1)", anywhere), "blocked")
+        self.assertTrue(p.tab_is_ours("https://mail.example.com/", anywhere))
+
 
 class Risk(unittest.TestCase):
     def test_free(self):
