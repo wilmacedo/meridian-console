@@ -1,8 +1,9 @@
 import { DEFAULT_TUNING, type Tuning } from './speech-detector'
 
-// How the voice behaves in a workspace. The carplay workspace starts with the noise filter and the Bluetooth
-// warm-up on, because that is the one opened in a car: a noisy cabin, and a link that drops the start and the end of
+// How the voice behaves in a workspace. A workspace in CarPlay mode starts with the noise filter and the Bluetooth
+// warm-up on, because it is the one opened in a car: a noisy cabin, and a link that drops the start and the end of
 // what it plays. Anything else starts plain. Every workspace can change them in Settings.
+// The workspace with this id is the one that is in CarPlay mode until the owner says otherwise.
 export const CAR_WORKSPACE = 'carplay'
 
 export type NoiseLevel = 'off' | 'normal' | 'strict'
@@ -25,12 +26,20 @@ export const TAIL_STEP = 100
 const NOISE: readonly NoiseLevel[] = ['off', 'normal', 'strict']
 const SESSIONS: readonly AudioSession[] = ['auto', 'playback', 'play-and-record']
 
-export const defaultVoicePrefs = (workspace: string): VoicePrefs =>
-  workspace === CAR_WORKSPACE ? { noise: 'normal', warmup: true, tailMs: 500, audioSession: 'auto' } : { noise: 'off', warmup: false, tailMs: 500, audioSession: 'auto' }
+export const defaultVoicePrefs = (carplay: boolean): VoicePrefs =>
+  carplay ? { noise: 'normal', warmup: true, tailMs: 500, audioSession: 'auto' } : { noise: 'off', warmup: false, tailMs: 500, audioSession: 'auto' }
+
+// Switching CarPlay mode moves the voice options to the new mode's defaults, but only the ones the owner never
+// touched: if they differ from the old mode's defaults, they are theirs and stay.
+export function followCarplay(current: VoicePrefs, from: boolean, to: boolean): VoicePrefs {
+  const was = defaultVoicePrefs(from)
+  const untouched = (Object.keys(was) as (keyof VoicePrefs)[]).every((k) => current[k] === was[k])
+  return untouched ? defaultVoicePrefs(to) : current
+}
 
 // What was stored, field by field: a part that is missing or no longer valid falls back to the workspace's default.
-export function sanitizeVoice(stored: unknown, workspace: string): VoicePrefs {
-  const base = defaultVoicePrefs(workspace)
+export function sanitizeVoice(stored: unknown, carplay: boolean): VoicePrefs {
+  const base = defaultVoicePrefs(carplay)
   const s = (typeof stored === 'object' && stored !== null ? stored : {}) as Record<string, unknown>
   return {
     noise: NOISE.includes(s.noise as NoiseLevel) ? (s.noise as NoiseLevel) : base.noise,

@@ -11,7 +11,7 @@ import { restoreWindows, snapshotWindows, type PersistedWindow } from '../window
 import { layout } from './layout.svelte'
 import type { LayoutMode } from './layout-mode'
 import { clampStrands, sanitizeModuleOrder, STRANDS_DEFAULT } from './module-order'
-import { defaultVoicePrefs, sanitizeVoice, type VoicePrefs } from '../voice/voice-prefs'
+import { CAR_WORKSPACE, defaultVoicePrefs, followCarplay, sanitizeVoice, type VoicePrefs } from '../voice/voice-prefs'
 import { voicePrefs } from '../voice/voice-prefs.svelte'
 import { prefs } from './prefs.svelte'
 import { finishSwitchFx, sleep, startSwitchFx, switchFx } from './switch-fx.svelte'
@@ -34,6 +34,7 @@ interface WorkspaceState {
   strands?: number
   moduleOrder?: ModuleId[]
   voice?: VoicePrefs
+  carplay?: boolean
 }
 
 // What is on screen right now, which the stored copy trails by the write debounce.
@@ -50,6 +51,7 @@ export function snapshot(): WorkspaceState {
     strands: prefs.strands,
     moduleOrder: [...prefs.moduleOrder],
     voice: { ...voicePrefs },
+    carplay: prefs.carplay,
   }
 }
 
@@ -67,7 +69,8 @@ function restore(state: WorkspaceState): void {
   prefs.grid = state.grid ?? true
   prefs.strands = clampStrands(state.strands ?? STRANDS_DEFAULT)
   prefs.moduleOrder = sanitizeModuleOrder(state.moduleOrder)
-  Object.assign(voicePrefs, sanitizeVoice(state.voice, id))
+  prefs.carplay = state.carplay ?? id === CAR_WORKSPACE
+  Object.assign(voicePrefs, sanitizeVoice(state.voice, prefs.carplay))
 }
 
 // The address decides the workspace: ?workspace=<id>, and the default one when it names none. Nothing is
@@ -258,8 +261,14 @@ export function resetWorkspaceSettings(): void {
   prefs.grid = true
   prefs.strands = STRANDS_DEFAULT
   prefs.moduleOrder = sanitizeModuleOrder(undefined)
-  Object.assign(voicePrefs, defaultVoicePrefs(id))
+  prefs.carplay = id === CAR_WORKSPACE
+  Object.assign(voicePrefs, defaultVoicePrefs(prefs.carplay))
   layout.mode = 'auto'
+}
+
+export function setCarplay(on: boolean): void {
+  Object.assign(voicePrefs, followCarplay({ ...voicePrefs }, prefs.carplay, on))
+  prefs.carplay = on
 }
 
 // Watches every part of the workspace and sends it to the server whenever it changes.

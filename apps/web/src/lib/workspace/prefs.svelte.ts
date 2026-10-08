@@ -13,6 +13,8 @@ export const prefs = $state({
   grid: true,
   // Density of the orb's strands.
   strands: 32,
+  // The workspace is the one opened in a car: it gets the car's voice defaults (and, later, the car layout).
+  carplay: false,
   // The dock order, which is also what the 1-9 shortcuts count.
   moduleOrder: MODULES.map((m) => m.id) as ModuleId[],
 })

@@ -1,9 +1,11 @@
 # CarPlay mode
 
-The `carplay` workspace is the one opened in the car, where the microphone hears the whole cabin and the Bluetooth
-link loses the start and the end of what it plays. It starts with the noise filter and the Bluetooth warm-up on;
-any other workspace starts plain. The options are in **Settings → 07 · Voice** of each workspace, saved with it (so
-they can be tuned from the desktop while parked), and the defaults are in `voice-prefs.ts`.
+A workspace is in CarPlay mode when its **CarPlay** switch (Settings → Layout) is on. The workspace with id
+`carplay` starts with it on; any other starts with it off. The mode is for the workspace opened in the car, where
+the microphone hears the whole cabin and the Bluetooth link loses the start and the end of what it plays. It starts
+the voice options (Settings → Voice) in their car defaults: noise filter normal, Bluetooth warm-up on. The options
+are saved with the workspace, so they come back as they were; switching the mode only moves the ones that were never
+changed. The defaults are in `voice-prefs.ts`. The car layout (`docs/plans/carplay-design.md`) comes with the mode.
 
 ## Everywhere
 

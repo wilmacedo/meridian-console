@@ -12,7 +12,7 @@
   import { clampStrands, STRANDS_MAX, STRANDS_MIN, STRANDS_STEP } from '../workspace/module-order'
   import { isHidden, isModuleHidden, moveModule, orderedModules, prefs, toggleHidden, toggleModuleHidden } from '../workspace/prefs.svelte'
   import { NAME_MAX, nameProblem } from '../workspace/workspace-name'
-  import { currentWorkspace, deleteWorkspace, duplicateWorkspace, renameWorkspace, resetWorkspaceSettings, workspaceId, workspaces } from '../workspace/workspace-sync.svelte'
+  import { currentWorkspace, deleteWorkspace, duplicateWorkspace, renameWorkspace, resetWorkspaceSettings, setCarplay, workspaceId, workspaces } from '../workspace/workspace-sync.svelte'
   import SegmentedControl from './segmented-control.svelte'
   import SettingRow from './setting-row.svelte'
   import SettingSection from './setting-section.svelte'
@@ -213,6 +213,9 @@
   <SettingSection title="06 · LAYOUT" delay={0.46}>
     <SettingRow title="Rails" note="Auto lays them along the top and bottom on a screen turned to portrait." wide>
       <SegmentedControl options={LAYOUT_MODES.map((id) => ({ id, label: LAYOUT_LABELS[id] }))} value={layout.mode} onPick={(m) => (layout.mode = m)} />
+    </SettingRow>
+    <SettingRow title="CarPlay" note="For the workspace opened in the car: starts the voice options in their car defaults (noise filter, Bluetooth warm-up). The car layout comes next.">
+      <SwitchToggle on={prefs.carplay} label="CarPlay" onToggle={() => setCarplay(!prefs.carplay)} />
     </SettingRow>
   </SettingSection>
 
