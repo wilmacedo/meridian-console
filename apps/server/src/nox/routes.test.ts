@@ -35,7 +35,7 @@ async function setup() {
   const screens = new ScreenRegistry()
   const messages = new VoiceMessages(dir)
   const app = Fastify()
-  const routes = registerNox(app, { nox, bus, screens, registry: { summaries: () => [] } as unknown as Registry, approvals: new Approvals(screens, bus), messages })
+  const routes = registerNox(app, { nox, bus, screens, registry: { summaries: () => [] } as unknown as Registry, approvals: new Approvals(screens, bus), messages, wakeDir: join(dir, 'wake') })
   await app.ready()
   const record = (capture: boolean) =>
     app.inject({ method: 'POST', url: `/api/voice/ask?workspace=default${capture ? '&capture=1' : ''}`, headers: { 'content-type': 'audio/webm' }, payload: Buffer.from('opus') })

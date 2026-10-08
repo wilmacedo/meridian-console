@@ -7,6 +7,7 @@ import { playbackDone, waitForPlayback } from '../voice/playback.js'
 import { TurnSpeaker } from '../voice/speaker.js'
 import { isSpeech, keytermsFor, transcribe } from '../voice/transcribe.js'
 import type { VoiceMessages } from '../voice/voice-messages.js'
+import { afterWakeWord, wakeConfig } from '../voice/wake-word.js'
 import { isSlowTool, pickAck } from './acknowledge.js'
 import { spokenAnswer, type Approvals } from './approvals.js'
 import { commandNote, type Nox } from './process.js'
@@ -40,6 +41,7 @@ interface Deps {
   registry: Registry
   approvals: Approvals
   messages: VoiceMessages
+  wakeDir: string
 }
 
 // What NOX is told in place of a transcript when the owner records the message it asked for. It has not heard
@@ -52,7 +54,7 @@ export const recordedMessageNote = (to: string, path: string): string =>
 // The entry points to NOX. Both answer as newline-delimited JSON events (text, tool, done, error); when
 // voice is configured and a screen is showing the workspace, the answer is also spoken there, sentence
 // by sentence, while it is still being written.
-export function registerNox(app: FastifyInstance, { nox, bus, screens, registry, approvals, messages }: Deps): { interrupt: () => void; announce: (text: string, workspace: string, screen?: string) => void } {
+export function registerNox(app: FastifyInstance, { nox, bus, screens, registry, approvals, messages, wakeDir }: Deps): { interrupt: () => void; announce: (text: string, workspace: string, screen?: string) => void } {
   // The turn whose answer is being written or spoken, for the owner to cut off.
   let active: { turn: number; speaker?: TurnSpeaker } | undefined
 
@@ -153,7 +155,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
   // A recording in: transcribed first, with the service names as hints, then answered like any other
   // request. The first line of the stream tells the caller what was heard.
   app.addContentTypeParser(/^audio\/.*/, { parseAs: 'buffer', bodyLimit: MAX_AUDIO_BYTES }, (_request, body, done) => done(null, body))
-  app.post<{ Querystring: { workspace?: string; screen?: string; noise?: string; capture?: string } }>('/api/voice/ask', async (request, reply) => {
+  app.post<{ Querystring: { workspace?: string; screen?: string; noise?: string; capture?: string; wake?: string } }>('/api/voice/ask', async (request, reply) => {
     const voice = voiceConfig()
     if (!voice) return reply.code(503).send({ error: 'voice is not configured (ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID)' })
     const audio = request.body as Buffer
@@ -180,10 +182,13 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
       return
     }
 
+    // A recording the wake word started begins with the word: the transcript has to have it, or the listener woke to
+    // something else. Checking costs nothing, since the recording is transcribed anyway.
+    const wake = request.query.wake === '1' ? wakeConfig(wakeDir) : undefined
     let heard: string
     try {
       const names = registry.summaries().flatMap((s) => [s.id, s.name])
-      const result = await transcribe(voice, audio, request.headers['content-type'] ?? 'audio/webm', keytermsFor(names))
+      const result = await transcribe(voice, audio, request.headers['content-type'] ?? 'audio/webm', keytermsFor([...names, ...(wake ? [wake.phrase] : [])]))
       // Only a screen that asks for it (the car) is strict: elsewhere anything with a word in it is answered.
       if (!isSpeech(result, request.query.noise === 'strict' ? 'strict' : 'normal')) return reply.code(422).send({ error: 'nothing heard' })
       heard = result.text
@@ -191,6 +196,14 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
       const message = err instanceof Error ? err.message : 'transcription failed'
       bus.emit('nox', 'error', `voice: ${message}`)
       return reply.code(502).send({ error: message })
+    }
+    if (wake) {
+      const asked = afterWakeWord(heard, wake.heard)
+      if (asked === undefined) {
+        bus.emit('nox', 'info', 'voice: woke without the wake word in the recording')
+        return reply.code(422).send({ error: 'no wake word' })
+      }
+      heard = asked
     }
     if (!heard) return reply.code(422).send({ error: 'nothing heard' })
     // The owner gave up while it was being transcribed: a request nobody is waiting for is not run.

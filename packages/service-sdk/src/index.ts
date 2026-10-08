@@ -105,6 +105,8 @@ export type StreamMessage =
   // NOX wants to do something that needs the owner's yes; the card stays until the matching approval_end.
   | { type: 'approval'; id: string; tool: string; detail: string }
   | { type: 'approval_end'; id: string }
+  // The answer to a `wake`: whether this screen is the one that answers the wake word every screen in earshot heard.
+  | { type: 'wake_verdict'; granted: boolean }
   // Sent for the workspace the client asked to watch, on connect and on every change.
   | { type: 'workspace'; id: string; version: number; state: unknown }
 
@@ -119,6 +121,8 @@ export type ClientMessage =
   | { type: 'interrupt' }
   // Stop one background task of the watched workspace, or all of them when no id is given.
   | { type: 'stop_tasks'; id?: string }
+  // The screen heard the wake word, this sure (0 to 1), and has started recording.
+  | { type: 'wake'; score: number }
 
 export interface WorkspaceSummary {
   id: string

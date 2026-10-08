@@ -8,6 +8,8 @@ import { McpServer, registerMcp } from './nox/mcp.js'
 import { Approvals, verdict } from './nox/approvals.js'
 import { Nox, noxHome } from './nox/process.js'
 import { registerNox } from './nox/routes.js'
+import { WakeArbiter } from './voice/wake-arbiter.js'
+import { registerWakeWord, wakeDir } from './voice/wake-word.js'
 import { Tasks } from './nox/tasks.js'
 import { buildTools } from './nox/tools.js'
 import { Anywh } from './nox/anywh.js'
@@ -44,7 +46,8 @@ registerWorkspaces(app, workspaces)
 const approvals = new Approvals(screens, bus)
 const tasks = new Tasks({ port, home: noxHome(), model: process.env.NOX_MODEL ?? 'sonnet', bus, screens })
 app.addHook('onClose', async () => tasks.stopAll())
-registerStream(app, { bus, registry, telemetry, workspaces, screens, approvals, tasks, onInterrupt: () => noxRoutes.interrupt() })
+registerStream(app, { bus, registry, telemetry, workspaces, screens, approvals, tasks, wake: new WakeArbiter(), onInterrupt: () => noxRoutes.interrupt() })
+registerWakeWord(app, wakeDir())
 // The latest version of a live document, for a screen that wasn't there when NOX composed it.
 app.get<{ Params: { id: string } }>('/api/docs/:id', async (request, reply) => screens.doc(request.params.id) ?? reply.code(404).send({ error: 'no such document' }))
 
@@ -72,7 +75,7 @@ const nox = new Nox(
   { port },
   { setTurn: (workspace, screen) => ((turnWorkspace = workspace), (turnScreen = screen)), log: (message) => app.log.info(message) },
 )
-const noxRoutes = registerNox(app, { nox, bus, screens, registry, approvals, messages })
+const noxRoutes = registerNox(app, { nox, bus, screens, registry, approvals, messages, wakeDir: wakeDir() })
 app.addHook('onClose', async () => nox.stop())
 
 if (await registerWebApp(app, defaultWebRoot())) app.log.info(`serving the web app from ${defaultWebRoot()}`)

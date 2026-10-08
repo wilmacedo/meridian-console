@@ -6,6 +6,7 @@ import type { Approvals } from './nox/approvals.js'
 import type { Tasks } from './nox/tasks.js'
 import type { ScreenRegistry } from './screens.js'
 import { playbackDone } from './voice/playback.js'
+import type { WakeArbiter } from './voice/wake-arbiter.js'
 import type { Registry } from './service-registry.js'
 import type { HostTelemetry } from './telemetry.js'
 import type { WorkspaceStore } from './workspace-store.js'
@@ -24,12 +25,13 @@ interface StreamSources {
   screens: ScreenRegistry
   approvals: Approvals
   tasks: Tasks
+  wake: WakeArbiter
   onInterrupt: () => void
 }
 
 // One WebSocket carries everything live: the snapshot on connect, then events, service status
 // changes and telemetry as they happen.
-export function registerStream(app: FastifyInstance, { bus, registry, telemetry, workspaces, screens, approvals, tasks, onInterrupt }: StreamSources): void {
+export function registerStream(app: FastifyInstance, { bus, registry, telemetry, workspaces, screens, approvals, tasks, wake, onInterrupt }: StreamSources): void {
   app.get('/api/stream', { websocket: true }, (socket) => {
     const send = (message: StreamMessage): void => {
       if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message))
@@ -65,6 +67,8 @@ export function registerStream(app: FastifyInstance, { bus, registry, telemetry,
           if (watching) for (const t of tasks.running(watching)) if (!message.id || message.id === t.id) tasks.stop(t.id)
         } else if (message.type === 'approval_answer') {
           approvals.answer(message.id, message.allow === true, 'tapped')
+        } else if (message.type === 'wake') {
+          wake.claim(Number(message.score) || 0, (granted) => send({ type: 'wake_verdict', granted }))
         }
       } catch {
         // Not a message we know; ignore it.
