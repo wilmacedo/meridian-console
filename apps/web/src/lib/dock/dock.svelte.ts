@@ -1,4 +1,5 @@
 import { kick } from '../agent/agent-state.svelte'
+import { prefs } from '../workspace/prefs.svelte'
 import { railSides } from './stage-insets'
 import { tele, type RailId, type WidgetDef } from './widgets'
 
@@ -108,6 +109,9 @@ export function requestPin(def: WidgetDef): void {
   if (existing) {
     scrollToWidget(existing)
     flashWidget(existing)
+  } else if (prefs.carplay) {
+    // There is no rail to drop a card on in the car: it becomes the last tile.
+    insertWidget(def, 'R', dock.rails.R.length)
   } else {
     dock.pending = def
   }

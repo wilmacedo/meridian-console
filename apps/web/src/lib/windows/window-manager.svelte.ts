@@ -1,6 +1,7 @@
 import { kick } from '../agent/agent-state.svelte'
 import { play } from '../sound/sfx.svelte'
 import type { ModuleId } from '../modules'
+import { prefs } from '../workspace/prefs.svelte'
 import { cascade, clampRect, snapMove, snapResize, tile, toFrac, toRect, type Frac, type Guide, type Rect, type ResizeMode, type Size } from './window-layout'
 
 // A module's window (its module id), the generated doc, or a service's own window ("<service>:<id>").
@@ -75,7 +76,11 @@ export function open(id: WindowId): void {
   kick(1)
   play('window-open')
   let ids = current.map((w) => w.id)
-  if (current.length >= MAX_WINDOWS) {
+  // In the car one window has the screen at a time.
+  if (prefs.carplay) {
+    current.forEach((w) => close(w.id))
+    ids = []
+  } else if (current.length >= MAX_WINDOWS) {
     const oldest = current.reduce((a, b) => (a.z < b.z ? a : b))
     close(oldest.id)
     ids = ids.filter((x) => x !== oldest.id)
