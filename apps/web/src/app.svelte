@@ -25,7 +25,9 @@
   import StateLabel from './lib/shell/state-label.svelte'
   import TaskCard from './lib/shell/task-card.svelte'
   import { sendToServer, startStream } from './lib/live/stream.svelte'
-  import { cancelListening, continueListening, haltIfBusy } from './lib/voice/microphone.svelte'
+  import { cancelListening, continueListening, haltIfBusy, micAvailable } from './lib/voice/microphone.svelte'
+  import { voicePrefs } from './lib/voice/voice-prefs.svelte'
+  import { loadWakeWord, syncWake, wake } from './lib/voice/wake-listener.svelte'
   import { retryPlayback, setPlaybackFinished, setPlaybackSpoken, unlockAudio } from './lib/voice/voice-player.svelte'
   import { runCommand } from './lib/workspace/commands'
   import { playBootFx } from './lib/workspace/switch-fx.svelte'
@@ -43,10 +45,13 @@
   }
 
   $effect(() => configureScale(prefs.uiScale, prefs.carplay))
+  // The wake word stays out of CarPlay mode for now (docs/carplay.md): there the microphone opens on a tap only.
+  $effect(() => syncWake(voicePrefs.wake && !prefs.carplay && !!wake.phrase && micAvailable()))
   $effect(() => applyTheme(document.documentElement, activeVariant(), darkVariant()))
 
   onMount(() => {
     const stopClock = startClock()
+    void loadWakeWord()
     finishBoot()
     setPlaybackFinished((turn) => sendToServer({ type: 'speech_done', turn }))
     setPlaybackSpoken(() => void continueListening())

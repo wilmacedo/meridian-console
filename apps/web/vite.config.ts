@@ -4,6 +4,8 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [svelte()],
+  // The wake word's worker loads the ONNX runtime, which an IIFE worker bundle cannot hold.
+  worker: { format: 'es' },
   server: {
     // Loopback only, for the same reason as the API: its proxy reaches NOX. Other devices come in through
     // `tailscale serve`, which connects from this machine.

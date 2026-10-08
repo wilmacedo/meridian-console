@@ -2,13 +2,16 @@ import { agent, kick } from '../agent/agent-state.svelte'
 import { cancelPending } from '../dock/dock.svelte'
 import { approvals } from '../agent/approval.svelte'
 import { workspaceId } from '../workspace/workspace-sync.svelte'
-import { live, screenId, sendToServer } from '../live/stream.svelte'
+import { live, onWakeVerdict, screenId, sendToServer } from '../live/stream.svelte'
 import { play } from '../sound/sfx.svelte'
+import { encodeClip } from './clip-encoder'
 import { deliver } from './deliver'
 import { createDetector } from './speech-detector'
 import { tuningFor } from './voice-prefs'
 import { applyAudioSession, voicePrefs } from './voice-prefs.svelte'
 import { audioContext, interruptPlayback, settleWarmup, startWarmup, stopWarmup } from './voice-player.svelte'
+import { setWakeScoreHandler, startCapture, takeCapture, wakeStream } from './wake-listener.svelte'
+import { createTrigger } from './wake-trigger'
 
 export const mic = $state({
   phase: 'idle' as 'idle' | 'recording' | 'sending',
@@ -41,6 +44,12 @@ const FOLLOW_UP_GRACE_MS = 10_000
 // moment to start.
 const MESSAGE_START_MS = 10_000
 const MESSAGE_PAUSE_MS = 3000
+// Right after the wake word fires its last syllable is still arriving; heard as speech, a pause after "NOX," would send
+// the word alone.
+const WAKE_SETTLE_MS = 300
+// How long a recording the wake word started waits, once it is over, for the server to say this screen is the one
+// that answers; a server that never says is taken as a yes.
+const GRANT_WAIT_MS = 1500
 const TICK_MS = 50
 // The voice band, which the level is read from when the noise filter is on: engine and road noise sit below it.
 const VOICE_BAND = { low: 300, high: 3400 }
@@ -48,7 +57,43 @@ const MIC_LEVEL_GAIN = 6
 
 const MIME_PREFERENCE = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
 
-let recorder: MediaRecorder | undefined
+// What a recording is made of: the browser's recorder, or the samples the wake word listener keeps, which reach back to
+// before the word was recognised.
+interface Take {
+  stop(): Promise<Blob | undefined>
+}
+
+function recorderTake(stream: MediaStream): Take {
+  const mimeType = MIME_PREFERENCE.find((m) => MediaRecorder.isTypeSupported(m))
+  const r = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+  const chunks: Blob[] = []
+  r.ondataavailable = (e) => chunks.push(e.data)
+  r.start()
+  return {
+    stop: () =>
+      new Promise((resolve) => {
+        const done = (): void => resolve(chunks.length ? new Blob(chunks, { type: r.mimeType }) : undefined)
+        if (r.state === 'inactive') return done()
+        r.onstop = done
+        r.stop()
+      }),
+  }
+}
+
+function wakeTake(): Take {
+  startCapture()
+  return {
+    stop: async () => {
+      const samples = takeCapture()
+      return samples?.length ? encodeClip(samples) : undefined
+    },
+  }
+}
+
+let take: Take | undefined
+// Set while a recording the wake word started waits to hear whether this screen answers or another one does.
+let wakeGrant: Promise<boolean> | undefined
+let grant: ((granted: boolean) => void) | undefined
 let stream: MediaStream | undefined
 let source: MediaStreamAudioSourceNode | undefined
 let timer: ReturnType<typeof setInterval> | undefined
@@ -60,7 +105,8 @@ let roomFloor = 0
 function release(): void {
   clearInterval(timer)
   source?.disconnect()
-  stream?.getTracks().forEach((t) => t.stop())
+  // The wake word listener's stream stays open: it goes on listening.
+  if (stream !== wakeStream()) stream?.getTracks().forEach((t) => t.stop())
   source = undefined
   stream = undefined
   agent.micLevel = 0
@@ -88,7 +134,7 @@ export const captureNextMessage = (): void => void (messageNext = true)
 // finished) must not start listening. Infinity while a request is in flight.
 let followUpUntil = 0
 
-async function ask(blob: Blob, message: boolean): Promise<void> {
+async function ask(blob: Blob, message: boolean, woken: boolean): Promise<void> {
   conversationEnded = false
   followUpUntil = Infinity
   mic.phase = 'sending'
@@ -98,7 +144,8 @@ async function ask(blob: Blob, message: boolean): Promise<void> {
   try {
     const strict = voicePrefs.noise === 'strict' ? '&noise=strict' : ''
     const capture = message ? '&capture=1' : ''
-    const url = `/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}${strict}${capture}`
+    const woke = woken ? '&wake=1' : ''
+    const url = `/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}${strict}${capture}${woke}`
     const init = { method: 'POST', headers: { 'Content-Type': blob.type.split(';')[0] }, body: blob, signal: controller.signal }
     const res = await (message ? deliver(url, init) : fetch(url, init))
     if (!res.ok || !res.body) {
@@ -134,33 +181,42 @@ function cutOff(): void {
 
 // Stops recording. `send` false throws the recording away.
 function finish(send: boolean, heardSpeech: boolean, message = false): void {
-  const r = recorder
-  recorder = undefined
+  const t = take
+  const granted = wakeGrant
+  take = undefined
+  wakeGrant = undefined
   release()
-  if (!r || r.state === 'inactive') return idle()
-  play(send && heardSpeech ? 'speech-end' : 'mic-off')
-  const chunks: Blob[] = []
-  r.ondataavailable = (e) => chunks.push(e.data)
-  r.onstop = () => (send && heardSpeech && chunks.length ? void ask(new Blob(chunks, { type: r.mimeType }), message) : idle())
-  r.stop()
+  if (!t) return idle()
+  const sending = send && heardSpeech
+  play(sending ? 'speech-end' : 'mic-off')
+  void t.stop().then(async (blob) => (sending && blob && (await (granted ?? true)) ? ask(blob, message, !!granted) : idle()))
 }
 
-async function begin(followUp = false): Promise<void> {
+// Another screen heard the wake word better and answers it: this one drops its recording without a sound.
+function dropWake(): void {
+  const t = take
+  take = undefined
+  wakeGrant = undefined
+  release()
+  void t?.stop()
+  idle()
+}
+
+async function begin({ followUp = false, woken = false } = {}): Promise<void> {
   mic.phase = 'recording'
-  // Used up by this recording, whatever becomes of it: the server forgets the request just as fast.
-  const message = messageNext
-  messageNext = false
+  // Used up by this recording, whatever becomes of it: the server forgets the request just as fast. A wake word
+  // starts something said to NOX, and leaves the message for the recording after it.
+  const message = !woken && messageNext
+  if (!woken) messageNext = false
   stopWarmup()
   applyAudioSession()
+  const shared = wakeStream()
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    stream = shared ?? (await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }))
   } catch {
     return idle()
   }
-  const mimeType = MIME_PREFERENCE.find((m) => MediaRecorder.isTypeSupported(m))
-  recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-  const chunks: Blob[] = []
-  recorder.ondataavailable = (e) => chunks.push(e.data)
+  take = woken ? wakeTake() : recorderTake(stream)
 
   const ctx = audioContext()
   const analyser = ctx.createAnalyser()
@@ -182,19 +238,22 @@ async function begin(followUp = false): Promise<void> {
   mic.halted = false
   mic.cancelled = false
   kick(1)
-  if (!followUp || message) play('mic-on')
-  recorder.start()
+  // A wake word's chime waits for the server to say this is the screen that answers.
+  if (!woken && (!followUp || message)) play('mic-on')
 
   const startedAt = performance.now()
+  const deafUntil = woken ? startedAt + WAKE_SETTLE_MS : 0
   const tuning = tuningFor(voicePrefs.noise)
   const detector = message
     ? createDetector({ ...tuning, silenceMs: Math.max(tuning.silenceMs, MESSAGE_PAUSE_MS), noiseEndMs: Math.max(tuning.noiseEndMs, MESSAGE_PAUSE_MS) }, startedAt, MESSAGE_START_MS, roomFloor)
-    : createDetector(tuning, startedAt, followUp ? FOLLOW_UP_MS : NO_SPEECH_MS, roomFloor)
+    : createDetector(tuning, startedAt, followUp || woken ? FOLLOW_UP_MS : NO_SPEECH_MS, roomFloor)
   timer = setInterval(() => {
     analyser.getFloatTimeDomainData(data)
     const level = Math.sqrt(data.reduce((sum, v) => sum + v * v, 0) / data.length)
     agent.micLevel = Math.min(1, level * MIC_LEVEL_GAIN)
-    const verdict = detector.push(level, performance.now())
+    const now = performance.now()
+    if (now < deafUntil) return
+    const verdict = detector.push(level, now)
     roomFloor = detector.floor
     if (verdict) finish(verdict === 'send', detector.heardSpeech, message)
   }, TICK_MS)
@@ -267,5 +326,38 @@ export async function continueListening(): Promise<void> {
     return
   }
   if (!micAvailable() || live.link === 'offline' || mic.phase === 'recording' || approvals.pending.length) return
-  await begin(true)
+  await begin({ followUp: true })
 }
+
+// The wake word: the same as a tap, said instead. Over NOX thinking or speaking it cuts the answer off and listens
+// (its background tasks go on: "para tudo" is something to say to it). Every screen in earshot asks the server, which
+// lets the one that heard it best answer.
+async function wakeUp(score: number): Promise<void> {
+  if (!micAvailable() || live.link === 'offline' || mic.phase === 'recording' || mic.halted || !wakeStream()) return
+  if (mic.phase === 'sending' || agent.mode === 'thinking' || agent.mode === 'speaking') {
+    followUpUntil = 0
+    cutOff()
+    interruptPlayback()
+  }
+  wakeGrant = new Promise((resolve) => (grant = resolve))
+  const mine = grant
+  setTimeout(() => grant === mine && answerWake(true), GRANT_WAIT_MS)
+  sendToServer({ type: 'wake', score })
+  await begin({ woken: true })
+}
+
+function answerWake(granted: boolean): void {
+  const resolve = grant
+  grant = undefined
+  if (!resolve) return
+  resolve(granted)
+  if (!take || !wakeGrant) return
+  if (granted) play('mic-on')
+  else dropWake()
+}
+
+const trigger = createTrigger()
+setWakeScoreHandler((score) => {
+  if (trigger.push(score, performance.now(), voicePrefs.wakeSensitivity, agent.mode === 'speaking')) void wakeUp(score)
+})
+onWakeVerdict(answerWake)

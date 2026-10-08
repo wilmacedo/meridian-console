@@ -7,6 +7,8 @@
   import { UI_SCALES, type UiScaleSetting } from '../workspace/ui-scale'
   import { TAIL_MAX, TAIL_MIN, TAIL_STEP, type AudioSession, type NoiseLevel } from '../voice/voice-prefs'
   import { voicePrefs } from '../voice/voice-prefs.svelte'
+  import { wake } from '../voice/wake-listener.svelte'
+  import type { WakeSensitivity } from '../voice/wake-trigger'
   import { close } from '../windows/window-manager.svelte'
   import { layout } from '../workspace/layout.svelte'
   import { LAYOUT_MODES, type LayoutMode } from '../workspace/layout-mode'
@@ -44,6 +46,16 @@
     normal: 'Learns the room, ignores bangs and steady noise, ends on a pause.',
     strict: 'Also drops one-word and low-confidence recordings.',
   }
+  const SENSITIVITIES: { id: WakeSensitivity; label: string }[] = [
+    { id: 'low', label: 'LOW' },
+    { id: 'normal', label: 'NORMAL' },
+    { id: 'high', label: 'HIGH' },
+  ]
+  const SENSITIVITY_NOTES: Record<WakeSensitivity, string> = {
+    low: 'Wakes only on a clear call: fewer false wakes, more repeats.',
+    normal: 'Balanced.',
+    high: 'Wakes more easily, from further away or in a noisier room, and by mistake more often.',
+  }
   const SCALE_OPTIONS: { id: string; label: string }[] = [{ id: 'auto', label: 'AUTO' }, ...UI_SCALES.map((s) => ({ id: String(s), label: `${s}×` }))]
   const pickScale = (id: string): void => void (prefs.uiScale = (id === 'auto' ? 'auto' : Number(id)) as UiScaleSetting)
   const DELETE_CONFIRM_MS = 3000
@@ -55,6 +67,14 @@
     theme.mode === 'auto' ? 'Auto follows daylight · light 07–18h, dark after.' : theme.mode === 'light' && locked ? `${PALETTE_LABELS[theme.palette].toUpperCase()} has no light variant — staying dark.` : `Fixed ${theme.mode} mode for this workspace.`,
   )
   const modules = $derived(orderedModules())
+  const wakeLocked = $derived(prefs.carplay || !wake.phrase)
+  const wakeNote = $derived(
+    prefs.carplay
+      ? 'Not in CarPlay mode yet: tap the core to talk.'
+      : !wake.phrase
+        ? 'No wake word model on the server.'
+        : `Say "${wake.phrase}" and your request in one go. The microphone stays on while this page is on screen; nothing leaves the device before the wake word.`,
+  )
 
   let draft = $state('')
   let refused = $state<string | undefined>()
@@ -226,6 +246,14 @@
   </SettingSection>
 
   <SettingSection title="07 · VOICE" delay={0.52}>
+    <SettingRow title="Wake word" note={wakeNote}>
+      <SwitchToggle on={voicePrefs.wake && !wakeLocked} locked={wakeLocked} label="Wake word" onToggle={() => (voicePrefs.wake = !voicePrefs.wake)} />
+    </SettingRow>
+    {#if voicePrefs.wake && !wakeLocked}
+      <SettingRow title="Wake sensitivity" note={SENSITIVITY_NOTES[voicePrefs.wakeSensitivity]} wide>
+        <SegmentedControl options={SENSITIVITIES} value={voicePrefs.wakeSensitivity} onPick={(v) => (voicePrefs.wakeSensitivity = v)} />
+      </SettingRow>
+    {/if}
     <SettingRow title="Noise filter" note={NOISE_NOTES[voicePrefs.noise]} wide>
       <SegmentedControl options={NOISE_LEVELS} value={voicePrefs.noise} onPick={(n) => (voicePrefs.noise = n)} />
     </SettingRow>

@@ -14,8 +14,14 @@ describe('voice prefs', () => {
   })
 
   it('drop values that are no longer valid', () => {
-    const stored = { noise: 'loud', warmup: 'yes', tailMs: 'long', audioSession: 'speaker' }
+    const stored = { noise: 'loud', warmup: 'yes', tailMs: 'long', audioSession: 'speaker', wake: 'on', wakeSensitivity: 'max' }
     expect(sanitizeVoice(stored, false)).toEqual(defaultVoicePrefs(false))
+  })
+
+  it('leave the wake word off until the owner turns it on', () => {
+    expect(defaultVoicePrefs(false)).toMatchObject({ wake: false, wakeSensitivity: 'normal' })
+    expect(defaultVoicePrefs(true)).toMatchObject({ wake: false })
+    expect(sanitizeVoice({ wake: true, wakeSensitivity: 'high' }, false)).toMatchObject({ wake: true, wakeSensitivity: 'high' })
   })
 
   it('keep the tail inside the slider', () => {

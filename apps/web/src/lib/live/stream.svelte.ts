@@ -83,6 +83,11 @@ export const screenId = `${Date.now().toString(36)}-${Math.random().toString(36)
 
 let current: WebSocket | undefined
 
+// The microphone registers here (it imports this module, so this one cannot import it).
+let wakeVerdict: ((granted: boolean) => void) | undefined
+
+export const onWakeVerdict = (fn: (granted: boolean) => void): void => void (wakeVerdict = fn)
+
 export function sendToServer(message: ClientMessage): void {
   if (current?.readyState === WebSocket.OPEN) current.send(JSON.stringify(message))
 }
@@ -128,6 +133,7 @@ export function startStream(workspaceId: string, { onWorkspace, onCommand }: Han
       else if (message.type === 'speech_end') endSpeech(message.turn)
       else if (message.type === 'approval') showApproval({ id: message.id, tool: message.tool, detail: message.detail })
       else if (message.type === 'approval_end') hideApproval(message.id)
+      else if (message.type === 'wake_verdict') wakeVerdict?.(message.granted)
       else apply(message)
     }
     const mine = socket

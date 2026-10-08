@@ -1,4 +1,5 @@
 import { DEFAULT_TUNING, type Tuning } from './speech-detector'
+import type { WakeSensitivity } from './wake-trigger'
 
 // How the voice behaves in a workspace. A workspace in CarPlay mode starts with the noise filter and the Bluetooth
 // warm-up on, because it is the one opened in a car: a noisy cabin, and a link that drops the start and the end of
@@ -17,6 +18,9 @@ export interface VoicePrefs {
   tailMs: number
   // Fixes the system audio session instead of letting it follow the microphone; needs navigator.audioSession.
   audioSession: AudioSession
+  // Listen for the wake word while the page is on screen. Never in CarPlay mode, whatever this says.
+  wake: boolean
+  wakeSensitivity: WakeSensitivity
 }
 
 export const TAIL_MIN = 0
@@ -25,9 +29,12 @@ export const TAIL_STEP = 100
 
 const NOISE: readonly NoiseLevel[] = ['off', 'normal', 'strict']
 const SESSIONS: readonly AudioSession[] = ['auto', 'playback', 'play-and-record']
+const SENSITIVITIES: readonly WakeSensitivity[] = ['low', 'normal', 'high']
 
 export const defaultVoicePrefs = (carplay: boolean): VoicePrefs =>
-  carplay ? { noise: 'normal', warmup: true, tailMs: 500, audioSession: 'auto' } : { noise: 'off', warmup: false, tailMs: 500, audioSession: 'auto' }
+  carplay
+    ? { noise: 'normal', warmup: true, tailMs: 500, audioSession: 'auto', wake: false, wakeSensitivity: 'normal' }
+    : { noise: 'off', warmup: false, tailMs: 500, audioSession: 'auto', wake: false, wakeSensitivity: 'normal' }
 
 // Switching CarPlay mode moves the voice options to the new mode's defaults, but only the ones the owner never
 // touched: if they differ from the old mode's defaults, they are theirs and stay.
@@ -46,6 +53,8 @@ export function sanitizeVoice(stored: unknown, carplay: boolean): VoicePrefs {
     warmup: typeof s.warmup === 'boolean' ? s.warmup : base.warmup,
     tailMs: typeof s.tailMs === 'number' && Number.isFinite(s.tailMs) ? Math.min(TAIL_MAX, Math.max(TAIL_MIN, Math.round(s.tailMs / TAIL_STEP) * TAIL_STEP)) : base.tailMs,
     audioSession: SESSIONS.includes(s.audioSession as AudioSession) ? (s.audioSession as AudioSession) : base.audioSession,
+    wake: typeof s.wake === 'boolean' ? s.wake : base.wake,
+    wakeSensitivity: SENSITIVITIES.includes(s.wakeSensitivity as WakeSensitivity) ? (s.wakeSensitivity as WakeSensitivity) : base.wakeSensitivity,
   }
 }
 
