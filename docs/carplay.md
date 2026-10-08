@@ -8,6 +8,10 @@ are saved with the workspace, so they come back as they were; switching the mode
 changed. The defaults are in `voice-prefs.ts`. The mode also brings the car layout (tiles, a bar of large buttons, the
 core as the talk button), described in [`design-handoff.md`](design-handoff.md#v12-addition-carplay-layout).
 
+The wake word is off in CarPlay mode, whatever Settings → Voice says: the microphone opens on a tap only. An
+always-open microphone keeps the phone's Bluetooth in its call profile, and how that plays with the warm-up, the tail
+and the cabin noise has to be tried in the car before it is allowed here.
+
 ## Everywhere
 
 The transcription (`apps/server/src/voice/transcribe.ts`) no longer tags sounds. Scribe used to return

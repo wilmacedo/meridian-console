@@ -438,6 +438,26 @@ freezing the server process. Cards on screen are cleared when the link drops.
   `capture=1` that nobody awaits any more is dropped with a 409, never transcribed. The screen retries a
   message whose upload the network dropped (three tries; not one the owner cut off), and plays the
   "unavailable" sound when it could not be delivered.
+- **Wake word** (Settings → Voice, per workspace, off by default; never in CarPlay mode, see
+  [`carplay.md`](carplay.md)): while the page is on screen the microphone stays open and
+  `wake-listener.svelte.ts` feeds it, through an AudioWorklet that brings it to 16 kHz
+  (`wake-capture-worklet.ts`), to a worker running openWakeWord's three ONNX models with
+  `onnxruntime-web` (`wake-worker.ts`, `wake-pipeline.ts`, a port of the reference's streaming features). An energy
+  gate (`wake-gate.ts`) runs the models only on chunks that stand out from the room, and two scores in a row above
+  the threshold (higher while NOX speaks) wake it (`wake-trigger.ts`). Nothing leaves the device until then. The
+  recording starts at once, from about 2 s of audio kept in memory, so the owner says the word and the request in
+  one go; it ends like a tap's (the detector ignores the first 300 ms, the tail of the word), is encoded to Ogg Opus
+  with WebCodecs (`clip-encoder.ts`, `ogg-opus.ts`; WAV without WebCodecs) and posted with `wake=1`. The server
+  answers it only if the transcript has the wake word near the start, and passes on what follows it
+  (`voice/wake-word.ts`); a transcript without it, or with nothing after it, is dropped. Every screen in earshot
+  sends `wake` on the socket; the server lets the one with the best score answer (`wake_verdict`,
+  `voice/wake-arbiter.ts`) and the others drop their recording without a sound. Over NOX thinking or speaking the
+  wake word cuts it off like a tap, but leaves the background tasks running. The models live on the host, in
+  `$MERIDIAN_WAKE_DIR` (default `$MERIDIAN_DATA_DIR/wake/`): `melspectrogram.onnx`, `embedding_model.onnx`,
+  `wake.onnx` (the word's classifier) and `wake.json` (`{"phrase": "Ei NOX", "heard": ["ei nox", "nox"]}`, the
+  phrase shown in the settings and how the transcript may write it). Without them the setting is locked. They are
+  not in the repository: openWakeWord's ready-made models are not licensed for redistribution, and the word's own
+  model is trained for this owner.
 - **Audio autoplay:** browsers play audio only after a gesture, so the first click or key on the page
   unlocks the audio context; speech that arrives earlier waits for it.
 - **Cost:** TTS bills per character; every spoken turn logs `voice: N of LIMIT characters used this period`
@@ -494,7 +514,7 @@ point voice will use.
   ids and commands in their original form, and TTS pronunciation checked for those terms. UI labels stay
   in English, as designed.
 - Interaction: push-to-talk first (mic button), VAD for end of utterance, barge-in next,
-  wake word ("NOX") last.
+  wake word ("NOX") last; the wake word runs in the browser, so no audio is streamed anywhere to listen for it.
 - **HTTPS on the LAN is a hard requirement**: browsers expose the microphone only in a secure context
   (`localhost` counts, `http://10.0.0.x` does not), so a local CA (Caddy) or a Tailscale certificate is
   needed.
