@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# post-commit / post-merge: a change on main starts a deploy, detached so git returns at once.
+[ "$(git symbolic-ref --short -q HEAD)" = main ] || exit 0
+script="$(dirname "$(readlink -f "$0")")/../deploy-prod.sh"
+systemd-run --user --collect --quiet --unit="meridian-deploy-$(date +%s)" "$script"

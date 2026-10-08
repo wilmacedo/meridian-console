@@ -32,6 +32,7 @@ Read [`docs/conventions.md`](docs/conventions.md) for the full detail behind the
 - `apps/server` — backend. `pnpm dev:server` from the repo root.
 - `services/<id>` — one folder per service, auto-discovered; the core never names a service.
 - `pnpm typecheck` covers every package, including each service.
+- Prod runs 24/7 from a separate worktree and redeploys itself on every commit to `main` ([`docs/deploy.md`](docs/deploy.md)). It owns port 4000: a dev or test server must use its own (`PORT=4100 pnpm dev:server`, `MERIDIAN_API_PORT=4100 pnpm dev:web`), never stop or restart prod by hand, and commits to `main` go live, so commit there only finished work.
 - The new design is the source of truth and the code adapts to it, never the reverse. Nothing of the
   previous design (its tokens, screens, components) is reused.
 - `design/nix/` holds the reference prototype (`NIX v6.dc.html` is the one that counts; earlier
