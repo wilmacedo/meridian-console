@@ -27,4 +27,5 @@ for (const [path, module] of Object.entries(modules)) {
 export const moduleContributions = (module: string): ContributedWindow[] => windows.filter((w) => w.module === module)
 export const contributedWindow = (windowId: string): ContributedWindow | undefined => windows.find((w) => w.windowId === windowId && !w.module)
 export const windowsOf = (serviceId: string): ContributedWindow[] => windows.filter((w) => w.serviceId === serviceId && !w.module)
+export const contributedWidgets = (): readonly ContributedWidget[] => widgets
 export const contributedWidget = (type: string): ContributedWidget | undefined => widgets.find((w) => w.type === type)

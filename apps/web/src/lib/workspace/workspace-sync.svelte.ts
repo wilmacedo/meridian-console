@@ -13,6 +13,8 @@ import type { LayoutMode } from './layout-mode'
 import { clampStrands, sanitizeModuleOrder, STRANDS_DEFAULT } from './module-order'
 import { CAR_WORKSPACE, defaultVoicePrefs, followCarplay, sanitizeVoice, type VoicePrefs } from '../voice/voice-prefs'
 import { voicePrefs } from '../voice/voice-prefs.svelte'
+import { contributedWidgets } from '../services/service-ui'
+import { carSeed, CAR_STRANDS, isDefaultDock } from './car-seed'
 import { prefs } from './prefs.svelte'
 import { finishSwitchFx, sleep, startSwitchFx, switchFx } from './switch-fx.svelte'
 import { workspaceCode } from './workspace-card'
@@ -55,6 +57,20 @@ export function snapshot(): WorkspaceState {
   }
 }
 
+// Docks the tiles a workspace in CarPlay mode is made for, if nobody has arranged its dock yet.
+function seedCar(): boolean {
+  const { rails, widgets } = snapshotDock()
+  if (!isDefaultDock(rails, widgets)) return false
+  const seed = carSeed(contributedWidgets().filter((w) => w.tile))
+  restoreDock(seed.rails, seed.widgets)
+  theme.mode = 'dark'
+  prefs.strands = CAR_STRANDS
+  return true
+}
+
+// Set when restoring changed what the server holds, so it is written back instead of taken as already known.
+let seeded = false
+
 // Missing parts of a stored state (a fresh workspace has none) fall back to the defaults.
 function restore(state: WorkspaceState): void {
   theme.mode = state.theme?.mode ?? 'auto'
@@ -71,6 +87,8 @@ function restore(state: WorkspaceState): void {
   prefs.moduleOrder = sanitizeModuleOrder(state.moduleOrder)
   prefs.carplay = state.carplay ?? id === CAR_WORKSPACE
   Object.assign(voicePrefs, sanitizeVoice(state.voice, prefs.carplay))
+  // A workspace in CarPlay mode that never saved the option (the carplay one before it existed, or a new one).
+  seeded = prefs.carplay && state.carplay === undefined && seedCar()
 }
 
 // The address decides the workspace: ?workspace=<id>, and the default one when it names none. Nothing is
@@ -92,7 +110,7 @@ let again = false
 
 function adopt(workspace: { version: number; state: unknown }): void {
   restore(workspace.state as WorkspaceState)
-  known = JSON.stringify(snapshot())
+  known = seeded ? '' : JSON.stringify(snapshot())
   version = workspace.version
 }
 
@@ -269,6 +287,7 @@ export function resetWorkspaceSettings(): void {
 export function setCarplay(on: boolean): void {
   Object.assign(voicePrefs, followCarplay({ ...voicePrefs }, prefs.carplay, on))
   prefs.carplay = on
+  if (on) seedCar()
 }
 
 // Watches every part of the workspace and sends it to the server whenever it changes.
