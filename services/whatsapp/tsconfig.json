@@ -1,0 +1,4 @@
+{
+  "extends": "../../packages/service-sdk/tsconfig.service.json",
+  "include": ["server", "web"]
+}
