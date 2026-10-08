@@ -12,7 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@meridian/service-sdk": "workspace:*"
+    "@meridian/service-sdk": "workspace:*",
+    "onnxruntime-web": "1.30.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
