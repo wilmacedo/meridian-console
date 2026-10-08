@@ -970,3 +970,47 @@ Touch adaptations (larger hit areas on handles and window buttons, pressed state
 hover, double-tap to maximise, audio unlock on first tap), runtime quality tiers for weak
 screens, and the Echo Show / Android tablet targets. The data model already avoids anything that
 would block them (fractional geometry, feature-detected voice, isolated effects).
+
+## v12 addition: CarPlay layout
+
+A workspace with the CarPlay option on (Settings → Layout; the workspace with id `carplay` starts with it on) shows
+a touch-first layout made for a phone running Meridian in a car. The prototype is `NIX v12.dc.html` (`cpL`, `cpTile`
+and the bar markup); the code is in `apps/web/src/lib/shell/car-*`. The option also starts the voice options in
+their car defaults, see [`carplay.md`](carplay.md).
+
+### Shell
+
+No header, no floating rails, no bottom dock, no separate mic button. The core on the left, a column of tiles on
+the right, a bar along the bottom. All sizes come from `car-layout.ts` (a port of `cpL`):
+
+- **Bar:** 12 px from the left, right and bottom edges; 64 px tall under 560 px of screen height, else 76 px. A
+  square workspace button (diamond and the workspace code, opens the workspace list above it), the dock modules as
+  large buttons (the core is HOME; the active one has a filled pill and an underline), and a square settings button.
+- **Tiles:** from the top-right corner down to 24 px above the bar. One column 240-380 px wide (36% of the width);
+  two columns up to 680 px on a screen wider than 2.1 times its height and 1100 px, with 4 tiles or more. Rows
+  share the height, at least 100 px (84 px on a low screen, where the tiles are tighter), and scroll if they do not
+  fit. Tiles are hidden while a window is open, and fade and blur while a workspace switch plays.
+- **Core:** centred in what the tiles leave, radius a quarter of the smaller side of that zone (56 px at least). A
+  dashed ring 2.5 radii wide is the talk button; its colour follows the state (listening: accent, stoppable or
+  halted: warning, otherwise faint). The hint under it says what a tap does: `TAP TO TALK`, `00:07 · TAP TO SEND`,
+  `SENDING · TAP TO STOP`, `TAP TO STOP NOX`, `NOX HALTED`, `BOOTING`. The state label sits above it, centred in the
+  same zone, and the task card compact above the bar.
+- **Windows:** one at a time, over the whole stage above the bar; opening one closes the others.
+- **Pins:** there is no rail to drop a card on, so a pin becomes the last tile at once.
+
+### Tiles
+
+A card with a kicker and a status dot, a big value with a unit, a sub line and an optional thin bar; a tap opens the
+window it stands for. Built-in widgets: telemetry (CPU, memory and temperature, red above 70 °C), services (online
+of total, degraded before offline), events (alerts and the latest message), documents (title). A service describes
+its own through `ServiceWidget.tile` (a `watch` to start what feeds it and a `read` that returns a `WidgetTile`)
+and says what a tap opens with `opens`; without it the tile shows the widget's title and kicker. Calendar:
+`NOW` / `NEXT · 15:00`, the title, time left or how far off, a progress bar for the current event in its calendar's
+colour. Feeder: the last feeding and the hopper (the design shows the next one; the device's schedule is not
+decoded yet).
+
+### Starting state
+
+Turning the option on, or opening a workspace in CarPlay mode that never saved it, docks the tiles services offer
+(left rail) plus services and telemetry (right rail), sets the dark theme and 24 strands, only when the dock was
+never arranged (empty, or just the telemetry widget a new workspace has).
