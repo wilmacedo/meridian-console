@@ -3,9 +3,12 @@ import { mkdirSync } from 'node:fs'
 import type { Emit } from '@meridian/service-sdk/server'
 import { BridgeClient } from './bridge-client.js'
 import { BridgeProcess } from './bridge-process.js'
-import { readConfig } from './config.js'
+import { readConfig, type WhatsappConfig } from './config.js'
+import { SendLimiter } from './send-policy.js'
 
 interface Runtime {
+  config: WhatsappConfig
+  limiter: SendLimiter
   client: BridgeClient
   process: BridgeProcess
 }
@@ -23,6 +26,8 @@ export function getRuntime(emit?: Emit): Runtime {
   const token = randomBytes(32).toString('hex')
   const addr = `127.0.0.1:${config.port}`
   runtime = {
+    config,
+    limiter: new SendLimiter(),
     client: new BridgeClient(`http://${addr}`, token),
     process: new BridgeProcess({ bin: config.bridgeBin, dataDir: config.dataDir, addr, token }, (level, message) => emitter?.(level, message)),
   }
@@ -33,3 +38,6 @@ export function stopRuntime(): void {
   runtime?.process.stop()
   runtime = undefined
 }
+
+// One line in the event stream per send; never the text.
+export const audit = (message: string): void => emitter?.('info', `whatsapp: ${message}`)
