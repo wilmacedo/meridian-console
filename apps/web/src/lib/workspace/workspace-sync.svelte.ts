@@ -11,6 +11,8 @@ import { restoreWindows, snapshotWindows, type PersistedWindow } from '../window
 import { layout } from './layout.svelte'
 import type { LayoutMode } from './layout-mode'
 import { clampStrands, sanitizeModuleOrder, STRANDS_DEFAULT } from './module-order'
+import { defaultVoicePrefs, sanitizeVoice, type VoicePrefs } from '../voice/voice-prefs'
+import { voicePrefs } from '../voice/voice-prefs.svelte'
 import { prefs } from './prefs.svelte'
 import { finishSwitchFx, sleep, startSwitchFx, switchFx } from './switch-fx.svelte'
 import { workspaceCode } from './workspace-card'
@@ -31,6 +33,7 @@ interface WorkspaceState {
   grid?: boolean
   strands?: number
   moduleOrder?: ModuleId[]
+  voice?: VoicePrefs
 }
 
 // What is on screen right now, which the stored copy trails by the write debounce.
@@ -46,6 +49,7 @@ export function snapshot(): WorkspaceState {
     grid: prefs.grid,
     strands: prefs.strands,
     moduleOrder: [...prefs.moduleOrder],
+    voice: { ...voicePrefs },
   }
 }
 
@@ -63,6 +67,7 @@ function restore(state: WorkspaceState): void {
   prefs.grid = state.grid ?? true
   prefs.strands = clampStrands(state.strands ?? STRANDS_DEFAULT)
   prefs.moduleOrder = sanitizeModuleOrder(state.moduleOrder)
+  Object.assign(voicePrefs, sanitizeVoice(state.voice, id))
 }
 
 // The address decides the workspace: ?workspace=<id>, and the default one when it names none. Nothing is
@@ -253,6 +258,7 @@ export function resetWorkspaceSettings(): void {
   prefs.grid = true
   prefs.strands = STRANDS_DEFAULT
   prefs.moduleOrder = sanitizeModuleOrder(undefined)
+  Object.assign(voicePrefs, defaultVoicePrefs(id))
   layout.mode = 'auto'
 }
 

@@ -4,6 +4,8 @@
   import { setSound, sound } from '../sound/sfx.svelte'
   import { PALETTES, PALETTE_LABELS, type PaletteId, type ThemeMode } from '../theme/palettes'
   import { hasLightVariant, theme } from '../theme/theme.svelte'
+  import { TAIL_MAX, TAIL_MIN, TAIL_STEP, type AudioSession, type NoiseLevel } from '../voice/voice-prefs'
+  import { voicePrefs } from '../voice/voice-prefs.svelte'
   import { close } from '../windows/window-manager.svelte'
   import { layout } from '../workspace/layout.svelte'
   import { LAYOUT_MODES, type LayoutMode } from '../workspace/layout-mode'
@@ -26,6 +28,21 @@
     { id: 'high', label: 'HIGH' },
     { id: 'low', label: 'LOW' },
   ]
+  const NOISE_LEVELS: { id: NoiseLevel; label: string }[] = [
+    { id: 'off', label: 'OFF' },
+    { id: 'normal', label: 'NORMAL' },
+    { id: 'strict', label: 'STRICT' },
+  ]
+  const AUDIO_SESSIONS: { id: AudioSession; label: string }[] = [
+    { id: 'auto', label: 'AUTO' },
+    { id: 'playback', label: 'PLAYBACK' },
+    { id: 'play-and-record', label: 'CALL' },
+  ]
+  const NOISE_NOTES: Record<NoiseLevel, string> = {
+    off: 'Any sound above a fixed level counts as speech.',
+    normal: 'Learns the room, ignores bangs and steady noise, ends on a pause.',
+    strict: 'Also drops one-word and low-confidence recordings.',
+  }
   const DELETE_CONFIRM_MS = 3000
 
   const name = $derived(currentWorkspace()?.name ?? '')
@@ -199,7 +216,25 @@
     </SettingRow>
   </SettingSection>
 
-  <SettingSection title="07 · DEVICE" delay={0.52}>
+  <SettingSection title="07 · VOICE" delay={0.52}>
+    <SettingRow title="Noise filter" note={NOISE_NOTES[voicePrefs.noise]} wide>
+      <SegmentedControl options={NOISE_LEVELS} value={voicePrefs.noise} onPick={(n) => (voicePrefs.noise = n)} />
+    </SettingRow>
+    <SettingRow title="Bluetooth warm-up" note="Keeps the link open while NOX thinks, so its first word is not lost.">
+      <SwitchToggle on={voicePrefs.warmup} label="Bluetooth warm-up" onToggle={() => (voicePrefs.warmup = !voicePrefs.warmup)} />
+    </SettingRow>
+    <SettingRow title="Tail" note="Silence after NOX's last word, before the microphone reopens." wide>
+      <div class="slider">
+        <input type="range" min={TAIL_MIN} max={TAIL_MAX} step={TAIL_STEP} value={voicePrefs.tailMs} oninput={(e) => (voicePrefs.tailMs = Number(e.currentTarget.value))} />
+        <span class="ms">{voicePrefs.tailMs}</span>
+      </div>
+    </SettingRow>
+    <SettingRow title="Audio session" note="Fixes how the system routes audio instead of following the microphone. Safari only." wide>
+      <SegmentedControl options={AUDIO_SESSIONS} value={voicePrefs.audioSession} onPick={(s) => (voicePrefs.audioSession = s)} />
+    </SettingRow>
+  </SettingSection>
+
+  <SettingSection title="08 · DEVICE" delay={0.58}>
     <div class="scope device"><span class="tag">SCOPE</span><span class="where">This device only, not the workspace</span></div>
     <SettingRow title="Orb quality" note="Low draws half the strands, drops the wide glow and renders at 1x." wide>
       <SegmentedControl options={QUALITIES} value={orbQuality.value} onPick={setOrbQuality} />
@@ -433,6 +468,9 @@
     text-align: right;
     font: 400 12px/1 var(--font-mono);
     color: rgb(var(--nx-fg));
+  }
+  .slider .ms {
+    width: 40px;
   }
   .name {
     width: 100%;

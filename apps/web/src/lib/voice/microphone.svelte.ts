@@ -4,8 +4,9 @@ import { approvals } from '../agent/approval.svelte'
 import { workspaceId } from '../workspace/workspace-sync.svelte'
 import { live, screenId, sendToServer } from '../live/stream.svelte'
 import { play } from '../sound/sfx.svelte'
-import { applyAudioSession, isCarMode, noiseLevel, tuning } from './car-mode'
 import { createDetector } from './speech-detector'
+import { tuningFor } from './voice-prefs'
+import { applyAudioSession, voicePrefs } from './voice-prefs.svelte'
 import { audioContext, interruptPlayback, settleWarmup, startWarmup, stopWarmup } from './voice-player.svelte'
 
 export const mic = $state({
@@ -28,7 +29,7 @@ const NO_SPEECH_MS = 7000
 // After NOX has spoken the mic reopens by itself; this is how long it waits for the owner to carry on.
 const FOLLOW_UP_MS = 5000
 const TICK_MS = 50
-// The voice band, which the level is read from in the car: engine and road noise sit below it.
+// The voice band, which the level is read from when the noise filter is on: engine and road noise sit below it.
 const VOICE_BAND = { low: 300, high: 3400 }
 const MIC_LEVEL_GAIN = 6
 
@@ -72,7 +73,7 @@ async function ask(blob: Blob): Promise<void> {
   startWarmup()
   const controller = (asking = new AbortController())
   try {
-    const strict = noiseLevel() === 'strict' ? '&noise=strict' : ''
+    const strict = voicePrefs.noise === 'strict' ? '&noise=strict' : ''
     const res = await fetch(`/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}${strict}`, {
       method: 'POST',
       headers: { 'Content-Type': blob.type.split(';')[0] },
@@ -135,7 +136,7 @@ async function begin(followUp = false): Promise<void> {
   const analyser = ctx.createAnalyser()
   analyser.fftSize = 1024
   source = ctx.createMediaStreamSource(stream)
-  if (isCarMode()) {
+  if (voicePrefs.noise !== 'off') {
     const highpass = ctx.createBiquadFilter()
     highpass.type = 'highpass'
     highpass.frequency.value = VOICE_BAND.low
@@ -153,7 +154,7 @@ async function begin(followUp = false): Promise<void> {
   recorder.start()
 
   const startedAt = performance.now()
-  const detector = createDetector(tuning(), startedAt, followUp ? FOLLOW_UP_MS : NO_SPEECH_MS, roomFloor)
+  const detector = createDetector(tuningFor(voicePrefs.noise), startedAt, followUp ? FOLLOW_UP_MS : NO_SPEECH_MS, roomFloor)
   timer = setInterval(() => {
     analyser.getFloatTimeDomainData(data)
     const level = Math.sqrt(data.reduce((sum, v) => sum + v * v, 0) / data.length)

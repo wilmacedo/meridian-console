@@ -1,5 +1,5 @@
 import { agent } from '../agent/agent-state.svelte'
-import { applyAudioSession, tailMs, warmupWanted } from './car-mode'
+import { applyAudioSession, voicePrefs } from './voice-prefs.svelte'
 
 // Plays NOX's speech: the server sends each sentence as an mp3, in order, and the player decodes and
 // chains them. The level of what is actually playing drives the orb (agent.amplitude).
@@ -65,7 +65,7 @@ let warmup: AudioBufferSourceNode | undefined
 let warmupFailsafe: ReturnType<typeof setTimeout> | undefined
 
 export function startWarmup(): void {
-  if (!warmupWanted() || warmup) return
+  if (!voicePrefs.warmup || warmup) return
   unlockAudio()
   applyAudioSession()
   const buffer = ctx!.createBuffer(1, ctx!.sampleRate, ctx!.sampleRate)
@@ -101,7 +101,7 @@ function finishIfDone(): void {
   setTimeout(() => {
     stopWarmup()
     onSpoken?.()
-  }, tailMs(ctx!.outputLatency ?? 0))
+  }, voicePrefs.tailMs + (ctx!.outputLatency ?? 0) * 1000)
 }
 
 async function playNext(): Promise<void> {
