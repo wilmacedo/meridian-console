@@ -59,7 +59,8 @@ export interface NoxConfig {
 // The owner's other machines, reached over ssh with their existing config and keys, and only when asked.
 export const SSH_HOSTS = ['mac-lan', 'win-lan']
 
-const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url))
+// Prod runs from a throwaway worktree (deploy/); NOX works on the development checkout instead.
+const REPO_ROOT = process.env.MERIDIAN_REPO_ROOT ?? fileURLToPath(new URL('../../../../', import.meta.url))
 
 // Where things are on the machine NOX runs on, so it does not have to hunt for its own project.
 export function machineFacts(home: string): string {
