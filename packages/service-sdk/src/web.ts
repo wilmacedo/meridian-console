@@ -19,12 +19,36 @@ export interface ServiceWindow {
   component: Contribution
 }
 
+export type WidgetTone = 'ok' | 'warn' | 'bad'
+
+// What a widget shows as one tile of the car layout: a glanceable summary instead of its card.
+export interface WidgetTile {
+  // Short, shown in capitals above the value ("NEXT FEED").
+  kicker: string
+  value: string
+  // Prefer `text` for a title or a sentence; `number` is larger.
+  valueSize?: 'number' | 'text'
+  unit?: string
+  sub?: string
+  // The dot beside the kicker; `ok` when absent.
+  tone?: WidgetTone
+  // The sub line takes the tone's colour instead of the muted one.
+  subTone?: 'dim' | WidgetTone
+  // A thin bar under the sub line, 0 to 100.
+  bar?: { value: number; tone?: WidgetTone }
+}
+
 export interface ServiceWidget {
   // Stable, so a workspace can persist the widget and recreate it.
   type: string
   title: string
   kicker: string
   component: Contribution
+  // The summary the car layout shows for this widget. Read while rendering, so it follows the service's own
+  // reactive state. Without it the tile shows the widget's title and kicker.
+  tile?: () => WidgetTile
+  // The window a tap on the tile opens: a dock module id or one of the service's windows.
+  opens?: string
 }
 
 export interface WebService {
