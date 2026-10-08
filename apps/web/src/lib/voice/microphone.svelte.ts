@@ -4,7 +4,9 @@ import { approvals } from '../agent/approval.svelte'
 import { workspaceId } from '../workspace/workspace-sync.svelte'
 import { live, screenId, sendToServer } from '../live/stream.svelte'
 import { play } from '../sound/sfx.svelte'
-import { audioContext, interruptPlayback } from './voice-player.svelte'
+import { applyAudioSession, isCarMode, noiseLevel, tuning } from './car-mode'
+import { createDetector } from './speech-detector'
+import { audioContext, interruptPlayback, settleWarmup, startWarmup, stopWarmup } from './voice-player.svelte'
 
 export const mic = $state({
   phase: 'idle' as 'idle' | 'recording' | 'sending',
@@ -22,14 +24,12 @@ let haltedTimer: ReturnType<typeof setTimeout> | undefined
 export const micAvailable = (): boolean => isSecureContext && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined'
 
 // Tuning for the end-of-utterance detector.
-const SPEECH_LEVEL = 0.02
-const SILENCE_MS = 1000
 const NO_SPEECH_MS = 7000
 // After NOX has spoken the mic reopens by itself; this is how long it waits for the owner to carry on.
 const FOLLOW_UP_MS = 5000
-// Only a guard for a noisy room that never goes quiet; a recording this long is still far below the server's 10 MB limit.
-const MAX_MS = 10 * 60_000
 const TICK_MS = 50
+// The voice band, which the level is read from in the car: engine and road noise sit below it.
+const VOICE_BAND = { low: 300, high: 3400 }
 const MIC_LEVEL_GAIN = 6
 
 const MIME_PREFERENCE = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
@@ -40,6 +40,8 @@ let source: MediaStreamAudioSourceNode | undefined
 let timer: ReturnType<typeof setInterval> | undefined
 // Set while recording: the tap that stops it early.
 let stopEarly: (() => void) | undefined
+// What the last recording measured of the room's noise, so the next one can tell a quick reply from that noise.
+let roomFloor = 0
 
 function release(): void {
   clearInterval(timer)
@@ -67,15 +69,20 @@ async function ask(blob: Blob): Promise<void> {
   conversationEnded = false
   mic.phase = 'sending'
   agent.mode = 'thinking'
+  startWarmup()
   const controller = (asking = new AbortController())
   try {
-    const res = await fetch(`/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}`, {
+    const strict = noiseLevel() === 'strict' ? '&noise=strict' : ''
+    const res = await fetch(`/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}${strict}`, {
       method: 'POST',
       headers: { 'Content-Type': blob.type.split(';')[0] },
       body: blob,
       signal: controller.signal,
     })
-    if (!res.ok || !res.body) return idle()
+    if (!res.ok || !res.body) {
+      stopWarmup()
+      return idle()
+    }
     // The answer is spoken and acted on by the server; the stream just has to run to its end.
     for await (const _chunk of res.body) void _chunk
     // The reply may already have been spoken, and the mic reopened for the follow-up.
@@ -83,8 +90,10 @@ async function ask(blob: Blob): Promise<void> {
   } catch {
     // Cut off by the owner, who is already starting to talk: not ours to reset.
     if (!controller.signal.aborted) idle()
+    stopWarmup()
   } finally {
     if (asking === controller) asking = undefined
+    settleWarmup()
   }
 }
 
@@ -110,6 +119,8 @@ function finish(send: boolean, heardSpeech: boolean): void {
 
 async function begin(followUp = false): Promise<void> {
   mic.phase = 'recording'
+  stopWarmup()
+  applyAudioSession()
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
   } catch {
@@ -124,7 +135,15 @@ async function begin(followUp = false): Promise<void> {
   const analyser = ctx.createAnalyser()
   analyser.fftSize = 1024
   source = ctx.createMediaStreamSource(stream)
-  source.connect(analyser)
+  if (isCarMode()) {
+    const highpass = ctx.createBiquadFilter()
+    highpass.type = 'highpass'
+    highpass.frequency.value = VOICE_BAND.low
+    const lowpass = ctx.createBiquadFilter()
+    lowpass.type = 'lowpass'
+    lowpass.frequency.value = VOICE_BAND.high
+    source.connect(highpass).connect(lowpass).connect(analyser)
+  } else source.connect(analyser)
   const data = new Float32Array(analyser.fftSize)
 
   agent.mode = 'listening'
@@ -134,22 +153,16 @@ async function begin(followUp = false): Promise<void> {
   recorder.start()
 
   const startedAt = performance.now()
-  let heardSpeech = false
-  let lastSpeechAt = startedAt
+  const detector = createDetector(tuning(), startedAt, followUp ? FOLLOW_UP_MS : NO_SPEECH_MS, roomFloor)
   timer = setInterval(() => {
     analyser.getFloatTimeDomainData(data)
     const level = Math.sqrt(data.reduce((sum, v) => sum + v * v, 0) / data.length)
     agent.micLevel = Math.min(1, level * MIC_LEVEL_GAIN)
-    const now = performance.now()
-    if (level > SPEECH_LEVEL) {
-      heardSpeech = true
-      lastSpeechAt = now
-    }
-    if (heardSpeech && now - lastSpeechAt > SILENCE_MS) finish(true, heardSpeech)
-    else if (!heardSpeech && now - startedAt > (followUp ? FOLLOW_UP_MS : NO_SPEECH_MS)) finish(false, false)
-    else if (now - startedAt > MAX_MS) finish(true, heardSpeech)
+    const verdict = detector.push(level, performance.now())
+    roomFloor = detector.floor
+    if (verdict) finish(verdict === 'send', detector.heardSpeech)
   }, TICK_MS)
-  stopEarly = () => finish(true, heardSpeech)
+  stopEarly = () => finish(true, detector.heardSpeech)
 }
 
 // NOX has something running that the owner can stop: a turn in flight, its voice, a background task or a pin.

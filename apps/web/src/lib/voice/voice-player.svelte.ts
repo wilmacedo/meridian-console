@@ -1,4 +1,5 @@
 import { agent } from '../agent/agent-state.svelte'
+import { applyAudioSession, tailMs, warmupWanted } from './car-mode'
 
 // Plays NOX's speech: the server sends each sentence as an mp3, in order, and the player decodes and
 // chains them. The level of what is actually playing drives the orb (agent.amplitude).
@@ -56,11 +57,51 @@ function stop(): void {
   agent.amplitude = 0
 }
 
+// A Bluetooth link opens only once it hears audio, and loses the start of what comes first. While NOX thinks, and
+// for a moment after its last word, a hiss far below what can be heard keeps the link open.
+const WARMUP_GAIN = 0.0005
+const WARMUP_FAILSAFE_MS = 60_000
+let warmup: AudioBufferSourceNode | undefined
+let warmupFailsafe: ReturnType<typeof setTimeout> | undefined
+
+export function startWarmup(): void {
+  if (!warmupWanted() || warmup) return
+  unlockAudio()
+  applyAudioSession()
+  const buffer = ctx!.createBuffer(1, ctx!.sampleRate, ctx!.sampleRate)
+  const samples = buffer.getChannelData(0)
+  for (let i = 0; i < samples.length; i++) samples[i] = (Math.random() * 2 - 1) * WARMUP_GAIN
+  warmup = ctx!.createBufferSource()
+  warmup.buffer = buffer
+  warmup.loop = true
+  warmup.connect(ctx!.destination)
+  warmup.start()
+  warmupFailsafe = setTimeout(stopWarmup, WARMUP_FAILSAFE_MS)
+}
+
+export function stopWarmup(): void {
+  clearTimeout(warmupFailsafe)
+  warmup?.stop()
+  warmup = undefined
+}
+
+// The turn produced no speech to wait for: drop the warm-up unless something is about to play.
+export function settleWarmup(): void {
+  setTimeout(() => {
+    if (!playing && decoding === 0 && ready.size === 0) stopWarmup()
+  }, 3000)
+}
+
 function finishIfDone(): void {
   if (!ended || playing || decoding > 0 || ready.size > 0) return
   stop()
   onFinished?.(turn)
-  onSpoken?.()
+  if (!warmup) return onSpoken?.()
+  // `onended` fires when the audio is handed to the output, not when it has been heard.
+  setTimeout(() => {
+    stopWarmup()
+    onSpoken?.()
+  }, tailMs(ctx!.outputLatency ?? 0))
 }
 
 async function playNext(): Promise<void> {
@@ -102,6 +143,7 @@ export const audioContext = (): AudioContext => {
 
 // The owner starts talking while NOX is still speaking: cut it off, and let the server know it can stop waiting.
 export function interruptPlayback(): void {
+  stopWarmup()
   if (turn < 0 || turn === interrupted) return
   interrupted = turn
   stop()
