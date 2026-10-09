@@ -175,6 +175,8 @@ export function registerNox(
           out.write(`${JSON.stringify(event)}\n`)
         }
         if (switching && ownerTurn) {
+          // What NOX said here is spoken as a sentence of its own, not run into the next answer's first one.
+          speaker?.flush()
           leg = { text: ownerTurn.text, to: switching }
           ownerTurn.moved = true
           switching = undefined
