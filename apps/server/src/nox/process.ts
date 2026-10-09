@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
+import { ago, Conversations } from './conversations.js'
 import { PERSONA } from './persona.js'
 
 export type NoxEvent = { type: 'text'; text: string } | { type: 'tool'; name: string } | { type: 'command'; command: string } | { type: 'done' } | { type: 'error'; message: string }
@@ -140,28 +141,9 @@ export const spawnClaude: SpawnClaude = (args, cwd) => {
 // Where NOX lives: its notes, and the working directory of its processes.
 export const noxHome = (override?: string): string => override ?? process.env.NOX_HOME ?? join(homedir(), '.meridian', 'nox')
 
-// Which conversation NOX continues. A conversation outlives a restart, but not a change in what NOX is:
-// it would keep believing its own old answers ("my Bash only reaches the Mac") over a new prompt that says
-// otherwise. So the fingerprint of the persona, tools and settings is stored with the session, and a
-// different one starts a fresh conversation.
+// What NOX is: its persona, tools and settings. A conversation remembers the one it was had with.
 export function fingerprintOf(c: Omit<NoxConfig, 'sessionId' | 'resume'>): string {
   return createHash('sha256').update(JSON.stringify(buildArgs({ ...c, sessionId: '-', resume: false }))).digest('hex').slice(0, 16)
-}
-
-export function chooseSession(home: string, fingerprint: string): { sessionId: string; resume: boolean } {
-  const read = (name: string): string | undefined => {
-    try {
-      return readFileSync(join(home, name), 'utf8').trim() || undefined
-    } catch {
-      return undefined
-    }
-  }
-  const stored = read('session-id')
-  if (stored && read('prompt-hash') === fingerprint) return { sessionId: stored, resume: true }
-  const sessionId = randomUUID()
-  writeFileSync(join(home, 'session-id'), sessionId)
-  writeFileSync(join(home, 'prompt-hash'), fingerprint)
-  return { sessionId, resume: false }
 }
 
 // The owner's notes for NOX: machines, house rules. Empty when there are none.
@@ -181,10 +163,29 @@ interface Hooks {
   log: (message: string) => void
 }
 
-// The single global NOX session: one long-lived headless Claude Code process (starting one costs
-// seconds, a turn on a warm one about a second), resumed across restarts, answering one request at a time.
+// Where a turn goes before it is written: a fresh conversation, or back to an earlier one.
+export type Switch = { to: 'new'; title: string } | { to: 'resume'; id: string }
+
+// A running Claude Code process and the session it holds.
+interface Live {
+  process: ClaudeProcess
+  sessionId: string
+  fingerprint: string
+  // A new session is listed only once it has a first message, under this title or that message.
+  title?: string
+  listed: boolean
+  // Put before the first message it is sent.
+  note?: string
+}
+
+// NOX: one long-lived headless Claude Code process per conversation (starting one costs seconds, a turn on a
+// warm one about a second), answering one request at a time. A conversation is one subject; NOX decides when
+// the owner has moved on to another, and a spare process with an empty session waits so that starting the new
+// one costs nothing. The current conversation is resumed across restarts.
 export class Nox {
-  private child: ClaudeProcess | undefined
+  readonly conversations: Conversations
+  private live: Live | undefined
+  private spare: Live | undefined
   private listener: ((event: NoxEvent) => void) | undefined
   private tail: Promise<unknown> = Promise.resolve()
   // Set while an interrupted turn winds down: Claude Code reports it as an error, which is not one.
@@ -193,15 +194,17 @@ export class Nox {
   constructor(
     private options: { home?: string; model?: string; port: number; spawn?: SpawnClaude },
     private hooks: Hooks,
-  ) {}
+  ) {
+    mkdirSync(this.home, { recursive: true })
+    this.conversations = new Conversations(this.home)
+  }
 
   private get home(): string {
     return noxHome(this.options.home)
   }
 
-  private config(): NoxConfig {
-    mkdirSync(this.home, { recursive: true })
-    const base = {
+  private base(): Omit<NoxConfig, 'sessionId' | 'resume'> {
+    return {
       home: this.home,
       facts: machineFacts(this.home),
       model: this.options.model ?? process.env.NOX_MODEL ?? 'sonnet',
@@ -209,37 +212,89 @@ export class Nox {
       gateUrl: `http://127.0.0.1:${this.options.port}/mcp/gate`,
       notes: readNotes(this.home),
     }
-    return { ...base, ...chooseSession(this.home, fingerprintOf(base)) }
   }
 
-  private spawnProcess(): ClaudeProcess {
-    const config = this.config()
-    const child = (this.options.spawn ?? spawnClaude)(buildArgs(config), config.home)
+  private open(base: Omit<NoxConfig, 'sessionId' | 'resume'>, fingerprint: string, sessionId: string, resume: boolean): Live {
+    const child = (this.options.spawn ?? spawnClaude)(buildArgs({ ...base, sessionId, resume }), base.home)
+    const live: Live = { process: child, sessionId, fingerprint, listed: resume }
     let stderr = ''
     child.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
+    // Only the process of the current conversation speaks: a spare is silent, and one left behind is gone.
     createInterface({ input: child.stdout }).on('line', (line) => {
       const event = interpret(line)
-      if (event) this.listener?.(event)
+      if (event && this.live === live) this.listener?.(event)
     })
     child.onClose((code) => {
       this.hooks.log(`NOX process exited (${code})`)
-      if (this.child === child) this.child = undefined
-      // A session that can't be resumed (deleted history) starts over next time.
-      if (config.resume && /No conversation found/i.test(stderr)) rmSync(join(config.home, 'session-id'), { force: true })
+      // A session that can't be resumed (deleted history) is gone for good.
+      if (resume && /No conversation found/i.test(stderr)) this.conversations.forget(sessionId)
+      if (this.spare === live) this.spare = undefined
+      if (this.live !== live) return
+      this.live = undefined
       this.listener?.({ type: 'error', message: stderr.trim().split('\n').at(-1) || `the NOX process exited (${code})` })
     })
-    return child
+    return live
   }
 
-  // Answers one request, streaming what NOX says. Requests are served one at a time.
-  async *say(text: string, workspace: string, screen?: string): AsyncGenerator<NoxEvent> {
+  // The spare, unless what NOX is has changed since it started.
+  private fresh(base: Omit<NoxConfig, 'sessionId' | 'resume'>, fingerprint: string): Live {
+    const spare = this.spare
+    this.spare = undefined
+    if (spare?.fingerprint === fingerprint) return spare
+    spare?.process.kill()
+    return this.open(base, fingerprint, randomUUID(), false)
+  }
+
+  // A conversation outlives a restart, but not a change in what NOX is: it would keep believing its own old
+  // answers ("my Bash only reaches the Mac") over a new prompt that says otherwise. Going back to one on
+  // purpose is allowed, with a word that the instructions have changed.
+  private current(base: Omit<NoxConfig, 'sessionId' | 'resume'>, fingerprint: string): Live {
+    if (this.live) return this.live
+    const c = this.conversations.current()
+    if (c?.fingerprint === fingerprint) return (this.live = this.open(base, fingerprint, c.id, true))
+    if (c) this.conversations.leave()
+    return (this.live = this.fresh(base, fingerprint))
+  }
+
+  private switchTo(to: Switch, base: Omit<NoxConfig, 'sessionId' | 'resume'>, fingerprint: string): void {
+    const c = to.to === 'resume' ? this.conversations.get(to.id) : undefined
+    if (to.to === 'resume' && !c) throw new Error(`no conversation "${to.id}"`)
+    const old = this.live
+    this.live = undefined
+    old?.process.kill()
+    if (!c) {
+      this.live = this.fresh(base, fingerprint)
+      this.live.title = to.to === 'new' ? to.title : undefined
+      return
+    }
+    const notes = [`[Back in this conversation; the owner last spoke in it ${ago(Date.now() - c.lastUsed)}.]`]
+    if (c.fingerprint !== fingerprint) notes.push('[Your instructions have changed since then: follow the current ones over anything said or done here before.]')
+    this.live = this.open(base, fingerprint, c.id, true)
+    this.live.note = notes.join(' ')
+    this.conversations.enter(c.id, fingerprint)
+  }
+
+  // Answers one request, streaming what NOX says. Requests are served one at a time. `owner` marks the owner
+  // speaking (not NOX woken by something it waited for); `to` moves to another conversation first.
+  async *say(text: string, workspace: string, screen?: string, options: { owner?: boolean; to?: Switch } = {}): AsyncGenerator<NoxEvent> {
     const previous = this.tail
     let release!: () => void
     this.tail = new Promise<void>((resolve) => (release = resolve))
     await previous
     try {
       this.hooks.setTurn(workspace, screen)
-      const child = (this.child ??= this.spawnProcess())
+      const base = this.base()
+      const fingerprint = fingerprintOf(base)
+      if (options.to) this.switchTo(options.to, base, fingerprint)
+      const live = this.current(base, fingerprint)
+      if (!this.spare) this.spare = this.open(base, fingerprint, randomUUID(), false)
+      if (!live.listed) {
+        this.conversations.begin(live.sessionId, live.title ?? text.replace(/^\[[^\]]*\]\s*/, ''), fingerprint)
+        live.listed = true
+      }
+      if (options.owner) this.conversations.touch(live.sessionId)
+      const message = live.note ? `${live.note}\n\n${text}` : text
+      live.note = undefined
 
       const pending: NoxEvent[] = []
       let wake: (() => void) | undefined
@@ -250,10 +305,10 @@ export class Nox {
       }
       const timer = setTimeout(() => {
         this.listener?.({ type: 'error', message: 'NOX took too long to answer' })
-        child.kill()
+        live.process.kill()
       }, TURN_TIMEOUT_MS)
 
-      child.stdin.write(`${JSON.stringify({ type: 'user', message: { role: 'user', content: text } })}\n`)
+      live.process.stdin.write(`${JSON.stringify({ type: 'user', message: { role: 'user', content: message } })}\n`)
 
       try {
         for (;;) {
@@ -273,13 +328,14 @@ export class Nox {
 
   // Cuts the turn that is running short, without restarting the process. Nothing happens between turns.
   interrupt(): void {
-    if (!this.child || !this.listener) return
+    if (!this.live || !this.listener) return
     this.interrupted = true
-    this.child.stdin.write(`${JSON.stringify({ type: 'control_request', request_id: randomUUID(), request: { subtype: 'interrupt' } })}\n`)
+    this.live.process.stdin.write(`${JSON.stringify({ type: 'control_request', request_id: randomUUID(), request: { subtype: 'interrupt' } })}\n`)
   }
 
   stop(): void {
-    this.child?.kill()
+    this.live?.process.kill()
+    this.spare?.process.kill()
   }
 }
 
