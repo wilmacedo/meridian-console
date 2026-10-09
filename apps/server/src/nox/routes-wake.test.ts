@@ -39,6 +39,7 @@ async function setup(transcript: string) {
       yield { type: 'done' }
     },
     interrupt: () => undefined,
+    conversations: { current: () => undefined },
   } as unknown as Nox
   const bus = new EventBus()
   const screens = new ScreenRegistry()

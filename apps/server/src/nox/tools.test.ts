@@ -56,15 +56,24 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
     },
   } as unknown as Registry
   const existingContainers = ['baixa-baixa-1']
+  const moves: unknown[][] = []
+  const kvm = { id: 'c1', title: 'KVM', started: 0, lastUsed: Date.now() - 3 * 3_600_000, fingerprint: 'f' }
+  const conversations = {
+    start: (title: string) => void moves.push(['start', title]),
+    offer: (title: string) => void moves.push(['offer', title]),
+    resume: (id: string) => void moves.push(['resume', id]),
+    list: () => [kvm, { ...kvm, id: 'c0', title: 'Maria', lastUsed: Date.now() - 2 * 86_400_000 }],
+    current: () => kvm,
+  }
   const telemetry = { samples: () => [{ cpu: 23.4, mem: 4.2, temp: 55, net: 0 }], containers: () => [], memTotalGb: 15.3 } as unknown as HostTelemetry
-  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const, startedAt: 0, steps: [] }), stop: (id: string) => id === 't1', list: () => [], report: () => undefined }, anywh, messages: { arm: (...a: unknown[]) => void armed.push(a), remove: async (path: string) => void removed.push(path) }, announce: (...a: unknown[]) => void announced.push(a), containers: async () => existingContainers.map((name) => ({ name, image: 'img', state: 'running', status: 'Up', ports: [] })), docker: { inspect: async (name: string) => (existingContainers.includes(name) ? { state: 'running', startedAt: '', image: 'img' } : undefined) }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default', currentScreen: () => 'tab-a' })
+  const tools = buildTools({ bus, registry, telemetry, workspaces, screens, tasks: { start: (...a: unknown[]) => (started.push(a), { id: 't1', title: String(a[1]), workspace: String(a[0]), state: 'running' as const, startedAt: 0, steps: [] }), stop: (id: string) => id === 't1', list: () => [], report: () => undefined }, anywh, messages: { arm: (...a: unknown[]) => void armed.push(a), remove: async (path: string) => void removed.push(path) }, announce: (...a: unknown[]) => void announced.push(a), conversations: () => conversations, containers: async () => existingContainers.map((name) => ({ name, image: 'img', state: 'running', status: 'Up', ports: [] })), docker: { inspect: async (name: string) => (existingContainers.includes(name) ? { state: 'running', startedAt: '', image: 'img' } : undefined) }, approvals: { ask: async (...a: unknown[]) => (asked.push(a), confirm) }, hostName: () => 'box', currentWorkspace: () => 'default', currentScreen: () => 'tab-a' })
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const tool = tools.find((t) => t.name === name)
     if (!tool) throw new Error(`no tool ${name}`)
     return tool.handler(args)
   }
   const commands = () => sent.filter((m) => m.type === 'command').map((m) => (m as { command: unknown }).command)
-  return { call, commands, bus, ran, ranWith, runResult, tools, asked, started, managedSpecs, others, sentToAnywh, endpointCalls, announced, armed, removed, resolveReply, rejectReply }
+  return { call, commands, bus, ran, ranWith, runResult, tools, asked, started, managedSpecs, others, sentToAnywh, endpointCalls, announced, armed, removed, moves, resolveReply, rejectReply }
 }
 
 describe('NOX tools', () => {
@@ -211,6 +220,18 @@ describe('NOX tools', () => {
     expect(others.filter((m) => m.type === 'command')).toEqual([])
     expect(armed).toEqual([['default', 'Maria']])
     await expect(call('record_voice_message', {})).rejects.toThrow('to is required')
+  })
+
+  it('moves to a new conversation, offers one, or goes back to an earlier one, by title and id', async () => {
+    const { call, moves } = setup()
+    expect(await call('new_conversation', { title: 'Mac mini' })).toContain('Say nothing else')
+    await call('offer_new_conversation', { title: 'Tickets' })
+    await call('resume_conversation', { id: 'c0' })
+    expect(moves).toEqual([['start', 'Mac mini'], ['offer', 'Tickets'], ['resume', 'c0']])
+    expect(JSON.parse(await call('list_conversations'))).toEqual([
+      { id: 'c1', title: 'KVM', lastSpoke: '3 hours ago', current: true },
+      { id: 'c0', title: 'Maria', lastSpoke: '2 days ago', current: false },
+    ])
   })
 
   it('does not wait for a message when no screen can record it', async () => {
@@ -364,6 +385,8 @@ describe('NOX tools', () => {
       expect(String(announced[0][0])).toContain('[anywhere update]')
       expect(String(announced[0][0])).toContain('"new"')
       expect(String(announced[0][0])).toContain('All 12 tests pass.')
+      // It may wake NOX in another conversation, so it says where it came from and what was asked.
+      expect(String(announced[0][0])).toContain('You had sent it, from the conversation "KVM": "run the tests".')
       expect(announced[0].slice(1)).toEqual(['default', 'tab-a'])
     })
 

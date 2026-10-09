@@ -13,6 +13,16 @@ import { validateDoc } from './doc-validation.js'
 import type { McpTool } from './mcp.js'
 import type { AnywhApi } from './anywh.js'
 import type { VoiceMessages } from '../voice/voice-messages.js'
+import { ago, type Conversation } from './conversations.js'
+
+// NOX's conversations, one per subject: moving to a new one or back to an earlier one once the turn ends.
+export interface ConversationControl {
+  start: (title: string) => void
+  offer: (title: string) => void
+  resume: (id: string) => void
+  list: () => Conversation[]
+  current: () => Conversation | undefined
+}
 
 interface ToolDeps {
   bus: EventBus
@@ -26,6 +36,7 @@ interface ToolDeps {
   docker: Pick<DockerApi, 'inspect'>
   anywh: AnywhApi
   messages: Pick<VoiceMessages, 'arm' | 'remove'>
+  conversations: () => ConversationControl
   // Starts a turn of NOX on its own, outside any request of the owner.
   announce: (text: string, workspace: string, screen?: string) => void
   hostName: () => string
@@ -48,6 +59,7 @@ const DEFAULT_ANYWH_TURNS = 10
 const MAX_ANYWH_TURNS = 50
 const ANYWH_SESSIONS_SHOWN = 20
 const MAX_ANYWH_REPLY_CHARS = 6000
+const MAX_ANYWH_SENT_CHARS = 300
 
 const workspaceProperty = { type: 'string', description: 'Workspace id. Defaults to the workspace of the screen you are answering.' }
 const windowProperty = {
@@ -133,6 +145,46 @@ export function buildTools(d: ToolDeps): McpTool[] {
       description: 'Ends the conversation: after you finish speaking the microphone stays closed instead of reopening. Call it when the owner\'s last words close the matter and expect no answer ("certo, deixa como está", "valeu", "é só isso").',
       inputSchema: { type: 'object', properties: { workspace: workspaceProperty } },
       handler: (a) => command(a, { name: 'end_conversation' }, 'ended the conversation'),
+    },
+    {
+      name: 'new_conversation',
+      description:
+        'Starts a new conversation because what the owner just said is clearly a different subject from this conversation. Call it first, and say nothing else and call no other tool: once this turn ends, the owner\'s words are given to you again in a fresh conversation, where you answer them.',
+      inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string', description: 'A few words naming the new subject, in the owner\'s language.' } } },
+      handler: (a) => {
+        d.conversations().start(text(a, 'title') || 'Sem título')
+        return 'The new conversation starts when this turn ends. Say nothing else.'
+      },
+    },
+    {
+      name: 'offer_new_conversation',
+      description:
+        'Asks the owner whether to start a new conversation, when what they just said seems to be a different subject but you are not sure. Then ask it in one short sentence ("Isso é diferente do que a gente estava falando, quer começar uma conversa nova?") and do nothing else. If they say yes, the new conversation starts with what they had asked; if they say no, you get a message starting with [The owner wants to stay in this conversation.] and answer what they had asked here.',
+      inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string', description: 'A few words naming the new subject, in the owner\'s language.' } } },
+      handler: (a) => {
+        d.conversations().offer(text(a, 'title') || 'Sem título')
+        return 'Now ask the owner, in one short sentence, and end your turn.'
+      },
+    },
+    {
+      name: 'list_conversations',
+      description: 'Lists your conversations, one per subject, newest first: id, title, when the owner last spoke in it, and which one you are in.',
+      inputSchema: { type: 'object', properties: {} },
+      handler: () => {
+        const c = d.conversations()
+        const current = c.current()?.id
+        return JSON.stringify(c.list().map((x) => ({ id: x.id, title: x.title, lastSpoke: ago(Date.now() - x.lastUsed), current: x.id === current })))
+      },
+    },
+    {
+      name: 'resume_conversation',
+      description:
+        'Goes back to an earlier conversation when the owner asks to return to a subject ("volta no assunto do KVM"); find its id with list_conversations. Say at most one short sentence ("Voltando ao assunto do KVM") and call no other tool: once this turn ends, the owner\'s words are given to you again in that conversation, with everything it remembers.',
+      inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'string', description: 'The conversation id from list_conversations.' } } },
+      handler: (a) => {
+        d.conversations().resume(text(a, 'id') ?? '')
+        return 'You go back to that conversation when this turn ends.'
+      },
     },
     {
       name: 'record_voice_message',
@@ -450,13 +502,16 @@ export function buildTools(d: ToolDeps): McpTool[] {
         if (a.destructive === true && !(await d.approvals.ask(d.currentWorkspace(), 'anywh message', { command: `${profile}: ${message}` }))) throw new Error('The owner did not confirm this, so it was not sent.')
         const workspace = d.currentWorkspace()
         const screen = d.currentScreen()
+        // The update may arrive in another conversation, which knows nothing of this one.
+        const from = d.conversations().current()?.title
+        const sent = `You had sent it${from ? `, from the conversation "${from}"` : ''}: "${cut(message, MAX_ANYWH_SENT_CHARS)}".`
         const { session, reply } = await d.anywh.send(profile, message, { session: text(a, 'session'), cwd: text(a, 'cwd') })
         d.bus.emit('nox', 'info', `sent a message to anywh ${profile}/${session}`)
         // The agent works on its own; when its turn ends NOX is woken with what it said, to tell the owner.
         const title = async (): Promise<string> => (await d.anywh.sessions(profile).catch(() => [])).find((x) => x.id === session)?.title.slice(0, 80) || 'a new conversation'
         reply.then(
-          async (r) => d.announce(`[anywhere update] The agent in profile "${profile}" (session ${session}, "${await title()}") ${r.stopped ? 'was stopped' : r.failed ? 'failed' : 'finished'}. What it wrote last:\n\n${cut(r.text || '(nothing)', MAX_ANYWH_REPLY_CHARS)}`, workspace, screen),
-          (err) => d.announce(`[anywhere update] I lost track of the agent in profile "${profile}" (session ${session}): ${err instanceof Error ? err.message : 'unknown error'}.`, workspace, screen),
+          async (r) => d.announce(`[anywhere update] The agent in profile "${profile}" (session ${session}, "${await title()}") ${r.stopped ? 'was stopped' : r.failed ? 'failed' : 'finished'}. ${sent} What it wrote last:\n\n${cut(r.text || '(nothing)', MAX_ANYWH_REPLY_CHARS)}`, workspace, screen),
+          (err) => d.announce(`[anywhere update] I lost track of the agent in profile "${profile}" (session ${session}): ${err instanceof Error ? err.message : 'unknown error'}. ${sent}`, workspace, screen),
         )
         return `Sent to session ${session}. You will be told when the agent finishes; do not wait for it.`
       },

@@ -30,6 +30,12 @@ export class VoiceMessages {
     return armed && armed.until > this.now() ? armed.to : undefined
   }
 
+  // Whether the workspace's next recording is a message, without using it up.
+  waiting(workspace: string): boolean {
+    const armed = this.armed.get(workspace)
+    return armed !== undefined && armed.until > this.now()
+  }
+
   disarm(): void {
     this.armed.clear()
   }

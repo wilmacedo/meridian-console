@@ -56,7 +56,7 @@ app.get<{ Params: { id: string } }>('/api/docs/:id', async (request, reply) => s
 let turnWorkspace = 'default'
 // The tab that spoke: what NOX shows and says for the request goes to it, not to whichever tab is newest.
 let turnScreen: string | undefined
-registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, anywh: new Anywh(), messages, announce: (text, workspace, screen) => noxRoutes.announce(text, workspace, screen), hostName, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen })))
+registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, anywh: new Anywh(), messages, announce: (text, workspace, screen) => noxRoutes.announce(text, workspace, screen), conversations: () => noxRoutes.conversations, hostName, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen })))
 // Claude Code asks this server before anything its classifier doesn't settle. It is a separate MCP
 // server so that NOX, who only gets the Meridian one, can never approve its own actions. NOX's turns
 // ask on the workspace being answered; a background task has its own URL naming the workspace it serves.

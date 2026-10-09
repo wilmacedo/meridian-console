@@ -10,7 +10,9 @@ import type { VoiceMessages } from '../voice/voice-messages.js'
 import { afterWakeWord, wakeConfig } from '../voice/wake-word.js'
 import { isSlowTool, pickAck } from './acknowledge.js'
 import { spokenAnswer, type Approvals } from './approvals.js'
-import { commandNote, type Nox } from './process.js'
+import { ago } from './conversations.js'
+import { commandNote, type Nox, type Switch } from './process.js'
+import type { ConversationControl } from './tools.js'
 
 const MAX_UTTERANCE = 2000
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024
@@ -21,6 +23,13 @@ const ANNOUNCE_WAIT_MS = 5 * 60_000
 // A recorded message that was not sent (declined, failed) stays this long, so "manda de novo" still finds it.
 const UNSENT_MESSAGE_MS = 2 * 60_000
 const STALE_MESSAGE_MS = 10 * 60_000
+// How long NOX's "is this a new conversation?" waits for the owner's answer.
+const OFFER_MS = 2 * 60_000
+// Past this, NOX is told how long the owner was away: a hint for whether they are on the same subject.
+const AWAY_HINT_MS = 10 * 60_000
+// A yes or no to that question is taken without NOX only when it is all the owner said.
+const SHORT_ANSWER_WORDS = 4
+const LISTED_CONVERSATIONS = 20
 
 // Numbers each answer so a screen can tell one turn's speech from another's. It starts from the clock, not
 // from zero: a screen that stayed open across a server restart still remembers the last turn it played,
@@ -54,9 +63,19 @@ export const recordedMessageNote = (to: string, path: string): string =>
 // The entry points to NOX. Both answer as newline-delimited JSON events (text, tool, done, error); when
 // voice is configured and a screen is showing the workspace, the answer is also spoken there, sentence
 // by sentence, while it is still being written.
-export function registerNox(app: FastifyInstance, { nox, bus, screens, registry, approvals, messages, wakeDir }: Deps): { interrupt: () => void; announce: (text: string, workspace: string, screen?: string) => void } {
+export function registerNox(
+  app: FastifyInstance,
+  { nox, bus, screens, registry, approvals, messages, wakeDir }: Deps,
+): { interrupt: () => void; announce: (text: string, workspace: string, screen?: string) => void; conversations: ConversationControl } {
   // The turn whose answer is being written or spoken, for the owner to cut off.
   let active: { turn: number; speaker?: TurnSpeaker } | undefined
+  // What the owner said in the turn being answered: a new conversation starts from it. `moved` once the turn
+  // has already gone to another conversation, which happens once at most.
+  let ownerTurn: { text: string; workspace: string; moved: boolean } | undefined
+  // Where the turn goes once NOX's answer in this conversation ends.
+  let switching: Switch | undefined
+  // NOX asked whether this is a new conversation; the owner's words wait here for the yes.
+  let offer: { workspace: string; text: string; title: string; until: number } | undefined
 
   // The owner talks over NOX: end the turn that is running, stop synthesising, and release the screen
   // (which has already stopped playing) so the next request starts clean.
@@ -64,21 +83,46 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     nox.interrupt()
     approvals.denyTurn('interrupted')
     messages.disarm()
+    switching = undefined
+    offer = undefined
     if (!active) return
     active.speaker?.cancel()
     playbackDone(active.turn)
   }
 
-  async function answer(text: string, workspace: string, reply: FastifyReply, heardLine?: string, screen?: string): Promise<void> {
+  async function answer(text: string, workspace: string, reply: FastifyReply, heardLine?: string, screen?: string, to?: Switch): Promise<void> {
     bus.emit('nox', 'info', `request: ${text.slice(0, 120)}`)
     reply.hijack()
     reply.raw.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' })
     if (heardLine) reply.raw.write(`${JSON.stringify({ type: 'heard', text: heardLine })}\n`)
-    await run(text, workspace, reply.raw, screen)
+    await run(text, workspace, reply.raw, screen, { owner: true, to })
   }
 
-  // One turn of NOX, written to `out` as it goes and spoken on the screens of the workspace.
-  async function run(text: string, workspace: string, out: Sink, screen?: string): Promise<void> {
+  // Something the owner said. When NOX has just asked whether it is a new conversation, a bare yes starts it
+  // with the request that was waiting, and a bare no lets NOX carry on with that request here; there is no
+  // need to ask the model what "sim" means.
+  async function respond(text: string, workspace: string, reply: FastifyReply, heardLine?: string, screen?: string): Promise<void> {
+    const asked = offer?.workspace === workspace && offer.until > Date.now() ? offer : undefined
+    offer = undefined
+    const answered = asked && text.trim().split(/\s+/).length <= SHORT_ANSWER_WORDS ? spokenAnswer(text) : undefined
+    if (asked && answered) {
+      bus.emit('nox', 'info', `new conversation: ${asked.title}`)
+      return answer(asked.text, workspace, reply, heardLine, screen, { to: 'new', title: asked.title })
+    }
+    if (answered === false) return answer(`[The owner wants to stay in this conversation.] ${text}`, workspace, reply, heardLine, screen)
+    return answer(text, workspace, reply, heardLine, screen)
+  }
+
+  // How long the owner was away from this conversation, when it is long enough to matter.
+  function awayHint(text: string): string {
+    const last = nox.conversations.current()?.lastUsed
+    return last !== undefined && Date.now() - last > AWAY_HINT_MS ? `[The owner's last message here was ${ago(Date.now() - last)}.] ${text}` : text
+  }
+
+  // One turn of NOX, written to `out` as it goes and spoken on the screens of the workspace. A turn of the
+  // owner's may move to another conversation: NOX ends its answer in this one, and the owner's words are
+  // said again in the other, all as one answer.
+  async function run(text: string, workspace: string, out: Sink, screen?: string, options: { owner?: boolean; to?: Switch } = {}): Promise<void> {
     const turn = ++turns
     const voice = voiceConfig()
     let spent = 0
@@ -100,27 +144,41 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     screens.setAgentMode('thinking')
     let typing = false
     let saidSomething = false
+    ownerTurn = options.owner ? { text, workspace, moved: options.to !== undefined } : undefined
+    let leg: { text: string; to?: Switch } | undefined = { text: options.owner && !options.to ? awayHint(text) : text, to: options.to }
     try {
-      for await (const event of nox.say(text, workspace, screen)) {
-        if (event.type === 'text') {
-          saidSomething = true
-          if (speaker) speaker.push(event.text)
-          else if (!typing) {
-            typing = true
-            screens.setAgentMode('speaking')
-          }
-        }
-        if (event.type === 'tool') {
-          // Slow work and not a word yet: say that it was understood, rather than leave the owner in silence.
-          if (!saidSomething && isSlowTool(event.name)) {
+      while (leg) {
+        const { text: said, to } = leg
+        leg = undefined
+        for await (const event of nox.say(said, workspace, screen, { owner: options.owner, to })) {
+          if (event.type === 'error') switching = undefined
+          // The answer goes on in the other conversation.
+          if (event.type === 'done' && switching) continue
+          if (event.type === 'text') {
             saidSomething = true
-            speaker?.say(pickAck())
+            if (speaker) speaker.push(event.text)
+            else if (!typing) {
+              typing = true
+              screens.setAgentMode('speaking')
+            }
           }
-          speaker?.flush()
+          if (event.type === 'tool') {
+            // Slow work and not a word yet: say that it was understood, rather than leave the owner in silence.
+            if (!saidSomething && isSlowTool(event.name)) {
+              saidSomething = true
+              speaker?.say(pickAck())
+            }
+            speaker?.flush()
+          }
+          if (event.type === 'command') bus.emit('nox', 'info', commandNote(event.command))
+          if (event.type === 'error') bus.emit('nox', 'error', event.message)
+          out.write(`${JSON.stringify(event)}\n`)
         }
-        if (event.type === 'command') bus.emit('nox', 'info', commandNote(event.command))
-        if (event.type === 'error') bus.emit('nox', 'error', event.message)
-        out.write(`${JSON.stringify(event)}\n`)
+        if (switching && ownerTurn) {
+          leg = { text: ownerTurn.text, to: switching }
+          ownerTurn.moved = true
+          switching = undefined
+        }
       }
       // The text is complete: the caller has its answer, and the speech carries on after this.
       out.end()
@@ -132,6 +190,8 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
         await played
       }
     } finally {
+      ownerTurn = undefined
+      switching = undefined
       if (active?.turn === turn) active = undefined
       screens.setAgentMode('idle')
       if (!out.writableEnded) out.end()
@@ -149,7 +209,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
   app.post<{ Body: { text: string; workspace?: string; screen?: string } }>(
     '/api/nox/say',
     { schema: { body: { type: 'object', required: ['text'], properties: { text: { type: 'string', minLength: 1, maxLength: MAX_UTTERANCE }, workspace: { type: 'string' }, screen: { type: 'string' } } } } },
-    async (request, reply) => answer(request.body.text, request.body.workspace ?? 'default', reply, undefined, request.body.screen),
+    async (request, reply) => respond(request.body.text, request.body.workspace ?? 'default', reply, undefined, request.body.screen),
   )
 
   // A recording in: transcribed first, with the service names as hints, then answered like any other
@@ -214,7 +274,7 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
       if (allow !== undefined) approvals.answerLatest(workspace, allow)
       return reply.send({ heard, answeredCard: allow !== undefined })
     }
-    return answer(heard, workspace, reply, heard, request.query.screen)
+    return respond(heard, workspace, reply, heard, request.query.screen)
   })
 
   void messages.sweep(STALE_MESSAGE_MS)
@@ -232,5 +292,37 @@ export function registerNox(app: FastifyInstance, { nox, bus, screens, registry,
     })
   }
 
-  return { interrupt, announce }
+  // What NOX's conversation tools do. Moving is only for a turn of the owner's, and never while something
+  // waits on the owner's next words (a card, a message to record): those belong to this conversation.
+  function owners(): { text: string; workspace: string; moved: boolean } {
+    if (!ownerTurn) throw new Error('only while answering the owner')
+    if (ownerTurn.moved) throw new Error('this turn has already moved to another conversation')
+    if (approvals.has(ownerTurn.workspace)) throw new Error('a confirmation is waiting on the screen; finish it here first')
+    if (messages.waiting(ownerTurn.workspace)) throw new Error('a voice message is waiting to be recorded; finish it here first')
+    return ownerTurn
+  }
+  const conversations: ConversationControl = {
+    start: (title) => {
+      owners()
+      switching = { to: 'new', title }
+      bus.emit('nox', 'info', `new conversation: ${title}`)
+    },
+    offer: (title) => {
+      const { text, workspace } = owners()
+      offer = { workspace, text, title, until: Date.now() + OFFER_MS }
+      bus.emit('nox', 'info', `offered a new conversation: ${title}`)
+    },
+    resume: (id) => {
+      owners()
+      const c = nox.conversations.get(id)
+      if (!c) throw new Error(`no conversation "${id}"; list_conversations shows them`)
+      if (nox.conversations.current()?.id === id) throw new Error('that is the conversation you are in')
+      switching = { to: 'resume', id }
+      bus.emit('nox', 'info', `back to the conversation: ${c.title}`)
+    },
+    list: () => nox.conversations.recent(LISTED_CONVERSATIONS),
+    current: () => nox.conversations.current(),
+  }
+
+  return { interrupt, announce, conversations }
 }
