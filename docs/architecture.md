@@ -276,8 +276,8 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
 ### As built (phase 6)
 
 - **Process:** `apps/server/src/nox/process.ts` keeps one `claude -p` process alive (`--input-format
-  stream-json`), answering one request at a time, and resumes the same session across server restarts
-  (the id lives in `session-id` under NOX's home). `POST /api/nox/say {text, workspace?}` is the single
+  stream-json`) for the current conversation, answering one request at a time, and resumes it across server
+  restarts. `POST /api/nox/say {text, workspace?}` is the single
   entry point; the answer streams back as newline-delimited JSON (`text`, `tool`, `done`, `error`). Voice
   will post to it, and so does the dev CLI: `pnpm nox "abre a telemetria" [--workspace <id>]`.
 - **Reach, enforced by flags** (and covered by a test, `buildArgs`): the Debian machine NOX runs on is
@@ -474,8 +474,17 @@ freezing the server process. Cards on screen are cleared when the link drops.
 
 ### Shape
 
-- **One global NOX session** (not per workspace), a long-lived headless process run by the server and
-  resumed across restarts. One conversation and one memory across all screens and workspaces.
+- **One conversation per subject**, global (not per workspace): a long-lived headless process run by the
+  server, resumed across restarts, shared by all screens and workspaces. NOX judges each request: the same
+  subject carries on; a clearly different one makes it call `new_conversation`, and the server ends that
+  turn and says the owner's words again in a fresh session, as one answer; when unsure it calls
+  `offer_new_conversation` and asks, and a bare "sim" or "não" is taken by the server (`spokenAnswer`)
+  without a model turn. A request after more than 10 minutes away carries how long it was, as a hint.
+  `list_conversations` and `resume_conversation` take an earlier subject up again with all it remembers
+  (`--resume`); one had before NOX's persona or settings changed is told so on return. The index (id,
+  title, last use, fingerprint, current) is `conversations.json` in NOX's home. A spare process with an
+  empty session waits, so a new conversation starts without the seconds a cold one takes. Nothing moves
+  while a confirmation card or a message to record waits, nor in a turn NOX started itself.
 - **A home directory** for NOX outside the repo (for example `~/.meridian/nox/`): its `CLAUDE.md` with
   persona, Brazilian-Portuguese voice rules (short spoken answers, technical terms kept in English), the
   machines and services it may touch and house rules, plus its own skills and memory, which NOX can
