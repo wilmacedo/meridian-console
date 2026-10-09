@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"mime"
 	"net/http"
 	"os"
@@ -114,7 +115,7 @@ func (a *App) voiceMessage(ctx context.Context, path string) (*waE2E.Message, er
 	}
 	return &waE2E.Message{AudioMessage: &waE2E.AudioMessage{
 		Mimetype: proto.String("audio/ogg; codecs=opus"), PTT: proto.Bool(true), Seconds: proto.Uint32(oggSeconds(ogg)),
-		Waveform: flatWaveform(), MediaKeyTimestamp: proto.Int64(time.Now().Unix()),
+		Waveform: waveform(ctx, ogg), MediaKeyTimestamp: proto.Int64(time.Now().Unix()),
 		URL: &up.URL, DirectPath: &up.DirectPath, MediaKey: up.MediaKey,
 		FileEncSHA256: up.FileEncSHA256, FileSHA256: up.FileSHA256, FileLength: &up.FileLength,
 	}}, nil
@@ -134,13 +135,49 @@ func oggSeconds(ogg []byte) uint32 {
 	return 1
 }
 
-// The app draws the bars from this; a constant one is enough for the note to play.
-func flatWaveform() []byte {
-	w := make([]byte, 64)
-	for i := range w {
-		w[i] = 30
+const waveformBars = 64
+
+// The app draws the note's bars from this, it does not measure the audio itself: the loudness of each of 64 slices,
+// 0 to 100 against the loudest. A note whose audio cannot be read again still plays, with even bars.
+func waveform(ctx context.Context, ogg []byte) []byte {
+	var pcm, stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-v", "error", "-i", "pipe:0", "-f", "s16le", "-ac", "1", "-ar", "8000", "pipe:1")
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = bytes.NewReader(ogg), &pcm, &stderr
+	if err := cmd.Run(); err != nil {
+		return waveformOf(nil)
 	}
-	return w
+	samples := make([]int16, pcm.Len()/2)
+	for i := range samples {
+		samples[i] = int16(binary.LittleEndian.Uint16(pcm.Bytes()[2*i:]))
+	}
+	return waveformOf(samples)
+}
+
+func waveformOf(samples []int16) []byte {
+	bars := make([]byte, waveformBars)
+	if len(samples) < waveformBars {
+		for i := range bars {
+			bars[i] = 30
+		}
+		return bars
+	}
+	levels := make([]float64, waveformBars)
+	loudest := 0.0
+	for i := range levels {
+		slice := samples[i*len(samples)/waveformBars : (i+1)*len(samples)/waveformBars]
+		sum := 0.0
+		for _, v := range slice {
+			sum += float64(v) * float64(v)
+		}
+		levels[i] = math.Sqrt(sum / float64(len(slice)))
+		loudest = math.Max(loudest, levels[i])
+	}
+	for i, level := range levels {
+		if loudest > 0 {
+			bars[i] = byte(math.Round(100 * level / loudest))
+		}
+	}
+	return bars
 }
 
 func extensionOf(msg *waE2E.Message, kind string) string {

@@ -54,3 +54,47 @@ func TestOggOpusRebuildsTimestampsThatJump(t *testing.T) {
 		t.Fatalf("got %d seconds, want 8", got)
 	}
 }
+
+func TestWaveformFollowsTheLoudness(t *testing.T) {
+	samples := make([]int16, 64*100)
+	for i := range samples {
+		if bar := i / 100; bar >= 32 {
+			samples[i] = int16(8000 * (i%2*2 - 1))
+		} else if bar >= 16 {
+			samples[i] = int16(2000 * (i%2*2 - 1))
+		}
+	}
+	bars := waveformOf(samples)
+	if len(bars) != 64 || bars[0] != 0 || bars[20] != 25 || bars[40] != 100 {
+		t.Fatalf("got %v", bars)
+	}
+}
+
+func TestWaveformOfTooLittleAudioIsEven(t *testing.T) {
+	for _, bar := range waveformOf(make([]int16, 10)) {
+		if bar != 30 {
+			t.Fatalf("got bar %d, want 30", bar)
+		}
+	}
+}
+
+// Silence, then a tone: the bars must be low first and high after, read from the converted note itself.
+func TestWaveformReadsTheConvertedNote(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	path := filepath.Join(t.TempDir(), "note.wav")
+	gen := exec.Command("ffmpeg", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono:d=2", "-f", "lavfi", "-i", "sine=frequency=300:duration=2",
+		"-filter_complex", "[0][1]concat=n=2:v=0:a=1", "-y", path)
+	if out, err := gen.CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	ogg, err := oggOpus(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bars := waveform(context.Background(), ogg)
+	if bars[10] > 5 || bars[50] < 80 {
+		t.Fatalf("got %v", bars)
+	}
+}
