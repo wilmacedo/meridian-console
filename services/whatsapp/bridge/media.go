@@ -93,10 +93,27 @@ func (a *App) mediaMessage(ctx context.Context, req sendRequest) (*waE2E.Message
 // a browser recording can jump in time (a tab in the background, a microphone that paused), and ffmpeg carries the
 // jump into the Ogg granules, which then promise seconds of audio that are not there. That is the one difference found
 // between a recorded note the iPhone app called "not available" and a note spoken from an mp3, which played.
+//
+// The silence at either end is cut, leaving a breath: a recording starts before the owner speaks and ends only after
+// a long pause, so the note does not cut them off mid-sentence. A note that is silence throughout keeps it all.
 func oggOpus(ctx context.Context, path string) ([]byte, error) {
+	ogg, err := encodeOpus(ctx, path, trimSilence+",asetpts=N/SR/TB")
+	if err != nil || oggSamples(ogg) >= minTrimmedSamples {
+		return ogg, err
+	}
+	return encodeOpus(ctx, path, "asetpts=N/SR/TB")
+}
+
+// Silence at the start and, reversed, at the end; areverse holds the whole note, which a voice note can afford.
+const trimSilence = "silenceremove=start_periods=1:start_duration=0.1:start_threshold=-40dB:start_silence=0.25,areverse," +
+	"silenceremove=start_periods=1:start_duration=0.1:start_threshold=-40dB:start_silence=0.35,areverse"
+
+const minTrimmedSamples = 48000 / 2
+
+func encodeOpus(ctx context.Context, path, filter string) ([]byte, error) {
 	var out, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", "48000",
-		"-af", "asetpts=N/SR/TB", "-c:a", "libopus", "-b:a", "32k", "-f", "ogg", "pipe:1")
+		"-af", filter, "-c:a", "libopus", "-b:a", "32k", "-f", "ogg", "pipe:1")
 	cmd.Stdout, cmd.Stderr = &out, &stderr
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("ffmpeg: %w: %s", err, strings.TrimSpace(stderr.String()))
@@ -124,15 +141,19 @@ func (a *App) voiceMessage(ctx context.Context, path string) (*waE2E.Message, er
 // The length of an Ogg Opus stream, from the granule position of its last page (always counted at 48 kHz). A
 // recording from a browser has no duration in its header, so the source file cannot tell.
 func oggSeconds(ogg []byte) uint32 {
-	i := bytes.LastIndex(ogg, []byte("OggS"))
-	if i < 0 || len(ogg) < i+14 {
-		return 1
-	}
-	granule := int64(binary.LittleEndian.Uint64(ogg[i+6 : i+14]))
-	if secs := (granule + 24000) / 48000; secs > 1 {
+	if secs := (oggSamples(ogg) + 24000) / 48000; secs > 1 {
 		return uint32(secs)
 	}
 	return 1
+}
+
+// The granule position of the last page, or 0 for a stream with no audio.
+func oggSamples(ogg []byte) int64 {
+	i := bytes.LastIndex(ogg, []byte("OggS"))
+	if i < 0 || len(ogg) < i+14 {
+		return 0
+	}
+	return max(int64(binary.LittleEndian.Uint64(ogg[i+6:i+14])), 0)
 }
 
 const waveformBars = 64

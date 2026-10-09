@@ -89,12 +89,47 @@ func TestWaveformReadsTheConvertedNote(t *testing.T) {
 	if out, err := gen.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %s", err, out)
 	}
-	ogg, err := oggOpus(context.Background(), path)
+	ogg, err := encodeOpus(context.Background(), path, "asetpts=N/SR/TB")
 	if err != nil {
 		t.Fatal(err)
 	}
 	bars := waveform(context.Background(), ogg)
 	if bars[10] > 5 || bars[50] < 80 {
 		t.Fatalf("got %v", bars)
+	}
+}
+
+func encodeTestNote(t *testing.T, filter string) string {
+	t.Helper()
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	path := filepath.Join(t.TempDir(), "note.webm")
+	gen := exec.Command("ffmpeg", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono:d=4", "-f", "lavfi", "-i", "sine=frequency=300:duration=2,volume=0.3",
+		"-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono:d=3", "-filter_complex", filter, "-c:a", "libopus", "-y", path)
+	if out, err := gen.CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	return path
+}
+
+// Four seconds before the owner speaks and three of pause after: the note keeps the two spoken and a breath.
+func TestOggOpusCutsTheSilenceAtEitherEnd(t *testing.T) {
+	ogg, err := oggOpus(context.Background(), encodeTestNote(t, "[0][1][2]concat=n=3:v=0:a=1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if secs := float64(oggSamples(ogg)) / 48000; secs < 2 || secs > 3 {
+		t.Fatalf("got %.2f seconds, want about 2.5", secs)
+	}
+}
+
+func TestOggOpusKeepsANoteThatIsAllSilence(t *testing.T) {
+	ogg, err := oggOpus(context.Background(), encodeTestNote(t, "[0][2]concat=n=2:v=0:a=1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := oggSeconds(ogg); got != 7 {
+		t.Fatalf("got %d seconds, want 7", got)
 	}
 }
