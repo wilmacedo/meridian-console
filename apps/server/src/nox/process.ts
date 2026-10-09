@@ -1,9 +1,10 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
+import type { Readable, Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { PERSONA } from './persona.js'
 
@@ -120,6 +121,22 @@ export function buildArgs(c: NoxConfig): string[] {
   ]
 }
 
+// The part of a Claude Code child process NOX and its tasks use; tests stand in for it.
+export interface ClaudeProcess {
+  stdin: Writable
+  stdout: Readable
+  stderr: Readable
+  kill: () => void
+  onClose: (listener: (code: number | null) => void) => void
+}
+
+export type SpawnClaude = (args: string[], cwd: string) => ClaudeProcess
+
+export const spawnClaude: SpawnClaude = (args, cwd) => {
+  const child = spawn('claude', args, { cwd, stdio: ['pipe', 'pipe', 'pipe'] })
+  return { stdin: child.stdin, stdout: child.stdout, stderr: child.stderr, kill: () => child.kill(), onClose: (l) => child.on('close', l) }
+}
+
 // Where NOX lives: its notes, and the working directory of its processes.
 export const noxHome = (override?: string): string => override ?? process.env.NOX_HOME ?? join(homedir(), '.meridian', 'nox')
 
@@ -167,14 +184,14 @@ interface Hooks {
 // The single global NOX session: one long-lived headless Claude Code process (starting one costs
 // seconds, a turn on a warm one about a second), resumed across restarts, answering one request at a time.
 export class Nox {
-  private child: ChildProcessWithoutNullStreams | undefined
+  private child: ClaudeProcess | undefined
   private listener: ((event: NoxEvent) => void) | undefined
   private tail: Promise<unknown> = Promise.resolve()
   // Set while an interrupted turn winds down: Claude Code reports it as an error, which is not one.
   private interrupted = false
 
   constructor(
-    private options: { home?: string; model?: string; port: number },
+    private options: { home?: string; model?: string; port: number; spawn?: SpawnClaude },
     private hooks: Hooks,
   ) {}
 
@@ -195,16 +212,16 @@ export class Nox {
     return { ...base, ...chooseSession(this.home, fingerprintOf(base)) }
   }
 
-  private spawnProcess(): ChildProcessWithoutNullStreams {
+  private spawnProcess(): ClaudeProcess {
     const config = this.config()
-    const child = spawn('claude', buildArgs(config), { cwd: config.home, stdio: ['pipe', 'pipe', 'pipe'] })
+    const child = (this.options.spawn ?? spawnClaude)(buildArgs(config), config.home)
     let stderr = ''
     child.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
     createInterface({ input: child.stdout }).on('line', (line) => {
       const event = interpret(line)
       if (event) this.listener?.(event)
     })
-    child.on('close', (code) => {
+    child.onClose((code) => {
       this.hooks.log(`NOX process exited (${code})`)
       if (this.child === child) this.child = undefined
       // A session that can't be resumed (deleted history) starts over next time.

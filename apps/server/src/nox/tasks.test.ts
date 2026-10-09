@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import type { StreamMessage } from '@meridian/service-sdk'
 import { EventBus } from '../event-bus.js'
 import { ScreenRegistry } from '../screens.js'
-import { Tasks, type TaskProcess } from './tasks.js'
+import type { ClaudeProcess } from './process.js'
+import { Tasks } from './tasks.js'
 
 function setup() {
   const bus = new EventBus()
@@ -25,7 +26,7 @@ function setup() {
       const stdin = new PassThrough()
       let killed = false
       let close: (code: number | null) => void = () => undefined
-      const process: TaskProcess = { stdin, stdout, stderr: new PassThrough(), kill: () => (killed = true), onClose: (l) => (close = l) }
+      const process: ClaudeProcess = { stdin, stdout, stderr: new PassThrough(), kill: () => (killed = true), onClose: (l) => (close = l) }
       spawned.push({ args, stdout, stdin, killed: () => killed, exit: (c) => close(c) })
       return process
     },

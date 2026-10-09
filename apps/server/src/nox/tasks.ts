@@ -1,11 +1,9 @@
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createInterface } from 'node:readline'
-import type { Readable, Writable } from 'node:stream'
 import type { DocSpec, TaskStep, TaskView } from '@meridian/service-sdk'
 import type { EventBus } from '../event-bus.js'
 import type { ScreenRegistry } from '../screens.js'
-import { buildArgs, commandNote, interpret, machineFacts, readNotes, SSH_HOSTS, type NoxConfig } from './process.js'
+import { buildArgs, commandNote, interpret, machineFacts, readNotes, spawnClaude, SSH_HOSTS, type ClaudeProcess, type NoxConfig, type SpawnClaude } from './process.js'
 
 const MAX_RUNNING = 2
 const TASK_TIMEOUT_MS = 15 * 60_000
@@ -22,22 +20,6 @@ export interface Task {
   state: 'running' | 'done' | 'failed' | 'stopped'
   startedAt: number
   steps: TaskStep[]
-}
-
-// The part of a child process a task uses; tests stand in for it.
-export interface TaskProcess {
-  stdin: Writable
-  stdout: Readable
-  stderr: Readable
-  kill: () => void
-  onClose: (listener: (code: number | null) => void) => void
-}
-
-export type SpawnTask = (args: string[], cwd: string) => TaskProcess
-
-const spawnClaude: SpawnTask = (args, cwd) => {
-  const child = spawn('claude', args, { cwd, stdio: ['pipe', 'pipe', 'pipe'] })
-  return { stdin: child.stdin, stdout: child.stdout, stderr: child.stderr, kill: () => child.kill(), onClose: (l) => child.on('close', l) }
 }
 
 export const docIdOf = (task: Pick<Task, 'id'>): string => `task-${task.id}`
@@ -60,12 +42,12 @@ const doc = (task: Task, blocks: DocSpec['blocks']): DocSpec => ({ id: docIdOf(t
 // same guard-rails as NOX, reporting into a live document and logging to the event stream. They use the
 // owner's Claude subscription like any turn does, so only a couple run at once.
 export class Tasks {
-  private running_ = new Map<string, { task: Task; process: TaskProcess; timer: ReturnType<typeof setTimeout> }>()
+  private running_ = new Map<string, { task: Task; process: ClaudeProcess; timer: ReturnType<typeof setTimeout> }>()
   private all: Task[] = []
   private listeners = new Set<() => void>()
 
   constructor(
-    private options: { port: number; home: string; model: string; bus: EventBus; screens: ScreenRegistry; spawn?: SpawnTask },
+    private options: { port: number; home: string; model: string; bus: EventBus; screens: ScreenRegistry; spawn?: SpawnClaude },
   ) {}
 
   list(): Task[] {
