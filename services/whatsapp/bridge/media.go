@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
@@ -87,25 +88,34 @@ func (a *App) mediaMessage(ctx context.Context, req sendRequest) (*waE2E.Message
 	}}, nil
 }
 
-// A voice note is Opus in Ogg, mono; anything else is converted first.
-func (a *App) voiceMessage(ctx context.Context, path string) (*waE2E.Message, error) {
-	var out bytes.Buffer
+// A voice note is Opus in Ogg, mono; anything else is converted first. The timestamps are rebuilt from the samples:
+// a browser recording can jump in time (a tab in the background, a microphone that paused), and ffmpeg carries the
+// jump into the Ogg granules, which then promise seconds of audio that are not there. That is the one difference found
+// between a recorded note the iPhone app called "not available" and a note spoken from an mp3, which played.
+func oggOpus(ctx context.Context, path string) ([]byte, error) {
+	var out, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", "48000",
-		"-c:a", "libopus", "-b:a", "32k", "-f", "ogg", "pipe:1")
-	var stderr bytes.Buffer
+		"-af", "asetpts=N/SR/TB", "-c:a", "libopus", "-b:a", "32k", "-f", "ogg", "pipe:1")
 	cmd.Stdout, cmd.Stderr = &out, &stderr
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("ffmpeg: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
-	seconds := oggSeconds(out.Bytes())
-	up, err := a.client.Upload(ctx, out.Bytes(), whatsmeow.MediaAudio)
+	return out.Bytes(), nil
+}
+
+func (a *App) voiceMessage(ctx context.Context, path string) (*waE2E.Message, error) {
+	ogg, err := oggOpus(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	up, err := a.client.Upload(ctx, ogg, whatsmeow.MediaAudio)
 	if err != nil {
 		return nil, err
 	}
 	return &waE2E.Message{AudioMessage: &waE2E.AudioMessage{
-		Mimetype: proto.String("audio/ogg; codecs=opus"), PTT: proto.Bool(true), Seconds: proto.Uint32(seconds),
-		Waveform: flatWaveform(),
-		URL:      &up.URL, DirectPath: &up.DirectPath, MediaKey: up.MediaKey,
+		Mimetype: proto.String("audio/ogg; codecs=opus"), PTT: proto.Bool(true), Seconds: proto.Uint32(oggSeconds(ogg)),
+		Waveform: flatWaveform(), MediaKeyTimestamp: proto.Int64(time.Now().Unix()),
+		URL: &up.URL, DirectPath: &up.DirectPath, MediaKey: up.MediaKey,
 		FileEncSHA256: up.FileEncSHA256, FileSHA256: up.FileSHA256, FileLength: &up.FileLength,
 	}}, nil
 }
