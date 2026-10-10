@@ -54,7 +54,7 @@
     void loadWakeWord()
     finishBoot()
     setPlaybackFinished((turn) => sendToServer({ type: 'speech_done', turn }))
-    setPlaybackSpoken(() => void continueListening())
+    setPlaybackSpoken((startedAt) => void continueListening(startedAt))
     // Audio can only start after a gesture; the first one unlocks it, and any later one retries queued speech.
     const unlock = (): void => {
       unlockAudio()

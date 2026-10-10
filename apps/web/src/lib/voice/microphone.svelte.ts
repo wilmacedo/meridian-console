@@ -38,7 +38,7 @@ export const micAvailable = (): boolean => isSecureContext && !!navigator.mediaD
 const NO_SPEECH_MS = 7000
 // After NOX has spoken the mic reopens by itself; this is how long it waits for the owner to carry on.
 const FOLLOW_UP_MS = 5000
-// How long after its answer ends NOX may still reopen the mic: the end of the speech plays a little later.
+// How long after the answer's text ends its speech may still start: the first sentence can still be on its way.
 const FOLLOW_UP_GRACE_MS = 10_000
 // A message to be sent (a WhatsApp voice note) has pauses a question to NOX does not, and the owner may take a
 // moment to start.
@@ -131,7 +131,8 @@ let messageNext = false
 export const captureNextMessage = (): void => void (messageNext = true)
 
 // The mic reopens only for the answer to something the owner said: NOX speaking on its own (an agent that
-// finished) must not start listening. Infinity while a request is in flight.
+// finished) must not start listening. Speech that started by this time is that answer; Infinity while a request is in
+// flight. The speech itself may go on long after the text is complete, so it is when it starts that counts.
 let followUpUntil = 0
 
 async function ask(blob: Blob, message: boolean, woken: boolean): Promise<void> {
@@ -318,8 +319,8 @@ export function spaceAction(): void {
 
 // NOX finished speaking: keep listening for a while, so a conversation does not need a tap per turn. Quiet for
 // FOLLOW_UP_MS ends it, with the same sound as any other recording that is dropped.
-export async function continueListening(): Promise<void> {
-  if (performance.now() > followUpUntil) return
+export async function continueListening(speechStartedAt: number): Promise<void> {
+  if (speechStartedAt > followUpUntil) return
   followUpUntil = 0
   if (conversationEnded) {
     conversationEnded = false

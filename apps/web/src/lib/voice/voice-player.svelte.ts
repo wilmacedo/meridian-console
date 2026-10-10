@@ -8,6 +8,7 @@ export const player = $state({ active: false })
 let ctx: AudioContext | undefined
 let analyser: AnalyserNode | undefined
 let turn = -1
+let turnStartedAt = 0
 // Decoded sentences by sequence number, since decoding can finish out of order.
 let ready = new Map<number, AudioBuffer>()
 let nextSeq = 0
@@ -22,10 +23,10 @@ let onFinished: ((turn: number) => void) | undefined
 
 export const setPlaybackFinished = (fn: (turn: number) => void): void => void (onFinished = fn)
 
-// Only when NOX ran out of things to say, not when the owner cut it off.
-let onSpoken: (() => void) | undefined
+// Only when NOX ran out of things to say, not when the owner cut it off; with when the turn's speech started arriving.
+let onSpoken: ((startedAt: number) => void) | undefined
 
-export const setPlaybackSpoken = (fn: () => void): void => void (onSpoken = fn)
+export const setPlaybackSpoken = (fn: (startedAt: number) => void): void => void (onSpoken = fn)
 
 // Browsers only let a page play audio after the user has interacted with it; this runs on the first gesture.
 export function unlockAudio(): void {
@@ -98,11 +99,12 @@ function finishIfDone(): void {
   ended = false
   stop()
   onFinished?.(turn)
-  if (!warmup) return onSpoken?.()
+  const startedAt = turnStartedAt
+  if (!warmup) return onSpoken?.(startedAt)
   // `onended` fires when the audio is handed to the output, not when it has been heard.
   setTimeout(() => {
     stopWarmup()
-    onSpoken?.()
+    onSpoken?.(startedAt)
   }, voicePrefs.tailMs + (ctx!.outputLatency ?? 0) * 1000)
 }
 
@@ -132,6 +134,7 @@ async function playNext(): Promise<void> {
 function startTurn(next: number): void {
   stop()
   turn = next
+  turnStartedAt = performance.now()
   ready = new Map()
   nextSeq = 0
   decoding = 0
