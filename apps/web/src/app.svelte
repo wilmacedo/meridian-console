@@ -120,6 +120,9 @@
     transform-origin: 0 0;
     overflow: hidden;
     background: rgb(var(--nx-bg));
+    /* The notch and the home indicator, which the phone layout keeps clear of. */
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
   }
   /* Enlarged: it is laid out at a smaller size and scaled up to fill the window, so it is not stretched by inset. */
   .root.scaled {
