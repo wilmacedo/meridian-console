@@ -14,6 +14,8 @@ const SWEEP_MS = 1_000
 const MAX_PENDING = 5
 const MAX_HANDSHAKING = 16
 
+const plain = (text: unknown, max: number, fallback: string): string => String(text).replace(/[^A-Za-z0-9 ._-]/g, '').replace(/\s+/g, ' ').trim().slice(0, max) || fallback
+
 interface Waiting {
   resolve: (r: { text: string; image?: Buffer }) => void
   reject: (err: Error) => void
@@ -192,7 +194,8 @@ export class ExecutorGateway {
       if (step === 'hello') {
         const h = frame as unknown as Hello
         if (h.type !== 'hello' || h.protocol !== EXECUTOR_PROTOCOL || !decode(h.public_key, 32) || !decode(h.client_nonce, 32) || typeof h.name !== 'string') return refuse(1002, 'unsupported hello')
-        hello = h
+        // Anyone on the network can send a hello, and these fields reach the model, so they are cut down to plain words.
+        hello = { ...h, name: plain(h.name, 40, 'device'), os: /^[a-z0-9]{1,20}$/.test(String(h.os)) ? h.os : 'unknown', version: /^[0-9A-Za-z.+-]{1,20}$/.test(String(h.version)) ? h.version : '?' }
         serverNonce = newNonce()
         const signature = serverProof(serverKey, h.client_nonce, serverNonce, h.public_key)!
         send({ type: 'challenge', protocol: EXECUTOR_PROTOCOL, server_nonce: serverNonce, server_public_key: serverKey.publicKey, server_signature: signature })
@@ -205,12 +208,16 @@ export class ExecutorGateway {
         const known = store.executorByKey(hello.public_key)
         if (known?.device.revokedAt) return refuse(4003, 'revoked')
         if (!known && store.pendingExecutors().length >= MAX_PENDING) return refuse(1013, 'too many devices waiting for approval')
-        device = known?.device ?? store.addExecutor(hello.name.trim().slice(0, 40) || 'device', hello.public_key)
+        device = known?.device ?? store.addExecutor(hello.name, hello.public_key)
         if (known?.approvedAt) {
           send({ type: 'ready' })
           return next('capabilities')
         }
         send({ type: 'pending' })
+        // The same device knocking again replaces its earlier knock instead of leaving it open.
+        const earlier = this.pending.get(device.id)
+        this.pending.delete(device.id)
+        earlier?.socket.close(4000, 'replaced by a newer connection')
         this.pending.set(device.id, { device, socket })
         return next('pending', PENDING_TIMEOUT_MS, 'not approved in time')
       }
@@ -239,7 +246,10 @@ export class ExecutorGateway {
       clearTimeout(timer)
       settled()
       killSwitch.release(socket)
-      if (device && this.pending.get(device.id)?.socket === socket) this.pending.delete(device.id)
+      if (device && this.pending.get(device.id)?.socket === socket) {
+        this.pending.delete(device.id)
+        store.dropUnapproved(device.id)
+      }
       if (!conn) return
       conn.fail('The device disconnected.')
       if (this.connections.get(conn.device.id) === conn) this.connections.delete(conn.device.id)

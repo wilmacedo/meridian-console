@@ -36,8 +36,9 @@ export class ExecutorTools {
     })
     const waiting = this.store.pendingExecutors().map((d) => `waiting for approval: ${d.label} (id ${d.id})`)
     if (lines.length === 0 && waiting.length === 0) return 'No device is connected.'
-    const legend = lines.length ? '\n(* changes something, ! cannot be undone and always asks the owner; describe_device shows the inputs)' : ''
-    return [...lines, ...waiting].join('\n') + legend
+    const legend = lines.length ? '\n(* changes something, ! cannot be undone and always asks the owner; device_describe shows the inputs)' : ''
+    // Names come from the devices themselves, so they are data like anything else a machine reports.
+    return untrusted([...lines, ...waiting].join('\n')) + legend
   }
 
   describe(who: string): string {

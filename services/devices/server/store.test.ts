@@ -127,6 +127,18 @@ describe('executors', () => {
     expect(store.pendingExecutors()).toEqual([])
   })
 
+  it('forgets a device that left without being approved, and keeps one that was', () => {
+    const { store } = make()
+    const waiting = store.addExecutor('stranger', 'KEY1')
+    store.dropUnapproved(waiting.id)
+    expect(store.executorByKey('KEY1')).toBeUndefined()
+    expect(store.pendingExecutors()).toEqual([])
+    const approved = store.addExecutor('pc', 'KEY2')
+    store.approveExecutorKey(approved.id)
+    store.dropUnapproved(approved.id)
+    expect(store.executorByKey('KEY2')?.device.id).toBe(approved.id)
+  })
+
   it('does not tell a key from an unknown one', () => {
     expect(make().store.executorByKey('nope')).toBeUndefined()
   })

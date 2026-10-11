@@ -48,6 +48,8 @@ describe('device_list and describe', () => {
     expect(out).toContain('win-lan (windows')
     expect(out).toContain('window_list, process_kill!, clipboard_write*')
     expect(out).toContain('waiting for approval: mac')
+    expect(out).toMatch(/^\[Text below comes from a page, an app or a device/)
+    expect(out).toContain('device_describe shows the inputs')
   })
 
   it('says so when nothing is connected', () => {
