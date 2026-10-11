@@ -1,6 +1,10 @@
 import Fastify from 'fastify'
 import websocket from '@fastify/websocket'
 import { join } from 'node:path'
+import { routineHint } from './agenda/match.js'
+import { routineTools } from './agenda/routine-tools.js'
+import { RoutineStore } from './agenda/routines.js'
+import { RoutineRunner } from './agenda/runner.js'
 import { dataDir, openDatabase } from './database.js'
 import { allContainers, docker } from './docker.js'
 import { ManagedServiceStore } from './managed-services.js'
@@ -56,7 +60,18 @@ app.get<{ Params: { id: string } }>('/api/docs/:id', async (request, reply) => s
 let turnWorkspace = 'default'
 // The tab that spoke: what NOX shows and says for the request goes to it, not to whichever tab is newest.
 let turnScreen: string | undefined
-registerMcp(app, '/mcp', new McpServer('meridian', buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, anywh: new Anywh(), messages, announce: (text, workspace, screen) => noxRoutes.announce(text, workspace, screen), conversations: () => noxRoutes.conversations, hostName, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen })))
+const announce = (text: string, workspace: string, screen?: string): void => noxRoutes.announce(text, workspace, screen)
+// The owner's routines: started only by the owner, by phrase or by name, and run as background tasks.
+const routines = new RoutineStore(db)
+const runner = new RoutineRunner({ store: routines, registry, tasks, screens, bus, announce })
+registerMcp(
+  app,
+  '/mcp',
+  new McpServer('meridian', [
+    ...buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, anywh: new Anywh(), messages, announce, conversations: () => noxRoutes.conversations, hostName, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen }),
+    ...routineTools({ store: routines, runner, registry, screens, bus, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen }),
+  ]),
+)
 // Claude Code asks this server before anything its classifier doesn't settle. It is a separate MCP
 // server so that NOX, who only gets the Meridian one, can never approve its own actions. NOX's turns
 // ask on the workspace being answered; a background task has its own URL naming the workspace it serves.
@@ -75,7 +90,16 @@ const nox = new Nox(
   { port },
   { setTurn: (workspace, screen) => ((turnWorkspace = workspace), (turnScreen = screen)), log: (message) => app.log.info(message) },
 )
-const noxRoutes = registerNox(app, { nox, bus, screens, registry, approvals, messages, wakeDir: wakeDir() })
+const noxRoutes = registerNox(app, {
+  nox,
+  bus,
+  screens,
+  registry,
+  approvals,
+  messages,
+  wakeDir: wakeDir(),
+  hint: (text) => routineHint(text, routines.list(), (id) => routines.lastRun(id)?.startedAt, new Date()),
+})
 app.addHook('onClose', async () => nox.stop())
 
 if (await registerWebApp(app, defaultWebRoot())) app.log.info(`serving the web app from ${defaultWebRoot()}`)

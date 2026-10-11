@@ -22,7 +22,7 @@ afterAll(() => vi.unstubAllEnvs())
 beforeEach(async () => (dir = await mkdtemp(join(tmpdir(), 'nox-routes-'))))
 afterEach(() => rm(dir, { recursive: true, force: true }))
 
-async function setup() {
+async function setup(hint?: (text: string) => string | undefined) {
   const said: string[] = []
   const turns: { text: string; to?: Switch }[] = []
   // What NOX does during a turn, as its tools would.
@@ -42,7 +42,7 @@ async function setup() {
   const screens = new ScreenRegistry()
   const messages = new VoiceMessages(dir)
   const app = Fastify()
-  const routes = registerNox(app, { nox, bus, screens, registry: { summaries: () => [] } as unknown as Registry, approvals: new Approvals(screens, bus), messages, wakeDir: join(dir, 'wake') })
+  const routes = registerNox(app, { nox, bus, screens, registry: { summaries: () => [] } as unknown as Registry, approvals: new Approvals(screens, bus), messages, wakeDir: join(dir, 'wake'), hint })
   await app.ready()
   const record = (capture: boolean) =>
     app.inject({ method: 'POST', url: `/api/voice/ask?workspace=default${capture ? '&capture=1' : ''}`, headers: { 'content-type': 'audio/webm' }, payload: Buffer.from('opus') })
@@ -178,5 +178,15 @@ describe('conversations, one per subject', () => {
     await vi.waitFor(() => expect(errors).toHaveLength(2))
     expect(errors).toEqual(['a voice message is waiting to be recorded; finish it here first', 'only while answering the owner'])
     expect(turns.every((t) => !t.to)).toBe(true)
+  })
+})
+
+describe('a hint before what the owner said', () => {
+  it('reaches NOX in front of the owner\'s words, and only when there is one', async () => {
+    const { said, say } = await setup((text) => (text.startsWith('bom dia') ? '[The owner may have said the activation phrase of the routine "Bom dia" (bom-dia).]' : undefined))
+    await say('bom dia nox')
+    await say('abre a telemetria')
+    expect(said[0]).toBe('[The owner may have said the activation phrase of the routine "Bom dia" (bom-dia).] bom dia nox')
+    expect(said[1]).toBe('abre a telemetria')
   })
 })

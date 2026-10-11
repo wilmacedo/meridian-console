@@ -51,6 +51,8 @@ interface Deps {
   approvals: Approvals
   messages: VoiceMessages
   wakeDir: string
+  // A note for NOX to read before what the owner said, such as a routine whose phrase it sounds like.
+  hint?: (text: string) => string | undefined
 }
 
 // What NOX is told in place of a transcript when the owner records the message it asked for. It has not heard
@@ -65,7 +67,7 @@ export const recordedMessageNote = (to: string, path: string): string =>
 // by sentence, while it is still being written.
 export function registerNox(
   app: FastifyInstance,
-  { nox, bus, screens, registry, approvals, messages, wakeDir }: Deps,
+  { nox, bus, screens, registry, approvals, messages, wakeDir, hint }: Deps,
 ): { interrupt: () => void; announce: (text: string, workspace: string, screen?: string) => void; conversations: ConversationControl } {
   // The turn whose answer is being written or spoken, for the owner to cut off.
   let active: { turn: number; speaker?: TurnSpeaker } | undefined
@@ -109,8 +111,8 @@ export function registerNox(
       bus.emit('nox', 'info', `new conversation: ${asked.title}`)
       return answer(asked.text, workspace, reply, heardLine, screen, { to: 'new', title: asked.title })
     }
-    if (answered === false) return answer(`[The owner wants to stay in this conversation.] ${text}`, workspace, reply, heardLine, screen)
-    return answer(text, workspace, reply, heardLine, screen)
+    const noted = [answered === false && '[The owner wants to stay in this conversation.]', hint?.(text), text].filter(Boolean).join(' ')
+    return answer(noted, workspace, reply, heardLine, screen)
   }
 
   // How long the owner was away from this conversation, when it is long enough to matter.
