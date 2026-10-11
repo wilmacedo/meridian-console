@@ -1,8 +1,12 @@
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 //! The Meridian executor: a thin process on the owner's machine. It dials the server, proves who it is, and runs
 //! the capabilities it announces. It makes no decisions: what NOX may do, and when the owner is asked, is decided
 //! on the server.
 
 mod config;
+#[cfg(windows)]
+mod dpapi;
 mod keys;
 mod log;
 
@@ -16,7 +20,19 @@ use meridian_executor_core::keystore::KeyStore;
 
 const USAGE: &str = "usage: meridian-executor [--config <path>] [run | show-key | version]";
 
+/// A release build on Windows has no console (it runs from a scheduled task); borrow the one it was started from,
+/// if there is one, so `show-key` and `version` can print.
+#[cfg(windows)]
+fn console() {
+    use windows::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
+    let _ = unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
+}
+
+#[cfg(not(windows))]
+fn console() {}
+
 fn main() -> ExitCode {
+    console();
     let mut args = std::env::args().skip(1).peekable();
     let mut path: Option<PathBuf> = None;
     let mut command = "run".to_string();

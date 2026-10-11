@@ -6,3 +6,5 @@ pub mod capability;
 pub mod connection;
 pub mod keystore;
 pub mod protocol;
+
+pub use ed25519_dalek::SigningKey;
