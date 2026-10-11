@@ -1025,3 +1025,24 @@ decoded yet).
 Turning the option on, or opening a workspace in CarPlay mode that never saved it, docks the tiles services offer
 (left rail) plus services and telemetry (right rail), sets the dark theme and 24 strands, only when the dock was
 never arranged (empty, or just the telemetry widget a new workspace has).
+
+## v14 addition: phone layout (< 600px)
+
+Under 600px of laid-out width (`layout.w`, so an interface scale counts) outside CarPlay mode, the shell changes
+(`apps/web/src/lib/shell/phone.ts`; the prototype is `NIX v14.dc.html`, the `ph` branches and the `isPhone`
+blocks). A phone turned sideways is wider and gets the desktop layout. The page needs `viewport-fit=cover` and
+the shell reads the notch and the home indicator as `--safe-t` / `--safe-b`.
+
+- **Header:** the top bar is gone. The workspace chip is 36px high, 14px from the edge, name and chevron only;
+  the Settings button is the icon alone, 36×36.
+- **Windows:** one at a time (opening one closes the others, and when the screen turns into a phone's, all but
+  the top one close), on a stage from `safe-t + 60px` to `safe-b + 176px`, 10px at the sides. No move, resize,
+  maximise or `ARRANGE`. The pin button reads `PIN` / `PINNED`.
+- **Dock:** a single row of 36px pills at `safe-b + 6px` (scrolls sideways when it does not fit; the active one
+  has the brighter border, Core is lit when no window is open). The mic row sits at `safe-b + 88px`: the
+  `WIDGETS NN` pill on its left (`CLOSE NN` while the sheet is open), the clock on its right.
+- **Widgets:** no rails. A sheet between `safe-t + 64px` and `safe-b + 176px` lists the widgets of both rails, with
+  no drag; it rises with a blur over a blurred shade, a tap on the shade, Esc, opening a window or leaving the
+  phone layout closes it. Pinning adds the widget at once (last of the right rail); pinning one that exists opens
+  the sheet. Settings → Layout → Rails does nothing here, and its note says so.
+- **Task card:** always the compact one, `safe-b + 184px` from the bottom, the page's width less 24px.
