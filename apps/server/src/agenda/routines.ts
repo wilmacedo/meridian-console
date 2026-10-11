@@ -51,13 +51,14 @@ function validateTrigger(raw: unknown, path: string): Trigger {
   return { kind: 'phrase', phrases, window: { from, to } }
 }
 
-// Checks a whole routine as NOX sends it. `others` are the saved routines, so a phrase cannot start two.
-export function validateRoutine(raw: unknown, services: ServiceSummary[], others: Routine[]): Routine {
+// Checks a whole routine as NOX sends it. `others` are the saved routines, so a phrase cannot start two; `profiles`
+// are the Claude Code profiles a step may read with.
+export function validateRoutine(raw: unknown, services: ServiceSummary[], others: Routine[], profiles: string[] = []): Routine {
   const r = object(raw, 'routine', ['id', 'name', 'triggers', 'steps', 'version'])
   const id = text(r, 'id', 'routine', 40)
   if (!ID_PATTERN.test(id)) fail('routine.id must be kebab-case, for example "bom-dia"')
   const triggers = list(r, 'triggers', 'routine', 1, MAX_TRIGGERS).map((t, i) => validateTrigger(t, `routine.triggers[${i}]`))
-  const steps = list(r, 'steps', 'routine', 1, MAX_STEPS).map((s, i) => validateStep(s, `routine.steps[${i}]`, services))
+  const steps = list(r, 'steps', 'routine', 1, MAX_STEPS).map((s, i) => validateStep(s, `routine.steps[${i}]`, services, profiles))
   const ids = steps.map((s) => s.id)
   const repeated = ids.find((s, i) => ids.indexOf(s) !== i)
   if (repeated) fail(`routine.steps: the id "${repeated}" is used twice`)

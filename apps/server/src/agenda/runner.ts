@@ -65,7 +65,7 @@ export function docText(blocks: DocBlock[]): string {
 }
 
 function goalOf(routine: Routine, heard: string | undefined, now: Date, lastStart: number | undefined, results: Map<string, string>): string {
-  const steps = routine.steps.map((s, i) => `${i + 1}. ${s.title}: ${s.kind === 'prompt' ? resolve(s.prompt, now, lastStart) : s.kind === 'todos' ? "the owner's own tasks and reminders, read by the server; below. Say what is late, what is for today and what keeps being put off." : 'already run by the server; its result is below.'}`)
+  const steps = routine.steps.map((s, i) => `${i + 1}. ${s.title}: ${s.kind === 'prompt' ? (s.profile ? `call read_with_profile with profile "${s.profile}" and this request, then summarize what it reports: ${resolve(s.prompt, now, lastStart)}` : resolve(s.prompt, now, lastStart)) : s.kind === 'todos' ? "the owner's own tasks and reminders, read by the server; below. Say what is late, what is for today and what keeps being put off." : 'already run by the server; its result is below.'}`)
   const data = [...results].map(([id, result]) => `<result step="${id}">\n${result}\n</result>`)
   return [
     `This job is the owner's routine "${routine.name}", which they started${heard ? ` by saying "${heard}"` : ''}. It is ${dayOf(now)} ${clockOf(now)}. Carry out its steps in this order and build a briefing for the owner, in Brazilian Portuguese.`,

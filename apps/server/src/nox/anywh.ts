@@ -8,6 +8,8 @@ export interface AnywhProfile {
   label: string
   host: string
   port: number
+  // Where that login's Claude Code keeps its settings and claude.ai connectors.
+  home: string
 }
 
 export interface AnywhSession {
@@ -73,7 +75,7 @@ export async function loadProfiles(configDir = DEFAULT_CONFIG_DIR): Promise<Anyw
     const vars = Object.fromEntries([...env.matchAll(/^\s*([A-Z_]+)=(.*)$/gm)].map((m) => [m[1], m[2].trim()]))
     const port = Number(vars.RELAY_PORT)
     if (!Number.isInteger(port)) continue
-    profiles.push({ id: p.id, label: p.label ?? p.id, host: vars.RELAY_HOST || '127.0.0.1', port })
+    profiles.push({ id: p.id, label: p.label ?? p.id, host: vars.RELAY_HOST || '127.0.0.1', port, home: vars.RELAY_HOME_OVERRIDE || homedir() })
   }
   return profiles
 }

@@ -6,6 +6,8 @@ import { Reminders, review } from './agenda/reminders.js'
 import { routineTools } from './agenda/routine-tools.js'
 import { RoutineStore } from './agenda/routines.js'
 import { RoutineRunner } from './agenda/runner.js'
+import { profileTools } from './agenda/profile-tools.js'
+import { ProfileReader, readerDir } from './agenda/profiles.js'
 import { todoTools } from './agenda/todo-tools.js'
 import { AgendaSettings, TodoStore } from './agenda/todos.js'
 import { dataDir, openDatabase } from './database.js'
@@ -68,14 +70,17 @@ const announce = (text: string, workspace: string, screen?: string): void => nox
 const routines = new RoutineStore(db)
 const todos = new TodoStore(db)
 const agendaSettings = new AgendaSettings(db)
+// The owner's Claude Code logins, read with when a routine or the owner asks for their mail or Slack.
+const reader = new ProfileReader(readerDir(dataDir()), { model: process.env.NOX_MODEL ?? 'sonnet' })
 const runner = new RoutineRunner({ store: routines, registry, tasks, screens, bus, announce, review: () => review(todos.list('open'), Date.now()) })
 registerMcp(
   app,
   '/mcp',
   new McpServer('meridian', [
     ...buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, anywh: new Anywh(), messages, announce, conversations: () => noxRoutes.conversations, hostName, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen }),
-    ...routineTools({ store: routines, runner, registry, screens, bus, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen }),
+    ...routineTools({ store: routines, profiles: async () => (await reader.profiles()).map((p) => p.id), runner, registry, screens, bus, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen }),
     ...todoTools({ todos, settings: agendaSettings, registry, bus }),
+    ...profileTools({ reader, bus }),
   ]),
 )
 // Claude Code asks this server before anything its classifier doesn't settle. It is a separate MCP

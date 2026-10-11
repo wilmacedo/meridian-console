@@ -22,6 +22,7 @@ function setup(clock = '07:30') {
   const runs: { routine: Routine; trigger: RoutineRun['trigger']; workspace: string; screen?: string }[] = []
   const tools = routineTools({
     store,
+    profiles: async () => ['pessoal', 'trabalho'],
     runner: {
       run: async (routine, trigger, workspace, screen) => {
         runs.push({ routine, trigger, workspace, screen })

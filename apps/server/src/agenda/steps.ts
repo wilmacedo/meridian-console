@@ -23,6 +23,8 @@ export interface ActionStep extends BaseStep {
 export interface PromptStep extends BaseStep {
   kind: 'prompt'
   prompt: string
+  // One of the owner's Claude Code profiles, whose own accounts (mail, Slack) the step reads, and nothing else.
+  profile?: string
 }
 
 // The owner's own list, read by the server: what is late, what is for today, what keeps being put off.
@@ -35,7 +37,7 @@ export type Step = ActionStep | PromptStep | TodosStep
 const BASE = ['id', 'kind', 'title']
 const MAX_PROMPT = 1000
 
-export const STEP_KINDS: Record<Step['kind'], (raw: unknown, path: string, services: ServiceSummary[]) => Step> = {
+export const STEP_KINDS: Record<Step['kind'], (raw: unknown, path: string, services: ServiceSummary[], profiles: string[]) => Step> = {
   action: (raw, path, services) => {
     const r = object(raw, path, [...BASE, 'service', 'action', 'input'])
     const service = services.find((s) => s.id === text(r, 'service', path, 40)) ?? fail(`${path}: no service "${String(r.service)}"; get_status lists them`)
@@ -45,9 +47,10 @@ export const STEP_KINDS: Record<Step['kind'], (raw: unknown, path: string, servi
     if (r.input !== undefined && (typeof r.input !== 'object' || r.input === null || Array.isArray(r.input))) fail(`${path}.input must be an object`)
     return { ...base(r, path), kind: 'action', service: service.id, action: action.id, ...(r.input ? { input: r.input as Record<string, unknown> } : {}) }
   },
-  prompt: (raw, path) => {
-    const r = object(raw, path, [...BASE, 'prompt'])
-    return { ...base(r, path), kind: 'prompt', prompt: text(r, 'prompt', path, MAX_PROMPT) }
+  prompt: (raw, path, _services, profiles) => {
+    const r = object(raw, path, [...BASE, 'prompt', 'profile'])
+    if (r.profile !== undefined && !profiles.includes(String(r.profile))) fail(`${path}.profile must be one of ${profiles.join(', ') || '(no profiles)'}; list_profile_connectors shows what each can read`)
+    return { ...base(r, path), kind: 'prompt', prompt: text(r, 'prompt', path, MAX_PROMPT), ...(r.profile !== undefined ? { profile: String(r.profile) } : {}) }
   },
   todos: (raw, path) => ({ ...base(object(raw, path, BASE), path), kind: 'todos' }),
 }
@@ -58,9 +61,9 @@ function base(r: Record<string, unknown>, path: string): BaseStep {
   return { id, title: text(r, 'title', path, 60) }
 }
 
-export function validateStep(raw: unknown, path: string, services: ServiceSummary[]): Step {
+export function validateStep(raw: unknown, path: string, services: ServiceSummary[], profiles: string[]): Step {
   const kind = (raw as { kind?: unknown } | null)?.kind
   const validate = typeof kind === 'string' && Object.hasOwn(STEP_KINDS, kind) ? STEP_KINDS[kind as Step['kind']] : undefined
   if (!validate) fail(`${path}.kind must be one of ${Object.keys(STEP_KINDS).join(', ')}`)
-  return validate!(raw, path, services)
+  return validate!(raw, path, services, profiles)
 }

@@ -3,7 +3,7 @@
 // this is for when it doesn't.
 const ACKS = ['Entendi, vou ver isso.', 'Certo, já estou verificando.', 'Ok, deixa comigo.', 'Entendido, vou trabalhar nisso.', 'Beleza, vou dar uma olhada.']
 
-const SLOW_TOOLS = new Set(['Bash', 'WebSearch', 'WebFetch', 'call_service_action', 'list_containers', 'add_service', 'edit_service', 'start_task', 'run_routine'])
+const SLOW_TOOLS = new Set(['Bash', 'WebSearch', 'WebFetch', 'call_service_action', 'list_containers', 'add_service', 'edit_service', 'start_task', 'run_routine', 'read_with_profile', 'list_profile_connectors'])
 
 // Reading from a machine, a service or the web takes a while; opening a window or reading local state does not.
 export const isSlowTool = (name: string): boolean => SLOW_TOOLS.has(name) || name.startsWith('service_')

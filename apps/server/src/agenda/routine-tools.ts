@@ -10,6 +10,8 @@ import type { RoutineRunner } from './runner.js'
 
 interface RoutineToolDeps {
   store: RoutineStore
+  // The ids of the owner's Claude Code profiles, which a step may read with.
+  profiles: () => Promise<string[]>
   runner: Pick<RoutineRunner, 'run'>
   registry: Pick<Registry, 'summaries'>
   screens: Pick<ScreenRegistry, 'dispatch'>
@@ -55,6 +57,7 @@ const routineSchema = {
           action: { type: 'string' },
           input: { type: 'object', description: 'Strings may use {today}, {yesterday} and {last_run}.' },
           prompt: { type: 'string', description: 'May use {today}, {yesterday} and {last_run} (when this routine last ran).' },
+          profile: { type: 'string', description: 'For a prompt step that reads mail, Slack or files: the Claude Code profile whose accounts it reads (list_profile_connectors). It only reads.' },
         },
       },
     },
@@ -74,14 +77,14 @@ export function routineDoc(r: Routine, saved: boolean): DocSpec {
       { t: 'tags', items: phrases.map((label) => ({ label })) },
       ...(windows.length ? [{ t: 'kv' as const, items: [{ k: 'Horário', v: windows.join(', ') }] }] : []),
       { t: 'h', level: 2, text: 'Passos' },
-      { t: 'list', items: r.steps.map((s) => ({ text: s.title, meta: s.kind === 'action' ? `${s.service} · ${s.action}` : s.kind === 'todos' ? 'LEMBRETES' : 'NOX', state: 'todo' as const })) },
+      { t: 'list', items: r.steps.map((s) => ({ text: s.title, meta: s.kind === 'action' ? `${s.service} · ${s.action}` : s.kind === 'todos' ? 'LEMBRETES' : s.profile ? `PERFIL ${s.profile.toUpperCase()}` : 'NOX', state: 'todo' as const })) },
     ],
   }
 }
 
 export function routineTools(d: RoutineToolDeps): McpTool[] {
   const now = d.now ?? (() => new Date())
-  const validate = (raw: unknown): Routine => validateRoutine(raw, d.registry.summaries(), d.store.list())
+  const validate = async (raw: unknown): Promise<Routine> => validateRoutine(raw, d.registry.summaries(), d.store.list(), await d.profiles())
   const show = (r: Routine, saved: boolean): boolean => d.screens.dispatch(d.currentWorkspace(), { name: 'compose_doc', doc: routineDoc(r, saved) }, d.currentScreen())
   const find = (id: unknown): Routine => d.store.get(String(id)) ?? fail(`no routine "${String(id)}"; list_routines shows them`)
 
@@ -100,8 +103,8 @@ export function routineTools(d: RoutineToolDeps): McpTool[] {
       name: 'preview_routine',
       description: 'Checks a routine you wrote and shows it on the screen as a draft. Nothing is saved. Call it before save_routine, every time, and then ask the owner whether to save.',
       inputSchema: { type: 'object', required: ['routine'], properties: { routine: routineSchema } },
-      handler: (a) => {
-        const routine = validate(a.routine)
+      handler: async (a) => {
+        const routine = await validate(a.routine)
         const shown = show(routine, false)
         return `${shown ? 'Shown on the screen as a draft.' : 'No screen is showing this workspace, so describe it in a sentence.'} Nothing is saved yet: ask the owner, and call save_routine only once they say to save it.`
       },
@@ -110,8 +113,8 @@ export function routineTools(d: RoutineToolDeps): McpTool[] {
       name: 'save_routine',
       description: 'Saves a routine the owner has just approved (after preview_routine), or replaces the one with the same id with its new version.',
       inputSchema: { type: 'object', required: ['routine'], properties: { routine: routineSchema } },
-      handler: (a) => {
-        const routine = validate(a.routine)
+      handler: async (a) => {
+        const routine = await validate(a.routine)
         const existed = d.store.get(routine.id) !== undefined
         d.store.put(routine)
         show(routine, true)

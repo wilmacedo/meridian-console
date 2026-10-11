@@ -82,6 +82,12 @@ describe('RoutineRunner', () => {
     expect(goals[0]).toContain('<result step="pendencias">\n{"late":[{"id":"t-1","title":"Pagar o IPVA"}]}\n</result>')
   })
 
+  it('has the worker read a profile step through that profile', async () => {
+    const { runner, goals } = setup()
+    await runner.run({ ...routine, steps: [{ id: 'mail', kind: 'prompt', title: 'E-mails', prompt: 'não lidos de {yesterday}', profile: 'trabalho' }] }, { kind: 'by_name' }, 'default')
+    expect(goals[0]).toContain('1. E-mails: call read_with_profile with profile "trabalho" and this request, then summarize what it reports: não lidos de 2026-10-11')
+  })
+
   it('passes a failed action on as such instead of giving up', async () => {
     const { runner, goals } = setup(async () => Promise.reject(new Error('calendar is offline')))
     await runner.run(routine, { kind: 'by_name' }, 'default')

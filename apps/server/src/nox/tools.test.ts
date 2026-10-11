@@ -35,7 +35,7 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
   let rejectReply!: (e: Error) => void
   const replies = { promise: new Promise<{ text: string; stopped: boolean; failed: boolean }>((ok, fail) => ((resolveReply = ok), (rejectReply = fail))) }
   const anywh = {
-    profiles: async () => [{ id: 'pessoal', label: 'pessoal', host: '127.0.0.1', port: 1 }],
+    profiles: async () => [{ id: 'pessoal', label: 'pessoal', host: '127.0.0.1', port: 1, home: '/home/x' }],
     sessions: async (profile: string) => (profile === 'pessoal' ? [{ id: 's1', title: 'old', lastActiveAt: 1 }, { id: 's2', title: 'new', lastActiveAt: 2 }] : Promise.reject(new Error(`no anywh profile "${profile}"`))),
     read: async (...a: unknown[]) => `read ${a.join(' ')}`,
     send: async (...a: unknown[]) => (sentToAnywh.push(a), { session: (a[2] as { session?: string }).session ?? 'new-id', reply: replies.promise }),

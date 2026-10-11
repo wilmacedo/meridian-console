@@ -35,8 +35,13 @@ describe('validateRoutine', () => {
     expect(() => validateRoutine(withSteps([{ id: 'x', kind: 'habit', title: 'X' }]), services, [])).toThrow('routine.steps[0].kind must be one of action, prompt, todos')
     expect(() => validateRoutine(withSteps([{ id: 'x', kind: 'prompt', title: 'X' }]), services, [])).toThrow('routine.steps[0].prompt is required')
     expect(() => validateRoutine(withSteps([{ id: 'x', kind: 'action', title: 'X', service: 'mail', action: 'list' }]), services, [])).toThrow('no service "mail"')
-    expect(() => validateRoutine(withSteps([{ id: 'x', kind: 'prompt', title: 'X', prompt: 'p', profile: 'trabalho' }]), services, [])).toThrow('unknown field profile')
+    expect(() => validateRoutine(withSteps([{ id: 'x', kind: 'prompt', title: 'X', prompt: 'p', profile: 'casa' }]), services, [], ['pessoal', 'trabalho'])).toThrow('routine.steps[0].profile must be one of pessoal, trabalho')
     expect(() => validateRoutine(withSteps([bomDia.steps[1], bomDia.steps[1]]), services, [])).toThrow('the id "ontem" is used twice')
+  })
+
+  it('lets a prompt step read with one of the owner\'s profiles', () => {
+    const r = validateRoutine(withSteps([{ id: 'mail', kind: 'prompt', title: 'E-mails', prompt: 'não lidos desde {last_run}', profile: 'trabalho' }]), services, [], ['pessoal', 'trabalho'])
+    expect(r.steps[0]).toEqual({ id: 'mail', kind: 'prompt', title: 'E-mails', prompt: 'não lidos desde {last_run}', profile: 'trabalho' })
   })
 
   it('refuses steps that could change something, because a routine only reads', () => {
