@@ -44,6 +44,7 @@ export class DeviceStore {
         kind TEXT NOT NULL,
         label TEXT NOT NULL,
         token_hash TEXT,
+        prev_token_hash TEXT,
         token_expires_at INTEGER,
         created_at INTEGER NOT NULL,
         last_seen INTEGER,
@@ -81,7 +82,7 @@ export class DeviceStore {
   }
 
   addDevice(kind: DeviceKind, label: string, token: string, tokenExpiresAt: number | null): Device {
-    const id = randomBytes(8).toString('hex')
+    const id = randomBytes(16).toString('hex')
     const createdAt = this.now()
     this.db
       .prepare('INSERT INTO devices (id, kind, label, token_hash, token_expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)')
@@ -97,6 +98,32 @@ export class DeviceStore {
     return row ? asDevice(row) : undefined
   }
 
+  // Swaps the credential for the one the device chose. An exact retry of the same pair (the response was lost)
+  // succeeds again; the old token can never rotate to a different replacement. Returns the device, or undefined.
+  rotateToken(oldToken: string, nextToken: string, tokenExpiresAt: number): Device | undefined {
+    const oldHash = sha256(oldToken)
+    const nextHash = sha256(nextToken)
+    const current = this.db.prepare('SELECT * FROM devices WHERE token_hash = ? AND revoked_at IS NULL AND (token_expires_at IS NULL OR token_expires_at > ?)').get(oldHash, this.now())
+    if (current) {
+      this.db.prepare('UPDATE devices SET prev_token_hash = ?, token_hash = ?, token_expires_at = ? WHERE id = ?').run(oldHash, nextHash, tokenExpiresAt, current.id)
+      return asDevice(current)
+    }
+    const retried = this.db.prepare('SELECT * FROM devices WHERE prev_token_hash = ? AND token_hash = ? AND revoked_at IS NULL').get(oldHash, nextHash)
+    return retried ? asDevice(retried) : undefined
+  }
+
+  tokenExpiry(id: string): number | undefined {
+    return this.db.prepare('SELECT token_expires_at FROM devices WHERE id = ? AND revoked_at IS NULL').get(id)?.token_expires_at as number | undefined
+  }
+
+  // Whether the device may still hold a connection: not revoked, and its grant has not lapsed.
+  active(id: string): boolean {
+    const row = this.db.prepare('SELECT token_expires_at FROM devices WHERE id = ? AND revoked_at IS NULL').get(id)
+    if (!row) return false
+    const exp = row.token_expires_at as number | null
+    return exp === null || exp > this.now()
+  }
+
   devices(): Device[] {
     return this.db.prepare('SELECT * FROM devices WHERE revoked_at IS NULL ORDER BY created_at').all().map(asDevice)
   }
@@ -106,7 +133,7 @@ export class DeviceStore {
   }
 
   revoke(id: string): boolean {
-    const res = this.db.prepare('UPDATE devices SET revoked_at = ?, token_hash = NULL WHERE id = ? AND revoked_at IS NULL').run(this.now(), id)
+    const res = this.db.prepare('UPDATE devices SET revoked_at = ?, token_hash = NULL, prev_token_hash = NULL WHERE id = ? AND revoked_at IS NULL').run(this.now(), id)
     this.db.prepare('DELETE FROM device_executor_keys WHERE device_id = ?').run(id)
     return res.changes === 1
   }

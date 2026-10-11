@@ -71,3 +71,40 @@ describe('devices', () => {
     expect(store.executorKey(device.id)?.approvedAt).not.toBeNull()
   })
 })
+
+describe('token rotation', () => {
+  const day = 86_400_000
+
+  it('replaces the credential and drops the old one', () => {
+    const { store, clock } = make()
+    const device = store.addDevice('browser', 'personal', 'old', clock.now + 90 * day)
+    expect(store.rotateToken('old', 'next', clock.now + 90 * day)?.id).toBe(device.id)
+    expect(store.deviceByToken('old')).toBeUndefined()
+    expect(store.deviceByToken('next')?.id).toBe(device.id)
+  })
+
+  it('answers an exact retry again but never rotates the old token to another replacement', () => {
+    const { store, clock } = make()
+    store.addDevice('browser', 'personal', 'old', clock.now + 90 * day)
+    store.rotateToken('old', 'next', clock.now + 90 * day)
+    expect(store.rotateToken('old', 'next', clock.now + 90 * day)).toBeDefined()
+    expect(store.rotateToken('old', 'other', clock.now + 90 * day)).toBeUndefined()
+  })
+
+  it('refuses a revoked device, even for a retry', () => {
+    const { store, clock } = make()
+    const device = store.addDevice('browser', 'personal', 'old', clock.now + 90 * day)
+    store.rotateToken('old', 'next', clock.now + 90 * day)
+    store.revoke(device.id)
+    expect(store.rotateToken('old', 'next', clock.now + 90 * day)).toBeUndefined()
+    expect(store.active(device.id)).toBe(false)
+  })
+
+  it('stops being active when the grant lapses', () => {
+    const { store, clock } = make()
+    const device = store.addDevice('browser', 'personal', 't', clock.now + day)
+    expect(store.active(device.id)).toBe(true)
+    clock.now += day
+    expect(store.active(device.id)).toBe(false)
+  })
+})
