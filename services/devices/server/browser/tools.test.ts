@@ -1,15 +1,18 @@
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
+import Ajv from 'ajv'
 import { describe, expect, it, vi } from 'vitest'
 import { AuditLog } from '../audit.js'
 import { KillSwitch } from '../kill-switch.js'
 import { DeviceStore } from '../store.js'
+import { parseAllowlist } from './allowlist.js'
 import { BrowserGateway } from './gateway.js'
 import { FakeExtension } from './test-support.js'
 import { BrowserTools } from './tools.js'
-import { parseAllowlist } from './allowlist.js'
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 const OUTLINE = [
   '@vom 1',
@@ -267,5 +270,38 @@ describe('close and audit', () => {
     const log = readFileSync(b.logFile, 'utf8')
     expect(log).not.toMatch(/token|secret|Send message/)
     expect(log.trim().split('\n').map((l) => l.split(' ').slice(1).join(' '))).toEqual(['personal browser_open example.com/path ok', 'personal browser_read example.com/path ok', 'personal browser_click example.com/path declined'])
+  })
+})
+
+describe('contract with the pinned BrowserSkill schemas', () => {
+  const schemas = join(__dirname, 'schemas')
+  const ajv = new Ajv({ strict: false })
+  const validate = (file: string, value: unknown): void => {
+    const check = ajv.compile(JSON.parse(readFileSync(join(schemas, `${file}.json`), 'utf8')))
+    expect(check(value), `${file}: ${ajv.errorsText(check.errors)}`).toBe(true)
+  }
+
+  it('every request we send validates against the schema of its method', async () => {
+    const b = browser()
+    await open(b)
+    await b.tools.read('personal')
+    await b.tools.click({ profile: 'personal', ref: '@e1' }, yes)
+    await b.tools.click({ profile: 'personal', selector: '#go' }, yes)
+    await b.tools.type({ profile: 'personal', ref: 'e5', text: 'hi', clear: false })
+    await b.tools.press('personal', 'Tab', yes)
+    await b.tools.wait('personal', { selector: '#x' }, 'visible', 5)
+    await b.tools.close('personal')
+    const methods = new Set(b.calls.map((c) => c.method))
+    expect([...methods].sort()).toEqual(['tool.click', 'tool.evaluate', 'tool.fill', 'tool.navigate', 'tool.observe', 'tool.press', 'tool.session_start', 'tool.session_stop', 'tool.wait_for_element'])
+    for (const c of b.calls) validate(`${c.method.replace('tool.', 'tool-').replaceAll('_', '-')}-params`, c.params)
+  })
+
+  it('the handshake we answer with validates against the pinned result schema', () => {
+    const store = new DeviceStore(new DatabaseSync(':memory:'))
+    const gateway = new BrowserGateway({ store, killSwitch: new KillSwitch(store) })
+    const ext = new FakeExtension()
+    gateway.attach(ext.socket, store.addDevice('browser', 'b', 't', null))
+    ext.hello('personal')
+    validate('handshake-result', (ext.sent[0] as { result: unknown }).result)
   })
 })
