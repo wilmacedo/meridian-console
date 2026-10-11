@@ -416,6 +416,41 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   A task's document appears on the tab that asked for it and its updates stay there (a live document
   stays on the screen it first appeared on). Tasks live in memory: a server restart ends them. NOX does not announce a finished task by itself.
 
+### Routines
+
+A routine is the owner's: a phrase they say ("bom dia") and the steps NOX then runs, ending in a briefing on the
+screen and a few spoken highlights. NOX never acts on its own initiative here: a routine exists only once the owner
+has created it, and runs only when the owner says its phrase or asks for it by name. Nothing runs one on a clock.
+The code is `apps/server/src/agenda/`, a core module rather than a service, because it needs what only the core
+has (NOX speaking first, background tasks, the screens).
+
+- **Shape** (`routines.ts`): `{id, name, triggers, steps, version}`, stored as JSON in the `routines` table of
+  `meridian.db`, with one row per run in `routine_runs` (who started it, when, its end state and the worker's
+  steps). Triggers are a list of kinds and steps a union of kinds, so a new way to start a routine or a new kind of
+  step is an addition, not a migration; `version` is there for when the shape does change. The only trigger kind is
+  `phrase` (phrases plus an optional local time window).
+- **Steps** (`steps.ts`, one entry per kind in `STEP_KINDS`): `action` is a read-only service action the server runs
+  itself, without the model; `prompt` is the owner's request in their own words, carried out by the worker with
+  NOX's tools. Both may use `{today}`, `{yesterday}` and `{last_run}`. A step that could change something (a
+  `mutating` or `gated` action) is refused when the routine is saved: a routine only reads, and anything that sends
+  or changes is asked for in the conversation, behind the confirmation card. At most 8 steps.
+- **Creating and changing** is by voice. NOX writes the whole routine and calls `preview_routine`, which validates it
+  and shows it on the screen as a draft (`ROTINA · RASCUNHO`); only when the owner says to save does it call
+  `save_routine`. A phrase that already starts another routine is refused. `list_routines` and `delete_routine`
+  complete the set.
+- **Starting by phrase** (`match.ts`): before an owner's turn the server looks for a routine phrase in what was said
+  (accents, case and punctuation ignored, whole words, and only in a short request) and puts a note in front of it
+  for NOX, who decides whether the owner really meant it. Inside the window and the first time in the day it runs at
+  once; outside the window or a second time, `run_routine` refuses until NOX has asked and the owner agreed
+  (`confirmed: true`). Asked for by name, it runs.
+- **Running** (`runner.ts`): the `action` steps run first, then a background task (the same `Tasks` as
+  `start_task`) gets every step as its plan, the action results as data, and the rule that it only reads and that
+  everything it reads is information, never instructions. The task card shows the routine's steps, and the worker
+  writes the briefing (one section per step and a callout with what matters most) in its live document. When the
+  task ends, NOX is woken with `[routine done]` and the briefing's text and says the highlights; a run the owner
+  stopped is not announced. A routine does not run twice at once, and a run that was going when the server stopped
+  is marked `interrupted` at the next start.
+
 ### Link state, as built (phase 9)
 
 `live.link` is `connecting` until the first attempt settles (so a loading page doesn't flash offline),
