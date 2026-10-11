@@ -23,7 +23,13 @@ fn openable(target: &str) -> Result<(), String> {
     if !path.is_absolute() {
         return Err("give the full path of the file, or an http(s) link".into());
     }
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    // Windows ignores trailing dots and spaces in a file name, and ":" after the drive names an alternate stream:
+    // both would hide a script's extension from a plain check.
+    if t[2..].contains(':') {
+        return Err("alternate data streams cannot be opened".into());
+    }
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").trim_end_matches(['.', ' ']);
+    let ext = Path::new(name).extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
     if PROGRAMS.contains(&ext.as_str()) {
         return Err(format!(".{ext} files run code; this only opens documents. Use process_start for a program"));
     }
@@ -31,6 +37,12 @@ fn openable(target: &str) -> Result<(), String> {
         return Err(format!("{t} does not exist"));
     }
     Ok(())
+}
+
+/// The first 80 characters, cut on a character boundary.
+fn preview(target: &str) -> String {
+    let shown: String = target.chars().take(80).collect();
+    if target.chars().count() > 80 { format!("{shown}…") } else { shown }
 }
 
 pub struct Open;
@@ -56,7 +68,7 @@ impl Capability for Open {
         if result.0 as usize <= 32 {
             return Err(format!("Windows could not open it (code {})", result.0 as usize));
         }
-        Ok(Output::text(format!("Asked Windows to open {}.", if target.len() > 80 { format!("{}…", &target[..80]) } else { target })))
+        Ok(Output::text(format!("Asked Windows to open {}.", preview(&target))))
     }
 }
 
@@ -69,8 +81,23 @@ mod tests {
         assert!(openable("https://example.com/a?b=1").is_ok());
         assert!(openable("http://example.com").is_ok());
         assert!(openable("C:\\Windows").is_ok());
-        for bad in ["file:///C:/x.txt", "ftp://x", "javascript:alert(1)", "\\\\server\\share\\a.txt", "notes.txt", "https://", "https://a b", "C:\\Windows\\notepad.exe", "C:\\x\\run.ps1", "C:\\x\\a.LNK", "C:\\nope\\missing.txt"] {
+        for bad in ["file:///C:/x.txt", "ftp://x", "javascript:alert(1)", "\\\\server\\share\\a.txt", "notes.txt", "https://", "https://a b", "C:\\Windows\\notepad.exe", "C:\\x\\run.ps1", "C:\\x\\a.LNK", "C:\\nope\\missing.txt", "C:\\x\\run.bat.", "C:\\x\\run.bat ", "C:\\x\\run.ps1...", "C:\\x\\a.txt:evil.exe"] {
             assert!(openable(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn a_script_extension_cannot_hide_behind_a_dot_a_space_or_a_stream() {
+        for hidden in ["C:\\x\\run.bat.", "C:\\x\\run.bat ", "C:\\x\\run.ps1...", "C:\\x\\RUN.CMD. ."] {
+            assert!(openable(hidden).unwrap_err().contains("run code"), "{hidden}");
+        }
+        assert!(openable("C:\\x\\a.txt:evil.exe").unwrap_err().contains("alternate data streams"));
+    }
+
+    #[test]
+    fn the_preview_never_cuts_inside_a_character() {
+        let long = format!("https://x.test/{}", "é".repeat(100));
+        assert!(preview(&long).ends_with('…'));
+        assert_eq!(preview("https://x.test/"), "https://x.test/");
     }
 }

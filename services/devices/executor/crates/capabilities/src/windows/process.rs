@@ -62,13 +62,17 @@ impl Capability for List {
 /// this capability is for.
 const INTERPRETERS: &[&str] = &["cmd", "powershell", "pwsh", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "msiexec", "wsl", "bash", "python", "node", "reg", "regedit", "schtasks", "sc", "net", "curl", "certutil", "bitsadmin"];
 
+/// The only extension a program name may carry. Anything else with a dot (`foo.bat`, `x.vbs`, `cmd.`) is a script or
+/// a trick Windows resolves to one, so it is refused rather than parsed.
 fn startable(name: &str) -> Result<(), String> {
     let bare = name.trim();
-    let stem = bare.strip_suffix(".exe").unwrap_or(bare).to_lowercase();
-    if bare.is_empty() || bare.len() > 60 || !bare.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '.' | '_' | '-')) {
-        return Err("name must be the plain name of an installed program, such as \"brave\" or \"notepad\": no path, no arguments".into());
+    let lower = bare.to_lowercase();
+    let stem = lower.strip_suffix(".exe").unwrap_or(&lower);
+    let plain = |c: char| c.is_ascii_alphanumeric() || matches!(c, ' ' | '_' | '-');
+    if stem.is_empty() || bare.len() > 60 || !stem.chars().all(plain) || stem.starts_with(' ') || stem.ends_with(' ') {
+        return Err("name must be the plain name of an installed program, such as \"brave\" or \"notepad\": no path, no arguments, no extension but .exe".into());
     }
-    if INTERPRETERS.contains(&stem.as_str()) {
+    if INTERPRETERS.contains(&stem) {
         return Err(format!("{stem} runs commands; this only starts ordinary programs"));
     }
     Ok(())
@@ -142,7 +146,7 @@ mod tests {
         assert!(startable("brave").is_ok());
         assert!(startable("Notepad.exe").is_ok());
         assert!(startable("Google Chrome").is_ok());
-        for bad in ["", "C:\\Windows\\notepad.exe", "..\\x", "notepad /c", "calc;calc", "cmd", "PowerShell.exe", "wscript", "https://x.test"] {
+        for bad in ["", "C:\\Windows\\notepad.exe", "..\\x", "notepad /c", "calc;calc", "cmd", "PowerShell.exe", "wscript", "https://x.test", "PowerShell.EXE", "CMD.EXE", "Cmd.Exe", "foo.bat", "x.vbs", "run.ps1", "cmd.", "cmd ", "cmd .exe", "calc.exe.exe", "a.b.exe", ".exe"] {
             assert!(startable(bad).is_err(), "{bad}");
         }
     }
