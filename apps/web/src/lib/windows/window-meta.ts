@@ -10,6 +10,7 @@ export interface WindowMeta {
 
 export interface MetaContext {
   hostName: string
+  workspaceName: string
   doc: { title: string; kicker: string } | null
   // Two-letter badge of a service, for the windows it contributes.
   monoOf: (serviceId: string) => string
@@ -24,7 +25,7 @@ const KICKERS: Record<string, (ctx: MetaContext) => string> = {
 }
 
 export function windowMeta(id: WindowId, ctx: MetaContext): WindowMeta {
-  if (id === 'settings') return { index: 'ST', title: 'Settings', kicker: 'This workspace · autosave' }
+  if (id === 'settings') return { index: 'ST', title: 'Settings', kicker: `Workspace · ${ctx.workspaceName}` }
   if (id === 'doc') return { index: 'NX', title: ctx.doc?.title ?? 'Document', kicker: ctx.doc?.kicker ?? '' }
   const own = contributedWindow(id)
   if (own) return { index: ctx.monoOf(own.serviceId), title: own.title, kicker: own.kicker }

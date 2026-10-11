@@ -15,6 +15,7 @@
   import { isStacked } from '../workspace/layout.svelte'
   import { live } from '../live/stream.svelte'
   import { visibleServices } from '../workspace/prefs.svelte'
+  import { currentWorkspace } from '../workspace/workspace-sync.svelte'
   import WindowFrame from './window-frame.svelte'
   import WindowPlaceholder from './window-placeholder.svelte'
   import { arrange, isOpen, setStage, wm, type WindowId } from './window-manager.svelte'
@@ -37,6 +38,7 @@
     if (id === 'doc') return `COMPOSED BY NOX · ${docs.current?.blocks.length ?? 0} BLOCKS`
     if (id === 'cameras' || id === 'calendar') return moduleContributions(id).map((c) => (typeof c.footer === 'function' ? c.footer() : c.footer)).filter(Boolean).join(' · ')
     if (id === 'logs') return `${eventsFor(eventsView.filter).length} EVENTS BUFFERED`
+    if (id === 'settings') return `· SAVED TO “${(currentWorkspace()?.name ?? '').toUpperCase()}”`
     if (id === 'telemetry') return `${live.host.name.toUpperCase()} · LIVE`
     return ''
   }

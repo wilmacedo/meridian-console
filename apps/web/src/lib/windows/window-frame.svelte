@@ -5,6 +5,7 @@
   import { pinDef } from '../dock/pin'
   import { docs } from '../docs/docs.svelte'
   import { live } from '../live/stream.svelte'
+  import { currentWorkspace } from '../workspace/workspace-sync.svelte'
   import { pointerDrag, type PointerDragOptions } from './pointer-drag'
   import { windowMeta } from './window-meta'
   import { beginGesture, close, endGesture, focus, moveGesture, nudge, rectFor, toggleMaximise, wm, type GestureMode, type WindowState } from './window-manager.svelte'
@@ -13,7 +14,7 @@
 
   const pin = $derived(pinDef(win.id))
   const rect = $derived(rectFor(win))
-  const meta = $derived(windowMeta(win.id, { hostName: live.host.name, doc: docs.current, monoOf: (id) => live.services.find((s) => s.id === id)?.mono ?? '··' }))
+  const meta = $derived(windowMeta(win.id, { hostName: live.host.name, workspaceName: currentWorkspace()?.name ?? '', doc: docs.current, monoOf: (id) => live.services.find((s) => s.id === id)?.mono ?? '··' }))
   const focused = $derived(wm.active === win.id)
   const dragging = $derived(wm.gesture === win.id)
   const pad = (n: number): string => String(n).padStart(2, '0')
@@ -66,7 +67,14 @@
       <button class="close" aria-label="Close" onclick={() => close(win.id)}>✕</button>
     </div>
     <div class="body">{@render children?.()}</div>
-    <div class="foot"><span>{footLeft}</span><span>SYNCED AT {syncedAt}</span></div>
+    <div class="foot">
+      {#if win.id === 'settings'}
+        <span class="autosave"><i></i><b>AUTOSAVE</b><em>{footLeft}</em></span>
+      {:else}
+        <span>{footLeft}</span>
+      {/if}
+      <span class="synced">SYNCED AT {syncedAt}</span>
+    </div>
   </div>
   <div class="rz e" use:pointerDrag={gesture('e')}></div>
   <div class="rz w" use:pointerDrag={gesture('w')}></div>
@@ -236,6 +244,36 @@
     letter-spacing: 0.2em;
     color: rgb(var(--nx-ac));
     animation: nx-sub 0.5s ease 0.5s both;
+  }
+  .autosave {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .autosave i {
+    width: 5px;
+    height: 5px;
+    flex: none;
+    border-radius: 50%;
+    background: rgb(var(--nx-ac));
+    box-shadow: 0 0 6px rgb(var(--nx-ac));
+    animation: nx-blink 2s ease-in-out infinite;
+  }
+  .autosave b {
+    flex: none;
+    font: inherit;
+  }
+  .autosave em {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-style: normal;
+  }
+  .synced {
+    flex: none;
   }
   .rz {
     position: absolute;
