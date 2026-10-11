@@ -25,6 +25,12 @@ export function handleShortcut(e: KeyboardEvent, closeOverlay: () => boolean): v
     shellUi.workspacesOpen = false
     if (isOpen('settings')) close('settings')
     else open('settings')
+  } else if (e.key === '/') {
+    const field = isOpen('settings') ? document.querySelector<HTMLInputElement>('[data-settings-search]') : null
+    if (!field) return
+    e.preventDefault()
+    field.focus()
+    field.select()
   } else if (/^[1-9]$/.test(e.key)) {
     const m = visibleModules()[Number(e.key) - 1]
     if (m) openModule(m.id)

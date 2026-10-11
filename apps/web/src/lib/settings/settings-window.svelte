@@ -19,6 +19,7 @@
   import SegmentedControl from './segmented-control.svelte'
   import { SETTINGS_SECTIONS, viewSettings } from './settings-index'
   import SettingsRail from './settings-rail.svelte'
+  import SettingsSearch from './settings-search.svelte'
   import SettingRow from './setting-row.svelte'
   import SettingSection from './setting-section.svelte'
   import SwitchToggle from './switch-toggle.svelte'
@@ -139,10 +140,18 @@
 <div class="settings">
   <div class="layout">
     <div class="side">
+      <SettingsSearch bind:value={query} />
       <SettingsRail sections={view.sections} searching={view.searching} onPick={pick} />
     </div>
 
     <div class="content">
+      {#if view.searching && !view.hits}
+        <div class="none">
+          <span class="tag">0 RESULTS</span>
+          <span class="said">Nothing matches “{query.trim()}”.</span>
+          <button onclick={() => (query = '')}>CLEAR SEARCH</button>
+        </div>
+      {/if}
       {#if showing('appearance')}
         <SettingSection title={head('appearance')} delay={stagger('appearance')}>
           {#if has('mode')}
@@ -405,6 +414,39 @@
     border: 1px solid rgba(var(--nx-ac), 0.16);
     border-radius: 10px;
     background: rgba(var(--nx-mu), 0.06);
+  }
+  .none {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 26px 16px;
+    border: 1px dashed rgba(var(--nx-ac), 0.25);
+    border-radius: 10px;
+    animation: nx-sub 0.4s ease both;
+  }
+  .none .tag {
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+  }
+  .said {
+    font-size: 13px;
+    color: rgb(var(--nx-fg));
+  }
+  .none button {
+    height: 30px;
+    padding: 0 12px;
+    background: rgba(var(--nx-mu), 0.08);
+    border: 1px solid rgba(var(--nx-ac), 0.35);
+    border-radius: 8px;
+    color: rgb(var(--nx-ac));
+    font: 400 10px/1 var(--font-mono);
+    letter-spacing: 0.16em;
+    cursor: pointer;
+  }
+  .none button:hover {
+    background: rgba(var(--nx-mu), 0.22);
+    color: rgb(var(--nx-fg));
   }
   .tag {
     font: 400 9px/1 var(--font-mono);
