@@ -13,7 +13,7 @@ const target = {
 } as const
 const object = (properties: Record<string, unknown>, required: string[] = []) => ({ type: 'object', additionalProperties: false, required, properties })
 
-export function browserActions({ store, gateway, tools, audit, publicUrl }: Runtime): ServiceAction<never>[] {
+export function browserActions({ store, tools, audit, publicUrl }: Runtime): ServiceAction<never>[] {
   return [
     action({
       id: 'browser_status',
@@ -37,21 +37,6 @@ export function browserActions({ store, gateway, tools, audit, publicUrl }: Runt
         const { link, expiresAt } = store.createPairingLink()
         audit.record({ device: '-', tool: 'browser_pair', outcome: 'ok' })
         return `${publicUrl}#${link} (valid until ${new Date(expiresAt).toLocaleTimeString('en-GB')}, one use)`
-      },
-    }),
-    action({
-      id: 'browser_revoke',
-      method: 'POST',
-      path: '/browser/revoke',
-      title: 'Revoke a browser',
-      description: "Cuts a paired browser off for good: its connection closes within a second and its credential stops working. The owner confirms. Get the device id from status. The owner has to pair again to bring it back.",
-      mutating: true,
-      input: object({ device: { type: 'string', pattern: '^[a-f0-9]{32}$' } }, ['device']),
-      run: async (input: { device: string }) => {
-        if (!store.revoke(input.device)) throw new Error('No such paired device.')
-        gateway.disconnect(input.device, 'revoked')
-        audit.record({ device: input.device, tool: 'browser_revoke', outcome: 'ok' })
-        return 'Revoked. Its connection is closed and its credential no longer works.'
       },
     }),
     action({

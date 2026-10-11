@@ -9,6 +9,9 @@ import { createAppIo } from './app-ui/tunnel.js'
 import { parseAllowlist } from './browser/allowlist.js'
 import { BrowserGateway } from './browser/gateway.js'
 import { BrowserTools } from './browser/tools.js'
+import { ExecutorGateway } from './executor/gateway.js'
+import { ServerKey } from './executor/keys.js'
+import { ExecutorTools } from './executor/tools.js'
 import { KillSwitch } from './kill-switch.js'
 import { DeviceStore } from './store.js'
 
@@ -19,6 +22,8 @@ export interface Runtime {
   gateway: BrowserGateway
   tools: BrowserTools
   apps: AppTools
+  executors: ExecutorGateway
+  executorTools: ExecutorTools
   // wss://host/api/services/devices/extension, the address a pairing link carries.
   publicUrl: string | undefined
 }
@@ -40,6 +45,10 @@ export function getRuntime(): Runtime {
   const io = createAppIo(process.env.MERIDIAN_DEVICES_APPS_SSH_HOST || undefined, (event) => audit.record({ device: 'tunnel', tool: 'app_tunnel', target: event, outcome: 'ok' }))
   killSwitch.onEngage(io.stopAll)
   const apps = new AppTools({ targets: parseTargets(process.env.MERIDIAN_DEVICES_APPS), audit, killSwitch, reachable: io.reachable, open: io.open })
-  runtime = { store, audit, killSwitch, gateway, tools, apps, publicUrl: process.env.MERIDIAN_DEVICES_PUBLIC_URL }
+  const publicUrl = process.env.MERIDIAN_DEVICES_PUBLIC_URL
+  const serverKey = ServerKey.loadOrCreate(join(dir, 'devices', 'server-key.json'))
+  const executors = new ExecutorGateway({ store, killSwitch, serverKey })
+  const executorTools = new ExecutorTools(executors, store, audit, join(dir, 'devices', 'screens'), () => ({ url: publicUrl?.replace(/\/extension$/, '/executor'), serverKey: serverKey.publicKey }))
+  runtime = { store, audit, killSwitch, gateway, tools, apps, executors, executorTools, publicUrl }
   return runtime
 }

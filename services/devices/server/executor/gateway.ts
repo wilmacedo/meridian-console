@@ -12,6 +12,7 @@ const CALL_TIMEOUT_MS = 30_000
 const SILENCE_MS = 90_000
 const SWEEP_MS = 1_000
 const MAX_PENDING = 5
+const MAX_HANDSHAKING = 16
 
 interface Waiting {
   resolve: (r: { text: string; image?: Buffer }) => void
@@ -102,6 +103,7 @@ export class ExecutorGateway {
   private readonly connections = new Map<string, ExecutorConnection>()
   private readonly pending = new Map<string, Pending>()
   private readonly now: () => number
+  private handshaking = 0
   private timer: ReturnType<typeof setInterval> | undefined
 
   constructor(private readonly o: ExecutorGatewayOptions) {
@@ -154,6 +156,14 @@ export class ExecutorGateway {
   attach(socket: Socket): void {
     const { killSwitch, store, serverKey } = this.o
     if (!killSwitch.admit(socket)) return
+    // Nobody has proved anything yet at this point, so how many may be mid-handshake is bounded.
+    if (this.handshaking >= MAX_HANDSHAKING) return killSwitch.release(socket), socket.close(1013, 'busy')
+    this.handshaking++
+    let counted = true
+    const settled = (): void => {
+      if (counted) this.handshaking--
+      counted = false
+    }
 
     let step: 'hello' | 'proof' | 'pending' | 'capabilities' | 'connected' = 'hello'
     let hello: Hello | undefined
@@ -163,6 +173,7 @@ export class ExecutorGateway {
     let timer = setTimeout(() => socket.close(1008, 'handshake timeout'), STEP_TIMEOUT_MS)
     const next = (s: typeof step, ms = STEP_TIMEOUT_MS, reason = 'handshake timeout'): void => {
       step = s
+      if (s !== 'proof') settled()
       clearTimeout(timer)
       timer = setTimeout(() => socket.close(1008, reason), ms)
     }
@@ -226,6 +237,7 @@ export class ExecutorGateway {
 
     socket.on('close', () => {
       clearTimeout(timer)
+      settled()
       killSwitch.release(socket)
       if (device && this.pending.get(device.id)?.socket === socket) this.pending.delete(device.id)
       if (!conn) return

@@ -32,6 +32,12 @@ export async function askOwner(who: string, what: string, risk: string | undefin
   if (!verdict.allow) throw new DeclinedError(verdict.reason)
 }
 
+// For a step that cannot be undone: the owner is always asked, whatever the caller thinks of the risk.
+export async function askIrreversible(who: string, what: string, confirm: Confirm): Promise<void> {
+  const verdict = await authorize({ tier: 'irreversible', detail: `${who}: ${what} (cannot be undone)` }, confirm)
+  if (!verdict.allow) throw new DeclinedError(verdict.reason)
+}
+
 // What a page, a screen or an email says was written by someone else. It travels to NOX marked as data, a short
 // line per result because it repeats on every read. It cannot satisfy the policy either: the only thing that does
 // is the owner's answer to the card, which no text can give.
