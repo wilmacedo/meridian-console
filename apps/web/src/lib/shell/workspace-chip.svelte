@@ -8,6 +8,7 @@
   import { open as openWindow } from '../windows/window-manager.svelte'
   import { prefs } from '../workspace/prefs.svelte'
   import { carGeometry } from './car.svelte'
+  import { isPhone } from './phone.svelte'
   import { shellUi } from './shell-ui.svelte'
 
   const open = $derived(shellUi.workspacesOpen)
@@ -77,12 +78,12 @@
 
 {#if open}<div class="catch" role="presentation" onclick={() => (shellUi.workspacesOpen = false)}></div>{/if}
 
-<div class="place" class:car style:bottom={car && `${car.bar + 24}px`}>
+<div class="place" class:car class:phone={isPhone()} style:bottom={car && `${car.bar + 24}px`}>
   {#if !car}<button class="chip" class:open title="Workspaces (W)" onclick={() => (shellUi.workspacesOpen = !open)}>
     <span class="diamond"></span>
-    <span class="code">WS·{code}</span>
+    {#if !isPhone()}<span class="code">WS·{code}</span>{/if}
     {#key current?.id}<span class="name">{current?.name ?? ''}</span>{/key}
-    <span class="count">{currentIndex() + 1}/{Math.max(1, list.length)}</span>
+    {#if !isPhone()}<span class="count">{currentIndex() + 1}/{Math.max(1, list.length)}</span>{/if}
     <span class="chev" style:transform="rotate({open ? 180 : 0}deg)">▾</span>
   </button>{/if}
 
@@ -167,6 +168,13 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+  .place.phone {
+    top: max(12px, calc(var(--safe-t) + 4px));
+    left: 14px;
+  }
+  .place.phone .chip {
+    height: 36px;
   }
   .place.car {
     top: auto;

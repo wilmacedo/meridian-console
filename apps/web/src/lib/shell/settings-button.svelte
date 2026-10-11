@@ -1,5 +1,6 @@
 <script lang="ts">
   import { close, isOpen, open } from '../windows/window-manager.svelte'
+  import { isPhone } from './phone.svelte'
   import { shellUi } from './shell-ui.svelte'
 
   const opened = $derived(isOpen('settings'))
@@ -11,14 +12,14 @@
   }
 </script>
 
-<div class="place">
+<div class="place" class:phone={isPhone()}>
   <button class:opened title="Settings ( , )" onclick={toggle}>
     <span class="glyph">
       <span class="line"><i style:left={opened ? '9px' : '1px'}></i></span>
       <span class="line"><i style:left={opened ? '1px' : '7px'} style:transition-delay="0.05s"></i></span>
       <span class="line"><i style:left={opened ? '6px' : '3px'} style:transition-delay="0.1s"></i></span>
     </span>
-    <span class="label">SETTINGS</span>
+    {#if !isPhone()}<span class="label">SETTINGS</span>{/if}
   </button>
 </div>
 
@@ -28,6 +29,16 @@
     top: 12px;
     right: 20px;
     z-index: 40;
+  }
+  .place.phone {
+    top: max(12px, calc(var(--safe-t) + 4px));
+    right: 14px;
+  }
+  .phone button {
+    height: 36px;
+    min-width: 36px;
+    justify-content: center;
+    padding: 0 10px;
   }
   button {
     height: 30px;

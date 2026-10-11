@@ -15,6 +15,7 @@
   import CarCore from './lib/shell/car-core.svelte'
   import CarTiles from './lib/shell/car-tiles.svelte'
   import { isCar } from './lib/shell/car.svelte'
+  import { isPhone } from './lib/shell/phone.svelte'
   import Header from './lib/shell/header.svelte'
   import { handleShortcut } from './lib/shell/keyboard'
   import SettingsButton from './lib/shell/settings-button.svelte'
@@ -89,7 +90,7 @@
 
 <div class="root" class:scaled={layout.scale !== 1} style:width={layout.scale !== 1 ? `${layout.w}px` : undefined} style:height={layout.scale !== 1 ? `${layout.h}px` : undefined} style:transform={layout.scale !== 1 ? `scale(${layout.scale})` : undefined}>
   <CoreLayer />
-  {#if !isCar()}<Header />{/if}
+  {#if !isCar() && !isPhone()}<Header />{/if}
   <StateLabel />
   <Stage />
   {#if isCar()}
