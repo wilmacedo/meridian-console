@@ -12,6 +12,7 @@
   import { stageSides } from '../dock/dock.svelte'
   import { stageInsets } from '../dock/stage-insets'
   import { carGeometry, carStageInsets, isCar } from '../shell/car.svelte'
+  import { isPhone } from '../shell/phone.svelte'
   import { isStacked } from '../workspace/layout.svelte'
   import { live } from '../live/stream.svelte'
   import { visibleServices } from '../workspace/prefs.svelte'
@@ -20,9 +21,12 @@
   import WindowPlaceholder from './window-placeholder.svelte'
   import { arrange, isOpen, setStage, wm, type WindowId } from './window-manager.svelte'
 
+  // No rails on a phone, so the windows have the width of the screen but for a margin.
+  const PHONE_INSETS = { left: '10px', right: '10px', top: '0px', bottom: '0px' }
+
   let el: HTMLDivElement
 
-  const insets = $derived(isCar() ? carStageInsets(carGeometry()) : stageInsets(stageSides(), isStacked()))
+  const insets = $derived(isCar() ? carStageInsets(carGeometry()) : isPhone() ? PHONE_INSETS : stageInsets(stageSides(), isStacked()))
 
   $effect(() => {
     const ro = new ResizeObserver(() => setStage({ w: el.clientWidth, h: el.clientHeight }))
@@ -52,9 +56,9 @@
   }
 </script>
 
-<div class="stage" bind:this={el} style:--base-t={isCar() ? "0px" : undefined} style:--base-b={isCar() ? "0px" : undefined} style:--inset-l={insets.left} style:--inset-r={insets.right} style:--inset-t={insets.top} style:--inset-b={insets.bottom}>
+<div class="stage" bind:this={el} style:--base-t={isCar() ? '0px' : isPhone() ? 'calc(var(--safe-t) + 60px)' : undefined} style:--base-b={isCar() ? '0px' : isPhone() ? 'calc(var(--safe-b) + 176px)' : undefined} style:--inset-l={insets.left} style:--inset-r={insets.right} style:--inset-t={insets.top} style:--inset-b={insets.bottom}>
   {#if wm.gesture}<div class="outline"></div>{/if}
-  {#if liveCount > 1}
+  {#if liveCount > 1 && !isPhone()}
     <div class="count">
       <span class="label"><i></i>{liveCount}/4 WINDOWS</span>
       <button class:custom={wm.custom} onclick={arrange}>ARRANGE</button>

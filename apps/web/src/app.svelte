@@ -23,6 +23,7 @@
   import WorkspaceChip from './lib/shell/workspace-chip.svelte'
   import { shellUi } from './lib/shell/shell-ui.svelte'
   import Stage from './lib/windows/stage.svelte'
+  import { keepTopWindow } from './lib/windows/window-manager.svelte'
   import StateLabel from './lib/shell/state-label.svelte'
   import TaskCard from './lib/shell/task-card.svelte'
   import { sendToServer, startStream } from './lib/live/stream.svelte'
@@ -45,6 +46,9 @@
     return denyApproval() || cancelListening() || haltIfBusy() || cancelPending()
   }
 
+  $effect(() => {
+    if (isPhone()) keepTopWindow()
+  })
   $effect(() => configureScale(prefs.uiScale, prefs.carplay))
   // The wake word stays out of CarPlay mode for now (docs/carplay.md): there the microphone opens on a tap only.
   $effect(() => syncWake(voicePrefs.wake && !prefs.carplay && !!wake.phrase && micAvailable()))

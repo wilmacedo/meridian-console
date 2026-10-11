@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MAX_SINGLE_W } from './window-layout'
 
-// The orb's state registers itself on `window` in dev; these tests run without a DOM.
-vi.stubGlobal('window', {})
-const { open, rectFor, setStage, wm } = await import('./window-manager.svelte')
+// The orb's state registers itself on `window` in dev; these tests run without a DOM, but for the size of a screen that the layout reads.
+vi.stubGlobal('window', { innerWidth: 1280, innerHeight: 800, addEventListener: () => {} })
+const { keepTopWindow, open, rectFor, setStage, wm } = await import('./window-manager.svelte')
+const { layout } = await import('../workspace/layout.svelte')
 const { prefs } = await import('../workspace/prefs.svelte')
 
 const widthOf = (id: 'services' | 'logs'): number => rectFor(wm.wins.find((w) => w.id === id)!).w
@@ -11,6 +12,7 @@ const widthOf = (id: 'services' | 'logs'): number => rectFor(wm.wins.find((w) =>
 beforeEach(() => {
   vi.useFakeTimers()
   prefs.carplay = false
+  layout.w = 1280
   wm.wins = []
   wm.custom = false
   wm.stage = { w: 0, h: 0 }
@@ -80,5 +82,31 @@ describe('in the car', () => {
     open('services')
     open('logs')
     expect(live()).toEqual(['services', 'logs'])
+  })
+})
+
+describe('on a phone', () => {
+  const live = (): string[] => wm.wins.filter((w) => !w.closing).map((w) => w.id)
+
+  it('lets one window have the screen at a time', () => {
+    layout.w = 390
+    open('services')
+    open('logs')
+    expect(live()).toEqual(['logs'])
+  })
+
+  it('keeps the window on top when the screen turns into a phone', () => {
+    open('services')
+    open('logs')
+    layout.w = 390
+    keepTopWindow()
+    expect(live()).toEqual(['logs'])
+  })
+
+  it('leaves a single window alone', () => {
+    open('services')
+    layout.w = 390
+    keepTopWindow()
+    expect(live()).toEqual(['services'])
   })
 })

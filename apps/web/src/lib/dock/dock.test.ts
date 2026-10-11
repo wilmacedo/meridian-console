@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// The orb's state registers itself on `window` in dev; these tests run without a DOM.
-vi.stubGlobal('window', {})
+// The orb's state registers itself on `window` in dev; these tests run without a DOM, but for the size of a screen that the layout reads.
+vi.stubGlobal('window', { innerWidth: 1280, innerHeight: 800, addEventListener: () => {} })
 const { dock, requestPin, resetDock } = await import('./dock.svelte')
 const { prefs } = await import('../workspace/prefs.svelte')
 const { services } = await import('./widgets')

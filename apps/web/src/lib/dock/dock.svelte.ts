@@ -1,4 +1,5 @@
 import { kick } from '../agent/agent-state.svelte'
+import { isPhone } from '../shell/phone.svelte'
 import { prefs } from '../workspace/prefs.svelte'
 import { railSides } from './stage-insets'
 import { tele, type RailId, type WidgetDef } from './widgets'
@@ -133,7 +134,12 @@ export function dropPending(rail: RailId, index: number): void {
   dock.pending = null
 }
 
-export const pinLabel = (def: WidgetDef | null): string => (dock.pending ? 'PINNING…' : def && findSystemWidget(def) ? 'DOCKED' : 'PIN TO DOCK')
+export const pinLabel = (def: WidgetDef | null): string => {
+  if (dock.pending) return 'PINNING…'
+  const pinned = def !== null && findSystemWidget(def) !== undefined
+  if (isPhone()) return pinned ? 'PINNED' : 'PIN'
+  return pinned ? 'DOCKED' : 'PIN TO DOCK'
+}
 
 export function toggleCollapsed(id: string): void {
   dock.widgets[id].collapsed = !dock.widgets[id].collapsed

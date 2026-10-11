@@ -5,6 +5,7 @@
   import { pinDef } from '../dock/pin'
   import { docs } from '../docs/docs.svelte'
   import { live } from '../live/stream.svelte'
+  import { isPhone } from '../shell/phone.svelte'
   import { currentWorkspace } from '../workspace/workspace-sync.svelte'
   import { pointerDrag, type PointerDragOptions } from './pointer-drag'
   import { windowMeta } from './window-meta'
@@ -15,6 +16,8 @@
   const pin = $derived(pinDef(win.id))
   const rect = $derived(rectFor(win))
   const meta = $derived(windowMeta(win.id, { hostName: live.host.name, workspaceName: currentWorkspace()?.name ?? '', doc: docs.current, monoOf: (id) => live.services.find((s) => s.id === id)?.mono ?? '··' }))
+  // A phone shows the window whole: it is neither moved nor resized.
+  const fixed = $derived(isPhone())
   const focused = $derived(wm.active === win.id)
   const dragging = $derived(wm.gesture === win.id)
   const pad = (n: number): string => String(n).padStart(2, '0')
@@ -32,7 +35,7 @@
   function onHeaderKey(e: KeyboardEvent): void {
     const arrows: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
     const step = arrows[e.key]
-    if (!step) return
+    if (!step || fixed) return
     e.preventDefault()
     nudge(win.id, step[0], step[1], e.shiftKey)
   }
@@ -55,7 +58,7 @@
   <div class="surface" class:focused class:dragging class:closing={win.closing}>
     <div class="sweep"></div>
     <div class="topline"></div>
-    <div class="head" role="button" tabindex="0" aria-roledescription="draggable window header" aria-label="{meta.title}: arrows move, shift and arrows resize" use:pointerDrag={gesture('move', { ignore: 'button' })} ondblclick={() => toggleMaximise(win.id)} onkeydown={onHeaderKey}>
+    <div class="head" class:fixed role="button" tabindex="0" aria-roledescription="draggable window header" aria-label="{meta.title}: arrows move, shift and arrows resize" use:pointerDrag={gesture('move', { ignore: 'button', threshold: fixed ? Infinity : undefined })} ondblclick={() => !fixed && toggleMaximise(win.id)} onkeydown={onHeaderKey}>
       <div class="badge">{meta.index}</div>
       <div class="titles">
         <div class="kicker">{meta.kicker}</div>
@@ -76,11 +79,13 @@
       <span class="synced">SYNCED AT {syncedAt}</span>
     </div>
   </div>
-  <div class="rz e" use:pointerDrag={gesture('e')}></div>
-  <div class="rz w" use:pointerDrag={gesture('w')}></div>
-  <div class="rz s" use:pointerDrag={gesture('s')}></div>
-  <div class="rz se" use:pointerDrag={gesture('se')}><span></span></div>
-  <div class="rz sw" use:pointerDrag={gesture('sw')}></div>
+  {#if !fixed}
+    <div class="rz e" use:pointerDrag={gesture('e')}></div>
+    <div class="rz w" use:pointerDrag={gesture('w')}></div>
+    <div class="rz s" use:pointerDrag={gesture('s')}></div>
+    <div class="rz se" use:pointerDrag={gesture('se')}><span></span></div>
+    <div class="rz sw" use:pointerDrag={gesture('sw')}></div>
+  {/if}
   {#if dragging}<div class="readout">{wm.readout}</div>{/if}
 </div>
 
@@ -147,6 +152,9 @@
     animation: nx-sub 0.5s ease 0.12s both;
     cursor: grab;
     outline: none;
+  }
+  .head.fixed {
+    cursor: default;
   }
   .head:focus-visible {
     box-shadow: inset 0 0 0 1px rgba(var(--nx-ac), 0.5);

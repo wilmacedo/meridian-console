@@ -1,6 +1,7 @@
 import { kick } from '../agent/agent-state.svelte'
 import { play } from '../sound/sfx.svelte'
 import type { ModuleId } from '../modules'
+import { isPhone } from '../shell/phone.svelte'
 import { prefs } from '../workspace/prefs.svelte'
 import { cascade, clampRect, snapMove, snapResize, tile, toFrac, toRect, type Frac, type Guide, type Rect, type ResizeMode, type Size } from './window-layout'
 
@@ -76,8 +77,8 @@ export function open(id: WindowId): void {
   kick(1)
   play('window-open')
   let ids = current.map((w) => w.id)
-  // In the car one window has the screen at a time.
-  if (prefs.carplay) {
+  // In the car and on a phone one window has the screen at a time.
+  if (prefs.carplay || isPhone()) {
     current.forEach((w) => close(w.id))
     ids = []
   } else if (current.length >= MAX_WINDOWS) {
@@ -119,6 +120,14 @@ export function close(id: WindowId): void {
     if (!wm.custom) applyTile(rest.map((x) => x.id))
     if (wm.active === id) wm.active = rest.reduce((a, b) => (a.z > b.z ? a : b)).id
   }, CLOSE_MS)
+}
+
+// The screen turned into a phone's: what it can show is one window, the one on top.
+export function keepTopWindow(): void {
+  const current = live()
+  if (current.length < 2) return
+  const top = current.reduce((a, b) => (a.z > b.z ? a : b))
+  current.filter((w) => w !== top).forEach((w) => close(w.id))
 }
 
 export function closeAll(): void {
