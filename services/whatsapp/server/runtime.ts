@@ -9,6 +9,8 @@ import { SendLimiter } from './send-policy.js'
 interface Runtime {
   config: WhatsappConfig
   limiter: SendLimiter
+  // Notes to the owner's own chat: no one else is reached, but a loop must not flood their phone either.
+  selfLimiter: SendLimiter
   client: BridgeClient
   process: BridgeProcess
 }
@@ -28,6 +30,7 @@ export function getRuntime(emit?: Emit): Runtime {
   runtime = {
     config,
     limiter: new SendLimiter(),
+    selfLimiter: new SendLimiter(3, 10),
     client: new BridgeClient(`http://${addr}`, token),
     process: new BridgeProcess({ bin: config.bridgeBin, dataDir: config.dataDir, addr, token }, (level, message) => emitter?.(level, message)),
   }

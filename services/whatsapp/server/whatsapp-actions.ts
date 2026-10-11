@@ -13,6 +13,9 @@ const LIMIT = (def: number) => ({ type: 'integer', minimum: 1, maximum: 100, des
 
 const MAX_TEXT = 4_000
 const SHOWN = 400
+const MAX_NOTE = 500
+// So the owner tells a note from Meridian apart from what they wrote in their own chat.
+const NOTE_PREFIX = 'NOX · '
 
 // The card must say who gets it and what, in the owner's words: a number alone is not a decision they can make.
 async function recipient(jid: string): Promise<string> {
@@ -211,6 +214,26 @@ export const whatsappActions: ServiceAction<never>[] = [
           if (spoken) await rm(spoken, { force: true })
         }
       })
+    },
+  },
+  {
+    id: 'note-to-self',
+    method: 'POST',
+    path: '/note-to-self',
+    title: 'Send the owner a note',
+    description:
+      "Sends a short text to the owner's own WhatsApp chat (\"message yourself\"), so it reaches their phone wherever they are. Nobody else can receive it: there is no recipient to choose. It is how Meridian's reminders reach the owner away from the screens; use it yourself only when the owner asks you to send them something on WhatsApp.",
+    mutating: false,
+    input: { type: 'object', required: ['text'], additionalProperties: false, properties: { text: { type: 'string', minLength: 1, maxLength: MAX_NOTE } } },
+    run: async ({ text }: { text: string }) => {
+      const { client, selfLimiter } = getRuntime()
+      const { state, phone } = await client.status()
+      if (state !== 'connected' || !phone) throw new Error('WhatsApp is not connected; the owner has to scan the QR code in the WhatsApp window')
+      selfLimiter.check()
+      await client.send({ chat: phone, text: `${NOTE_PREFIX}${text}` })
+      selfLimiter.record()
+      audit('sent a note to the owner')
+      return { sent: true }
     },
   },
 ]

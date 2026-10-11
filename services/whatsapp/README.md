@@ -5,7 +5,9 @@ read and search conversations, download images and files, transcribe voice notes
 notes after the owner confirms. What NOX reads can become other things, a Calendar event first of all.
 
 Personal use only. The library is unofficial and WhatsApp's terms do not allow it, so the account could be
-restricted; the service keeps to a human pace (see the send limit) and never contacts anyone on its own.
+restricted; the service keeps to a human pace (see the send limit) and never contacts anyone on its own. The one
+thing it sends without a confirmation card is a note to the owner's own chat (`note-to-self`), which reaches nobody
+else.
 
 ## How it works
 
@@ -63,6 +65,7 @@ A dev or test server must use its own `MERIDIAN_DATA_DIR`, or the prod bridge's 
 | `send-message {chat, text, replyTo?}` | confirms | Text |
 | `send-file {chat, path, caption?}` | confirms | Image, video or document from an allowed folder |
 | `send-voice {chat, text \| path}` | confirms | A voice note: a text spoken in NOX's voice, or an audio file |
+| `note-to-self {text}` | none | A short text (up to 500 characters) to the owner's own chat, prefixed `NOX · `. How Meridian's reminders reach the owner's phone when no screen is open |
 
 A voice note in the owner's own voice: NOX calls the core's `record_voice_message`, the owner records the message
 in the next turn, and NOX sends the file it is given (from `$MERIDIAN_DATA_DIR/recordings/`, an allowed folder) with
@@ -84,6 +87,9 @@ several chats is refused with the candidates listed, never guessed.
 - **Every send asks the owner on the screen**, naming the recipient and the text (`server/send-flow.ts`). A caller
   with no screen is always refused. NOX sends only what the owner asked for in that conversation.
 - **Send limit**: 6 a minute and 40 an hour, checked before the owner is asked and counted only for sends that went.
+- **Notes to the owner** have no recipient to choose: they go to the number of the linked account itself, so no text
+  NOX reads can redirect one to someone else. They have their own limit (3 a minute, 10 an hour) so a loop cannot
+  flood the owner's phone.
 - **Files leave only from allowed folders** (downloads, the outbox, the owner's recordings, `WHATSAPP_SEND_DIRS`), with symlinks resolved,
   so a tricked NOX cannot mail out an arbitrary file.
 - **Nothing sensitive is returned**: no session keys, no QR payload outside the pairing view. The event stream gets
