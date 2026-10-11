@@ -62,6 +62,17 @@ describe('the handshake', () => {
     expect(s.store.pendingExecutors()).toEqual([])
   })
 
+  it('refuses a waiting device that the owner revoked when it knocks again', () => {
+    const s = setup()
+    const d = s.connect().hello().prove(s.serverKey.publicKey)
+    const device = s.store.executorByKey(d.pub)!.device
+    s.store.revoke(device.id)
+    s.gateway.disconnect(device.id, 'revoked')
+    d.ext.emit('close')
+    const again = s.connect(new Device(d.key)).hello().prove(s.serverKey.publicKey)
+    expect(again.ext.closed).toMatchObject({ code: 4003, reason: 'revoked' })
+  })
+
   it('lets the same device knock again, replacing its earlier knock', async () => {
     const s = setup()
     const first = s.connect().hello().prove(s.serverKey.publicKey)

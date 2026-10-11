@@ -150,7 +150,8 @@ export class DeviceStore {
 
   // A device that never got approved leaves nothing behind when it goes away.
   dropUnapproved(deviceId: string): void {
-    const waiting = this.db.prepare('SELECT 1 FROM device_executor_keys WHERE device_id = ? AND approved_at IS NULL').get(deviceId)
+    // A revoked one stays: that is the record that keeps its key out.
+    const waiting = this.db.prepare('SELECT 1 FROM device_executor_keys k JOIN devices d ON d.id = k.device_id WHERE k.device_id = ? AND k.approved_at IS NULL AND d.revoked_at IS NULL').get(deviceId)
     if (!waiting) return
     this.db.prepare('DELETE FROM device_executor_keys WHERE device_id = ?').run(deviceId)
     this.db.prepare('DELETE FROM devices WHERE id = ?').run(deviceId)

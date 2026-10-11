@@ -139,6 +139,15 @@ describe('executors', () => {
     expect(store.executorByKey('KEY2')?.device.id).toBe(approved.id)
   })
 
+  it('keeps the record of a waiting device that was revoked, so its key stays out', () => {
+    const { store } = make()
+    const waiting = store.addExecutor('stranger', 'KEY1')
+    store.revoke(waiting.id)
+    store.dropUnapproved(waiting.id)
+    expect(store.executorByKey('KEY1')?.device.revokedAt).not.toBeNull()
+    expect(() => store.addExecutor('again', 'KEY1')).toThrow()
+  })
+
   it('does not tell a key from an unknown one', () => {
     expect(make().store.executorByKey('nope')).toBeUndefined()
   })
