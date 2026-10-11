@@ -47,4 +47,14 @@ describe('KillSwitch', () => {
     expect(ks.engage()).toBe(0)
     expect(gone.close).not.toHaveBeenCalled()
   })
+
+  it('tells what is not a socket, every time it is thrown', () => {
+    const { ks } = make()
+    const stop = vi.fn()
+    ks.onEngage(stop)
+    ks.engage()
+    ks.resume()
+    ks.engage()
+    expect(stop).toHaveBeenCalledTimes(2)
+  })
 })
