@@ -1,4 +1,5 @@
 import { defineServerService, type ServiceStatus } from '@meridian/service-sdk/server'
+import { appActions } from './app-ui/actions.js'
 import { browserActions } from './browser/actions.js'
 import { browserRoutes } from './browser/routes.js'
 import { getRuntime } from './runtime.js'
@@ -59,5 +60,6 @@ export default defineServerService({
       },
     },
     ...browserActions(getRuntime()),
+    ...appActions(getRuntime()),
   ],
 })
