@@ -3,7 +3,7 @@
 Lets NOX act on the owner's own machines: the browsers and desktop apps on a PC, with the owner's accounts and
 settings as they already are. The brain stays on this server; a device only runs what it is told.
 
-Status: browsers work (a Chromium browser, any number of profiles), and desktop apps that run in a WebView2 (anywh first) are built. The Rust executor is not.
+Status: browsers work (a Chromium browser, any number of profiles), and desktop apps that run in a WebView2 (anywh first) and the Rust executor for whole machines (Windows first).
 
 ## What exists
 
@@ -35,7 +35,7 @@ the server keeps only a hash of it (90 days, renewed by the extension after 30).
 can be fronted with `tailscale serve --bg --https=10000 http://127.0.0.1:4100`, which passes the WebSocket upgrade and
 the `Sec-WebSocket-Protocol` credential through untouched (checked).
 
-**Revoke.** `browser_revoke` with the device id from `status`: the socket closes at once and the credential stops
+**Revoke.** `device_revoke` with the device id from `status`: the socket closes at once and the credential stops
 working. A device that lapses or is revoked elsewhere is cut within a second by a sweep. The kill switch cuts all.
 
 **What NOX does with it.** `browser_open`, `browser_read`, `browser_find`, `browser_links`, `browser_click`,
@@ -77,11 +77,33 @@ build around.
   what an agent wrote in it) is returned marked as data. The audit log records the app and the outcome only. The
   anywh relay tools remain the way to read and create sessions; this is for the app's own screen.
 
+## Devices: the executor
+
+`executor/` is a small Rust program that runs on the owner's PC (see its README to build and install it). It dials this
+server over the tailnet, proves it holds its private key, checks the server's pinned public key, and announces what
+it can do: windows, processes, the clipboard, opening a file or link, a notification, a screenshot. The server never
+hard-codes a capability: `device_list` shows what each device announced, `device_describe` the inputs, and
+`device_call` runs one.
+
+- **Tiers decide when the owner is asked.** `observe` runs freely and its answer comes back marked as data (window
+  titles and the clipboard were written by others). `act` runs freely. `irreversible` (killing a process) always asks
+  on screen, and nothing is sent to the PC if the owner declines. Input is checked against the schema the device
+  announced before anything is sent.
+- **Enrolling.** `device_enroll` gives the address and the server's public key; the executor pins that key. The first
+  time a new device connects it waits: `device_approve` (asks on screen) lets it in. `device_revoke` removes a browser
+  or an executor for good, and the executor stops trying.
+- **Screenshots** are a separate, explicit tool: the PNG is saved under `~/.meridian/devices/screens` (mode `0600`, the
+  latest 20 only) and NOX gets the path, not the bytes.
+- The server key is `~/.meridian/devices/server-key.json` (mode `0600`). Replace it and every executor must be given
+  the new public key.
+
 ## NOX's tools
 
 | Action | What it does |
 |---|---|
 | `status` | Paired devices (connected or not) and whether the kill switch is on |
+| `device_list`, `device_describe`, `device_call` | The owner's machines with an executor: what each can do, the inputs, and running one capability |
+| `device_enroll`, `device_approve`, `device_revoke` | Add an executor (the server key to pin), let a waiting one in, and remove a browser or an executor |
 | `kill` | Kill switch on. Never asks first, so the owner can say "stop" and it happens |
 | `resume` | Kill switch off. The owner confirms |
 

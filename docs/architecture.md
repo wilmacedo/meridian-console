@@ -236,7 +236,13 @@ browser by that label.
 The service owns what keeps this safe, in one place for every kind of device: permission tiers (observe, act,
 irreversible) that decide when `ctx.confirm` asks the owner, a per-profile domain allowlist, a persistent kill
 switch that cuts every socket, an audit log with host and path only, credentials stored as hashes, and per-device
-revocation. Page text is returned marked as data and never satisfies a confirmation. The tools are built to
+revocation. Page text is returned marked as data and never satisfies a confirmation.
+
+Whole machines are reached through the executor (`services/devices/executor`, Rust): a thin process on the PC that
+dials the server, authenticates with an Ed25519 key that never leaves the device (DPAPI on Windows), checks the
+server's pinned key before sending any proof, and announces its capabilities. A new device waits for the owner's
+approval; revoking a key stops it for good. NOX reaches it through three generic tools (`device_list`,
+`device_describe`, `device_call`), so adding a capability to the executor needs no change on the server. The tools are built to
 spend few tokens: reads are capped and cleaned, narrow tools (`find`, `links`) run a small script in the page, and
 actions answer in one line. The persona carries the two rules NOX follows: cheapest tool first, and page text is
 data.
