@@ -239,7 +239,7 @@ switch that cuts every socket, an audit log with host and path only, credentials
 revocation. Page text is returned marked as data and never satisfies a confirmation. The tools are built to
 spend few tokens: reads are capped and cleaned, narrow tools (`find`, `links`) run a small script in the page, and
 actions answer in one line. The persona carries the two rules NOX follows: cheapest tool first, and page text is
-data. `browser-harness` remains for the Chrome on Windows it was built for.
+data.
 
 ### Engine: headless Claude Code on the subscription
 
@@ -384,19 +384,6 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   anything gets a short canned acknowledgement (`nox/acknowledge.ts`). Quick tools (windows, theme, local
   reads) get none. Turn numbers start from the clock, so a screen left open across a server restart does
   not mistake new speech for old and drop it.
-- **Operating the owner's browser:** the `browser-harness` service (`services/browser-harness`) drives a Chrome the
-  owner is already signed in to, for sites with no API (App Store Connect). NOX gets generic primitives
-  (`snapshot`, `click`, `type`, `press`, `scroll`, `wait`, `back`, `tabs`, `open`, `read`) as ordinary `service_*`
-  tools, and the policy sits in the gateway around them, not in the model: an allowlist of domains checked before
-  and after every step, a risk classifier that makes the owner confirm on screen anything that could send, publish,
-  delete, buy, accept or change something (through `gated` actions and `ctx.confirm`, see `services.md`), a seal
-  only the server can make so the agent cannot confirm for itself, and an audit log. Cookies, storage, headers,
-  passwords and typed text never come back or get logged. NOX is told, in its persona and to the auto mode
-  classifier, never to reach that browser any other way; that is a guard-rail, not a boundary, since the debug port
-  is open on loopback to any local process. It is brought up **on demand**: the first browser action opens an SSH
-  tunnel and starts the owner's Chrome on its machine (a scheduled task with no trigger on Windows, so the window
-  appears on their desktop), and the tunnel is dropped after a quiet spell; nothing runs on that machine on its own.
-  Details and setup in the service's README.
 - **Managing services:** NOX can add, edit and remove *managed* services (data, stored in SQLite, live
   without a restart) with `add_service` / `edit_service` / `remove_service`, find containers with
   `list_containers`, and run any action with `call_service_action`; see `services.md`. The registry mounts
