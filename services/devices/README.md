@@ -116,3 +116,18 @@ hard-codes a capability: `device_list` shows what each device announced, `device
 | `MERIDIAN_DEVICES_APPS` | Desktop apps reachable through a WebView2 debug port, `id=port,id=port`. Default: none |
 | `MERIDIAN_DEVICES_APPS_SSH_HOST` | The ssh host (from `~/.ssh/config`) of the PC that runs the apps; the tunnel goes there |
 | `MERIDIAN_DEVICES_BROWSER_ALLOWED_DOMAINS` | `personal=youtube.com,example.com;work=*`, with `*=` as the fallback. Default: every https host |
+
+## Open items
+
+- **The work profile is not paired.** Before it is, check the BrowserSkill extension's own network traffic (the
+  service worker's Network panel in `brave://extensions`): it may only talk to this server. The static audit of the
+  pinned commit found no third-party host, but reading is not proof, and the work profile holds more.
+- **macOS has no executor yet.** It needs a `cfg(target_os = "macos")` module behind the same capability names (and a
+  Keychain key store in place of DPAPI); the owner grants Accessibility and Screen Recording by hand once. The
+  anywh client on macOS runs in a WKWebView, which has no debug protocol: that needs commands the app exposes itself.
+  Both are described in `executor/README.md`.
+- **Browser allowlist** defaults to every https host. Narrow it per profile with
+  `MERIDIAN_DEVICES_BROWSER_ALLOWED_DOMAINS` once the sites NOX should reach are settled.
+- **The extension is pinned** at BrowserSkill `63c1657`, loaded unpacked from a folder on the PC. Moving it to a newer
+  commit means re-copying the wire schemas (`server/browser/schemas/`), re-running the tests, and loading the new
+  build by hand; nothing updates it silently.
