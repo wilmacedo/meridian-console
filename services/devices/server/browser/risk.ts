@@ -1,4 +1,4 @@
-// What the browser may touch and what needs the owner first. Ported from services/browser-harness/gateway/policy.py:
+// What the browser may touch and what needs the owner first. Ported from the former browser-harness gateway policy (policy.py):
 // the agent decides where to act, this decides whether that needs the owner. When unsure, it asks.
 
 export interface ElementFacts {

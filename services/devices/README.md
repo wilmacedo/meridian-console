@@ -47,7 +47,7 @@ working. A device that lapses or is revoked elsewhere is cut within a second by 
   annotations, repeated text and empty wrappers. `find` and `links` run a small script in the page and return a few
   lines. Actions answer in one line and do not re-read the page; an unchanged page answers "no change".
 - *Policy.* A per-profile domain allowlist (https only), checked before and after every step. Risky clicks and Enter in
-  a form ask the owner on screen (the rules are ported from `services/browser-harness`). Typing never submits, and
+  a form ask the owner on screen (the rules come from the former `browser-harness` service). Typing never submits, and
   password, code and card fields are refused. A page text is returned marked as data, never instructions.
 - *Audit.* One line per call, host and path only.
 
