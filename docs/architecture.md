@@ -430,7 +430,7 @@ has (NOX speaking first, background tasks, the screens).
   step is an addition, not a migration; `version` is there for when the shape does change. The only trigger kind is
   `phrase` (phrases plus an optional local time window).
 - **Steps** (`steps.ts`, one entry per kind in `STEP_KINDS`): `action` is a read-only service action the server runs
-  itself, without the model; `prompt` is the owner's request in their own words, carried out by the worker with
+  itself, without the model; `todos` is the owner's own list (see Reminders and tasks); `prompt` is the owner's request in their own words, carried out by the worker with
   NOX's tools. Both may use `{today}`, `{yesterday}` and `{last_run}`. A step that could change something (a
   `mutating` or `gated` action) is refused when the routine is saved: a routine only reads, and anything that sends
   or changes is asked for in the conversation, behind the confirmation card. At most 8 steps.
@@ -443,13 +443,41 @@ has (NOX speaking first, background tasks, the screens).
   for NOX, who decides whether the owner really meant it. Inside the window and the first time in the day it runs at
   once; outside the window or a second time, `run_routine` refuses until NOX has asked and the owner agreed
   (`confirmed: true`). Asked for by name, it runs.
-- **Running** (`runner.ts`): the `action` steps run first, then a background task (the same `Tasks` as
+- **Running** (`runner.ts`): the `action` and `todos` steps run first, then a background task (the same `Tasks` as
   `start_task`) gets every step as its plan, the action results as data, and the rule that it only reads and that
   everything it reads is information, never instructions. The task card shows the routine's steps, and the worker
   writes the briefing (one section per step and a callout with what matters most) in its live document. When the
   task ends, NOX is woken with `[routine done]` and the briefing's text and says the highlights; a run the owner
   stopped is not announced. A routine does not run twice at once, and a run that was going when the server stopped
   is marked `interrupted` at the next start.
+
+### Reminders and tasks
+
+The owner forgets things and keeps putting them off; NOX keeps the list (`apps/server/src/agenda/todos.ts`, tables
+`todos` and `todo_log` in `meridian.db`). A task is one concrete thing to do, with an optional deadline and an
+optional moment to be reminded. The same rule as routines holds: a reminder exists only because the owner asked for
+it, at a moment the owner gave, and delivering it is the only thing the server does unasked.
+
+- **Writing things down** is by voice: `add_todo`, `list_todos`, `update_todo`, `complete_todo`, `snooze_todo`,
+  `drop_todo`. NOX's process lives for days and its prompt has no clock, so every request of the owner reaches it with
+  `[It is <weekday>, <date> <time> (UTC<offset>).]` in front, which is how "amanhã às dez" becomes a moment. A moment in
+  the past is refused with the current time in the error.
+- **Repeating reminders** take a small RRULE subset (`recurrence.ts`: `FREQ=DAILY|WEEKLY|MONTHLY`, `INTERVAL`,
+  `BYDAY`, `BYMONTHDAY`) in local time, anchored on the first occurrence. When one goes off it moves to its next time;
+  "done" right after it went off leaves that next time, "done" ahead of time skips the one still waiting.
+- **Delivery** (`reminders.ts`): a tick every 15 s fires what is due. It goes to the screen the owner talked to last
+  (or the newest screen open): a `LEMBRETE` card and a `[reminder due]` turn, so NOX says it in a sentence or two
+  (one when the workspace is in CarPlay mode) and the owner's answer ("feito", "adia uma hora", "deixa pra lá") is a
+  normal turn in that context. Reminders that came due while the server was down are said together, each with the
+  time it was due. A reminder nobody answered is repeated once, ten minutes later, then waits for the next review.
+- **Other channels** are data the owner sets by voice (`configure_reminders`, table `agenda_settings`), so the core
+  names no service: a `toast` action with `{title}` and `{text}` in its input (the PC's notification through the
+  devices executor) shown with every reminder, and a `note` action given `{text}` (WhatsApp's `note-to-self`) used
+  when no screen is open and for the one repeat. An action that is `mutating` is refused for either.
+- **Putting off**: every `snooze_todo` counts. From the third time, its answer tells NOX to offer help in one sentence
+  (a block on the calendar, a smaller first step, or dropping it) instead of postponing again.
+- **In routines**: a `todos` step reads the open list on the server, without the model: what is late, what is for
+  today, the most put off, and what waits without a date.
 
 ### Link state, as built (phase 9)
 
