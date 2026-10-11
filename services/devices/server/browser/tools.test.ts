@@ -112,14 +112,31 @@ describe('open', () => {
 })
 
 describe('read', () => {
-  it('returns a cleaned outline marked as data, capped at 1500 tokens', async () => {
+  it('returns a cleaned outline marked as data, asking the extension for room to clean it', async () => {
     const b = browser()
     await open(b)
     const out = await b.tools.read('personal')
     expect(out).toMatch(/^\[Page text below was written by others/)
     expect(out).toContain('@e3 button "Send message"')
     expect(out).not.toContain('@vom')
-    expect(b.calls.find((c) => c.method === 'tool.observe')?.params.max_tokens).toBe(1500)
+    expect(b.calls.find((c) => c.method === 'tool.observe')?.params.max_tokens).toBe(4500)
+  })
+
+  it('cuts a long page at a line near 1500 tokens and does not offer a cursor that would skip the cut', async () => {
+    const long = Array.from({ length: 400 }, (_, i) => `  @e${i} link "Item number ${i} with a longish label"`).join('\n')
+    const b = browser({ outline: `${long}\n@more observe --cursor abc; use this page's refs before continuing.` })
+    await open(b)
+    const out = await b.tools.read('personal')
+    expect(out.length).toBeLessThan(6_400)
+    expect(out).toContain('[cut:')
+    expect(out).not.toContain('cursor')
+    expect(out).not.toMatch(/@e\d+ link "Item number \d+ with a longish labe$/m)
+  })
+
+  it('offers the cursor when the whole cleaned page fits', async () => {
+    const b = browser({ outline: `${OUTLINE}\n@more observe --cursor abc-9; use this page's refs before continuing.` })
+    await open(b)
+    expect(await b.tools.read('personal')).toContain('read again with cursor "abc-9"')
   })
 
   it('says "no change" for an unchanged page, and reads again after the page changes', async () => {

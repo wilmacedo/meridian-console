@@ -6,8 +6,10 @@ import { cleanOutline, elementFacts } from './outline.js'
 import * as page from './page-scripts.js'
 import { classifyUrl, keyAllowed, refuseTyping, riskOfKey, riskOfTarget, type ElementFacts } from './risk.js'
 
-// What every read costs at most. Small on purpose: the rest of the page comes only when NOX asks for it.
-const READ_TOKENS = 1_500
+// What every read costs at most (about 1500 tokens, at 4 characters each). The extension's own cap is applied before
+// the outline is cleaned, and cleaning removes roughly two thirds of it, so it is asked for three times that.
+const READ_CHARS = 6_000
+const EXTENSION_READ_TOKENS = 4_500
 
 interface Session {
   id: string
@@ -74,15 +76,17 @@ export class BrowserTools {
   read(profile: string, cursor?: string): Promise<string> {
     return this.run('browser_read', profile, async (conn, s) => {
       const session = await this.ready(conn, s)
-      const out = await conn.call('tool.observe', { session_id: session.id, max_tokens: READ_TOKENS, ...(cursor ? { cursor } : {}) })
+      const out = await conn.call('tool.observe', { session_id: session.id, max_tokens: EXTENSION_READ_TOKENS, ...(cursor ? { cursor } : {}) })
       const cleaned = cleanOutline(out.text)
       const facts = elementFacts(out.text)
       session.facts = cursor ? new Map([...session.facts, ...facts]) : facts
       const digest = createHash('sha1').update(cleaned.text).digest('hex')
       if (!cursor && digest === session.lastRead) return 'No change since the last read.'
       session.lastRead = digest
-      const more = cleaned.cursor ? `\n[more: read again with cursor "${cleaned.cursor}"]` : ''
-      return untrusted(`${s.at}\n${cleaned.text}${more}`)
+      // Past the cap the extension's cursor would skip what was cut, so it is not offered.
+      const body = cleaned.text.length > READ_CHARS ? `${cleaned.text.slice(0, cleaned.text.lastIndexOf('\n', READ_CHARS))}\n[cut: ask for one thing with browser_find or browser_links]` : cleaned.text
+      const more = cleaned.cursor && body === cleaned.text ? `\n[more: read again with cursor "${cleaned.cursor}"]` : ''
+      return untrusted(`${s.at}\n${body}${more}`)
     })
   }
 
