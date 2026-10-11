@@ -24,6 +24,14 @@ export async function authorize(call: PolicyCall, confirm: Confirm): Promise<Ver
   return (await confirm(call.detail)) ? { allow: true } : { allow: false, reason: DECLINED }
 }
 
+export class DeclinedError extends Error {}
+
+// A risky step goes to the owner's card; a plain one just runs. `who` is the profile or app the step is in.
+export async function askOwner(who: string, what: string, risk: string | undefined, confirm: Confirm): Promise<void> {
+  const verdict = await authorize({ tier: 'act', detail: `${who}: ${what}${risk ? ` (${risk})` : ''}`, risky: risk !== undefined }, confirm)
+  if (!verdict.allow) throw new DeclinedError(verdict.reason)
+}
+
 // What a page, a screen or an email says was written by someone else. It travels to NOX marked as data, a short
 // line per result because it repeats on every read. It cannot satisfy the policy either: the only thing that does
 // is the owner's answer to the card, which no text can give.

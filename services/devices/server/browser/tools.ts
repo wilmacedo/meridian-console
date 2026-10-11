@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { AuditLog } from '../audit.js'
-import { authorize, untrusted, type Confirm } from '../policy.js'
+import { askOwner, DeclinedError, untrusted, type Confirm } from '../policy.js'
 import { BrowserGateway, newSessionId, RpcFailure, type BrowserConnection } from './gateway.js'
 import { cleanOutline, elementFacts } from './outline.js'
 import * as page from './page-scripts.js'
@@ -38,8 +38,6 @@ const hostPath = (url: string): string => {
 }
 
 const quote = (s: string | undefined): string => `"${(s ?? '').slice(0, 60)}"`
-
-export class DeclinedError extends Error {}
 
 export class BrowserTools {
   private readonly sessions = new WeakMap<BrowserConnection, Session>()
@@ -114,7 +112,7 @@ export class BrowserTools {
       const session = await this.ready(conn, s)
       const facts = await this.factsOf(conn, session, t)
       const reason = facts ? riskOfTarget(facts) : 'it is not an element from the last read'
-      await this.ask(t.profile, `click ${facts?.role ?? 'element'} ${quote(facts?.name)} on ${s.at}`, reason, confirm)
+      await askOwner(`Browser (${t.profile})`, `click ${facts?.role ?? 'element'} ${quote(facts?.name)} on ${s.at}`, reason, confirm)
       await conn.call('tool.click', { session_id: session.id, ...this.locator(t) })
       return this.landed(conn, session, 'Clicked')
     })
@@ -137,7 +135,7 @@ export class BrowserTools {
       if (!keyAllowed(key)) throw new Error(`Key "${key}" is not allowed. Allowed: Enter, Tab, Escape, Space, arrows, PageUp, PageDown, Home, End, Backspace, Delete.`)
       const session = await this.ready(conn, s)
       const active = (await this.evaluate<ElementFacts | null>(conn, session, page.describeActive())) ?? {}
-      await this.ask(profile, `press ${key} on ${quote(active.name)} at ${s.at}`, riskOfKey(key, active), confirm)
+      await askOwner(`Browser (${profile})`, `press ${key} on ${quote(active.name)} at ${s.at}`, riskOfKey(key, active), confirm)
       await conn.call('tool.press', { session_id: session.id, key })
       return this.landed(conn, session, `Pressed ${key}`)
     })
@@ -171,12 +169,6 @@ export class BrowserTools {
     if (t.ref) return session.facts.get(t.ref.replace(/^@/, ''))
     if (!t.selector) return undefined
     return (await this.evaluate<ElementFacts | null>(conn, session, page.describeSelector(t.selector))) ?? undefined
-  }
-
-  // A risky step goes to the owner's card; a plain one just runs.
-  private async ask(profile: string, what: string, risk: string | undefined, confirm: Confirm): Promise<void> {
-    const verdict = await authorize({ tier: 'act', detail: `Browser (${profile}): ${what}${risk ? ` (${risk})` : ''}`, risky: risk !== undefined }, confirm)
-    if (!verdict.allow) throw new DeclinedError(verdict.reason)
   }
 
   private async session(conn: BrowserConnection, foreground: boolean): Promise<Session> {
