@@ -37,8 +37,8 @@ A restart interrupts a NOX turn in flight; NOX resumes its session afterwards.
 
 ## Setup
 
-`deploy/install.sh` is idempotent: it creates the worktree, links `.env` and the browser-harness
-`.venv` from the development checkout (both git-ignored), builds once, links the git hooks and installs
+`deploy/install.sh` is idempotent: it creates the worktree, links `.env` from the development checkout
+(git-ignored), builds once, links the git hooks and installs
 the unit. It does not start the unit. The first switch from a hand-started server:
 
 1. `deploy/install.sh`

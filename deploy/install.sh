@@ -10,7 +10,6 @@ PROD="${MERIDIAN_PROD_DIR:-$HOME/meridian-prod}"
 
 # Git-ignored state that prod shares with this checkout.
 ln -sfn "$DEV/.env" "$PROD/.env"
-ln -sfn "$DEV/services/browser-harness/.venv" "$PROD/services/browser-harness/.venv"
 (cd "$PROD" && pnpm install --frozen-lockfile && pnpm build)
 
 hooks="$(git -C "$DEV" rev-parse --git-path hooks)"
