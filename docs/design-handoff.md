@@ -821,13 +821,21 @@ slide when the window is open (positions 1/7/3px → 9/1/6px, overshoot ease, st
 `SETTINGS` mono 9.5 `.18em`. It toggles the `settings` **module window** (it goes through the window
 system; it is not on the bottom dock). `,` opens it.
 
-Window body, one column, max 680px, sections each led by `◇ NN · TITLE ────`:
-a `SCOPE · Saved to workspace "X" · ● AUTOSAVE` strip; `01 APPEARANCE` (mode segmented control with a
+Window body (v14), max 880px, two columns: a sticky 184px rail on the left, the active section on the
+right. The rail holds a search field (34px, magnifier, `/` badge; `/` focuses it, `Esc` clears) and one
+button per section (`NN  Label  count`, lit left bar on the active one). Only the active section renders;
+while searching, every section with a hit renders and the rail shows hit counts (`–` and 40% opacity for
+none), and a miss shows a dashed `0 RESULTS` card with `CLEAR SEARCH`. A row matches when every term is in
+its section label or its keywords (`settings-index.ts`). Below 580px of body width the rail becomes a
+wrapping row above the content; below 740px a row's control stacks under its label. The `SCOPE` strip is
+gone: the window footer reads `● AUTOSAVE · SAVED TO "X"` on the left, `SYNCED AT hh:mm` on the right.
+Sections, each led by `◇ NN · TITLE ────`: `01 APPEARANCE` (mode segmented control with a
 sliding thumb, palette cards with a dark and a light preview); `02 DOCK` (rows: number, label, code,
 ↑ ↓, on/off switch; Core stays on; number keys follow the order); `03 CORE` (strands slider 16–80 step 4,
 grid switch); `04 WORKSPACE` (name field, `DUPLICATE`, `RESET SETTINGS`, `DELETE` which asks for a second
 click within 3s and is disabled with a single workspace). *Ours:* `05 SERVICES` (retire/restore),
-`06 LAYOUT` (`Auto` / `Side rails` / `Top and bottom`), `07 DEVICE` (orb quality, per device), same style.
+`06 LAYOUT` (rails, interface scale, CarPlay), `07 VOICE` (wake word, noise filter, tail, audio session),
+`08 DEVICE` (orb quality, sound, display; keeps its own `SCOPE · This device only` strip), same style.
 
 Per workspace: theme, palette, grid, strands, dock order and hidden modules, and our layout and retired services.
 
