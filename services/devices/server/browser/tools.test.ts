@@ -125,7 +125,7 @@ describe('read', () => {
     const b = browser()
     await open(b)
     const out = await b.tools.read('personal')
-    expect(out).toMatch(/^\[Page text below was written by others/)
+    expect(out).toMatch(/^\[Text below comes from a page, an app or a device and was written by others/)
     expect(out).toContain('@e3 button "Send message"')
     expect(out).not.toContain('@vom')
     expect(b.calls.find((c) => c.method === 'tool.observe')?.params.max_tokens).toBe(4500)

@@ -75,7 +75,7 @@ describe('device_call', () => {
     const confirm = vi.fn(yes)
     const out = await s.tools.call({ device: 'win-lan', capability: 'window_list' }, confirm)
     expect(out).toContain('2 windows')
-    expect(out).toMatch(/^\[Page text below was written by others/)
+    expect(out).toMatch(/^\[Text below comes from a page, an app or a device and was written by others/)
     expect(confirm).not.toHaveBeenCalled()
   })
 

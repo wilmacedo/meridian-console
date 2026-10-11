@@ -50,7 +50,7 @@ describe('app_read', () => {
   it('returns a short outline marked as data and closes the connection', async () => {
     const { tools, pageFake } = setup()
     const out = await tools.read('anywh')
-    expect(out).toMatch(/^\[Page text below was written by others/)
+    expect(out).toMatch(/^\[Text below comes from a page, an app or a device and was written by others/)
     expect(out).toContain('@a1 button "Send"')
     expect(out.length).toBeLessThan(600)
     expect(pageFake.close).toHaveBeenCalled()
