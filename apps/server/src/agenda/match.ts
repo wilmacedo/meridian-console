@@ -53,3 +53,12 @@ export function routineHint(heard: string, routines: Routine[], lastStart: (id: 
   const verdict = phraseVerdict(routine, lastStart(routine.id), now)
   return `[The owner may have said the activation phrase of the routine "${routine.name}" (${routine.id}). ${verdict.go ? 'If so, run it now with run_routine.' : `Ask before running it: ${verdict.why}.`}]`
 }
+
+// The moment NOX hears something, so "amanhã às dez" or "sexta" becomes a date: its process lives for days and its
+// prompt carries no clock.
+export function clockNote(now: Date): string {
+  const offset = -now.getTimezoneOffset()
+  const sign = offset < 0 ? '-' : '+'
+  const hhmm = `${String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0')}:${String(Math.abs(offset) % 60).padStart(2, '0')}`
+  return `[It is ${now.toLocaleDateString('en-US', { weekday: 'long' })}, ${dayOf(now)} ${clockOf(now)} (UTC${sign}${hhmm}).]`
+}

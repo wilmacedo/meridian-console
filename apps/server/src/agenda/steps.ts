@@ -25,7 +25,12 @@ export interface PromptStep extends BaseStep {
   prompt: string
 }
 
-export type Step = ActionStep | PromptStep
+// The owner's own list, read by the server: what is late, what is for today, what keeps being put off.
+export interface TodosStep extends BaseStep {
+  kind: 'todos'
+}
+
+export type Step = ActionStep | PromptStep | TodosStep
 
 const BASE = ['id', 'kind', 'title']
 const MAX_PROMPT = 1000
@@ -44,6 +49,7 @@ export const STEP_KINDS: Record<Step['kind'], (raw: unknown, path: string, servi
     const r = object(raw, path, [...BASE, 'prompt'])
     return { ...base(r, path), kind: 'prompt', prompt: text(r, 'prompt', path, MAX_PROMPT) }
   },
+  todos: (raw, path) => ({ ...base(object(raw, path, BASE), path), kind: 'todos' }),
 }
 
 function base(r: Record<string, unknown>, path: string): BaseStep {

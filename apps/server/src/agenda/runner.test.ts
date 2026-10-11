@@ -45,6 +45,7 @@ function setup(registryRun: (service: string, action: string, input: unknown) =>
     tasks,
     screens: { doc: (id) => docs.get(id) },
     bus: new EventBus(),
+    review: () => ({ late: [{ id: 't-1', title: 'Pagar o IPVA' }] }),
     announce: (text, workspace, screen) => announced.push({ text, workspace, screen }),
     now: () => new Date('2026-10-12T07:30:00'),
   })
@@ -71,6 +72,14 @@ describe('RoutineRunner', () => {
     expect(goals[0]).toContain('<result step="agenda">\n[{"title":"Daily"}]\n</result>')
     expect(goals[0]).toContain('Only read.')
     expect(store.lastRun('bom-dia')).toMatchObject({ id: run.id, state: 'running', trigger: { heard: 'bom dia nox' } })
+  })
+
+  it('reads the owner\'s own list for a todos step, without the model', async () => {
+    const { runner, goals, ran } = setup()
+    await runner.run({ ...routine, steps: [{ id: 'pendencias', kind: 'todos', title: 'Pendências' }] }, { kind: 'by_name' }, 'default')
+    expect(ran).toEqual([])
+    expect(goals[0]).toContain('1. Pendências: the owner\'s own tasks and reminders')
+    expect(goals[0]).toContain('<result step="pendencias">\n{"late":[{"id":"t-1","title":"Pagar o IPVA"}]}\n</result>')
   })
 
   it('passes a failed action on as such instead of giving up', async () => {

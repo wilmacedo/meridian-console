@@ -49,7 +49,7 @@ const routineSchema = {
         required: ['id', 'kind', 'title'],
         properties: {
           id: { type: 'string', description: 'Kebab-case, unique in the routine.' },
-          kind: { type: 'string', enum: ['action', 'prompt'], description: 'action: a read-only service action the server runs as it is (service, action, input). prompt: an instruction in the owner\'s words that a worker carries out with your tools.' },
+          kind: { type: 'string', enum: ['action', 'prompt', 'todos'], description: 'action: a read-only service action the server runs as it is (service, action, input). prompt: an instruction in the owner\'s words that a worker carries out with your tools. todos: the owner\'s own tasks and reminders (late, today, most put off).' },
           title: { type: 'string', description: 'Short label, in Portuguese, shown on the task card.' },
           service: { type: 'string' },
           action: { type: 'string' },
@@ -74,7 +74,7 @@ export function routineDoc(r: Routine, saved: boolean): DocSpec {
       { t: 'tags', items: phrases.map((label) => ({ label })) },
       ...(windows.length ? [{ t: 'kv' as const, items: [{ k: 'Horário', v: windows.join(', ') }] }] : []),
       { t: 'h', level: 2, text: 'Passos' },
-      { t: 'list', items: r.steps.map((s) => ({ text: s.title, meta: s.kind === 'action' ? `${s.service} · ${s.action}` : 'NOX', state: 'todo' as const })) },
+      { t: 'list', items: r.steps.map((s) => ({ text: s.title, meta: s.kind === 'action' ? `${s.service} · ${s.action}` : s.kind === 'todos' ? 'LEMBRETES' : 'NOX', state: 'todo' as const })) },
     ],
   }
 }

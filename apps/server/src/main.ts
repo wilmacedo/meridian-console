@@ -1,10 +1,13 @@
 import Fastify from 'fastify'
 import websocket from '@fastify/websocket'
 import { join } from 'node:path'
-import { routineHint } from './agenda/match.js'
+import { clockNote, routineHint } from './agenda/match.js'
+import { Reminders, review } from './agenda/reminders.js'
 import { routineTools } from './agenda/routine-tools.js'
 import { RoutineStore } from './agenda/routines.js'
 import { RoutineRunner } from './agenda/runner.js'
+import { todoTools } from './agenda/todo-tools.js'
+import { AgendaSettings, TodoStore } from './agenda/todos.js'
 import { dataDir, openDatabase } from './database.js'
 import { allContainers, docker } from './docker.js'
 import { ManagedServiceStore } from './managed-services.js'
@@ -63,13 +66,16 @@ let turnScreen: string | undefined
 const announce = (text: string, workspace: string, screen?: string): void => noxRoutes.announce(text, workspace, screen)
 // The owner's routines: started only by the owner, by phrase or by name, and run as background tasks.
 const routines = new RoutineStore(db)
-const runner = new RoutineRunner({ store: routines, registry, tasks, screens, bus, announce })
+const todos = new TodoStore(db)
+const agendaSettings = new AgendaSettings(db)
+const runner = new RoutineRunner({ store: routines, registry, tasks, screens, bus, announce, review: () => review(todos.list('open'), Date.now()) })
 registerMcp(
   app,
   '/mcp',
   new McpServer('meridian', [
     ...buildTools({ bus, registry, telemetry, workspaces, screens, approvals, tasks, containers: allContainers, docker, anywh: new Anywh(), messages, announce, conversations: () => noxRoutes.conversations, hostName, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen }),
     ...routineTools({ store: routines, runner, registry, screens, bus, currentWorkspace: () => turnWorkspace, currentScreen: () => turnScreen }),
+    ...todoTools({ todos, settings: agendaSettings, registry, bus }),
   ]),
 )
 // Claude Code asks this server before anything its classifier doesn't settle. It is a separate MCP
@@ -98,9 +104,27 @@ const noxRoutes = registerNox(app, {
   approvals,
   messages,
   wakeDir: wakeDir(),
-  hint: (text) => routineHint(text, routines.list(), (id) => routines.lastRun(id)?.startedAt, new Date()),
+  hint: (text) => {
+    const now = new Date()
+    return [clockNote(now), routineHint(text, routines.list(), (id) => routines.lastRun(id)?.startedAt, now)].filter(Boolean).join(' ')
+  },
 })
 app.addHook('onClose', async () => nox.stop())
+
+// The owner's reminders, delivered at the moments they set. A workspace is in the car when its CarPlay switch is
+// on, which it is by default for the one called "carplay".
+const reminders = new Reminders({
+  todos,
+  settings: agendaSettings,
+  registry,
+  screens,
+  bus,
+  announce,
+  lastScreen: () => noxRoutes.lastScreen(),
+  inCar: (id) => ((workspaces.get(id)?.state as { carplay?: boolean } | undefined)?.carplay ?? id === 'carplay'),
+})
+reminders.start()
+app.addHook('onClose', async () => reminders.stop())
 
 if (await registerWebApp(app, defaultWebRoot())) app.log.info(`serving the web app from ${defaultWebRoot()}`)
 else app.log.info('no web build found (pnpm build); the Vite dev server serves the app')

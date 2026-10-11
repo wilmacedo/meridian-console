@@ -51,7 +51,7 @@ interface Deps {
   approvals: Approvals
   messages: VoiceMessages
   wakeDir: string
-  // A note for NOX to read before what the owner said, such as a routine whose phrase it sounds like.
+  // A note for NOX to read before what the owner said: the time, a routine whose phrase it sounds like.
   hint?: (text: string) => string | undefined
 }
 
@@ -68,7 +68,12 @@ export const recordedMessageNote = (to: string, path: string): string =>
 export function registerNox(
   app: FastifyInstance,
   { nox, bus, screens, registry, approvals, messages, wakeDir, hint }: Deps,
-): { interrupt: () => void; announce: (text: string, workspace: string, screen?: string) => void; conversations: ConversationControl } {
+): {
+  interrupt: () => void
+  announce: (text: string, workspace: string, screen?: string) => void
+  conversations: ConversationControl
+  lastScreen: () => { workspace: string; screen?: string } | undefined
+} {
   // The turn whose answer is being written or spoken, for the owner to cut off.
   let active: { turn: number; speaker?: TurnSpeaker } | undefined
   // What the owner said in the turn being answered: a new conversation starts from it. `moved` once the turn
@@ -78,6 +83,8 @@ export function registerNox(
   let switching: Switch | undefined
   // NOX asked whether this is a new conversation; the owner's words wait here for the yes.
   let offer: { workspace: string; text: string; title: string; until: number } | undefined
+  // Where the owner spoke last: where a reminder looks for them first.
+  let lastScreen: { workspace: string; screen?: string } | undefined
 
   // The owner talks over NOX: end the turn that is running, stop synthesising, and release the screen
   // (which has already stopped playing) so the next request starts clean.
@@ -104,6 +111,7 @@ export function registerNox(
   // with the request that was waiting, and a bare no lets NOX carry on with that request here; there is no
   // need to ask the model what "sim" means.
   async function respond(text: string, workspace: string, reply: FastifyReply, heardLine?: string, screen?: string): Promise<void> {
+    lastScreen = { workspace, screen }
     const asked = offer?.workspace === workspace && offer.until > Date.now() ? offer : undefined
     offer = undefined
     const answered = asked && text.trim().split(/\s+/).length <= SHORT_ANSWER_WORDS ? spokenAnswer(text) : undefined
@@ -328,5 +336,5 @@ export function registerNox(
     current: () => nox.conversations.current(),
   }
 
-  return { interrupt, announce, conversations }
+  return { interrupt, announce, conversations, lastScreen: () => lastScreen }
 }

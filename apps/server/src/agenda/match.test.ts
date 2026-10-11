@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { heardIn, inWindow, phraseVerdict, routineHint } from './match.js'
+import { clockNote, heardIn, inWindow, phraseVerdict, routineHint } from './match.js'
 import type { Routine } from './routines.js'
 
 const at = (clock: string, day = '2026-10-12'): Date => new Date(`${day}T${clock}:00`)
@@ -52,5 +52,11 @@ describe('routineHint', () => {
     expect(routineHint('bom dia nox', [routine], () => undefined, at('07:30'))).toBe('[The owner may have said the activation phrase of the routine "Bom dia" (bom-dia). If so, run it now with run_routine.]')
     expect(routineHint('bom dia', [routine], () => undefined, at('15:00'))).toContain('Ask before running it: it is 15:00')
     expect(routineHint('abre a telemetria', [routine], () => undefined, at('07:30'))).toBeUndefined()
+  })
+})
+
+describe('clockNote', () => {
+  it('gives the weekday, the local date and time and the offset', () => {
+    expect(clockNote(at('07:30'))).toMatch(/^\[It is Monday, 2026-10-12 07:30 \(UTC[+-]\d{2}:\d{2}\)\.\]$/)
   })
 })

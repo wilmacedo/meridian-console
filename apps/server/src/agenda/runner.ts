@@ -16,6 +16,8 @@ interface RunnerDeps {
   tasks: Pick<Tasks, 'start' | 'list' | 'subscribe'>
   screens: Pick<ScreenRegistry, 'doc'>
   bus: EventBus
+  // The owner's list as a todos step shows it.
+  review: () => unknown
   // NOX speaks first, on the workspace the routine was started from.
   announce: (text: string, workspace: string, screen?: string) => void
   now?: () => Date
@@ -63,7 +65,7 @@ export function docText(blocks: DocBlock[]): string {
 }
 
 function goalOf(routine: Routine, heard: string | undefined, now: Date, lastStart: number | undefined, results: Map<string, string>): string {
-  const steps = routine.steps.map((s, i) => `${i + 1}. ${s.title}: ${s.kind === 'prompt' ? resolve(s.prompt, now, lastStart) : 'already run by the server; its result is below.'}`)
+  const steps = routine.steps.map((s, i) => `${i + 1}. ${s.title}: ${s.kind === 'prompt' ? resolve(s.prompt, now, lastStart) : s.kind === 'todos' ? "the owner's own tasks and reminders, read by the server; below. Say what is late, what is for today and what keeps being put off." : 'already run by the server; its result is below.'}`)
   const data = [...results].map(([id, result]) => `<result step="${id}">\n${result}\n</result>`)
   return [
     `This job is the owner's routine "${routine.name}", which they started${heard ? ` by saying "${heard}"` : ''}. It is ${dayOf(now)} ${clockOf(now)}. Carry out its steps in this order and build a briefing for the owner, in Brazilian Portuguese.`,
@@ -97,9 +99,9 @@ export class RoutineRunner {
     const now = this.now()
     const lastStart = this.d.store.lastRun(routine.id)?.startedAt
     const results = new Map<string, string>()
-    for (const step of routine.steps.filter((s): s is Extract<Step, { kind: 'action' }> => s.kind === 'action')) {
+    for (const step of routine.steps.filter((s): s is Exclude<Step, { kind: 'prompt' }> => s.kind !== 'prompt')) {
       try {
-        const { result } = await this.d.registry.run(step.service, step.action, resolveInput(step.input, now, lastStart))
+        const result = step.kind === 'todos' ? this.d.review() : (await this.d.registry.run(step.service, step.action, resolveInput(step.input, now, lastStart))).result
         results.set(step.id, clip(typeof result === 'string' ? result : JSON.stringify(result ?? null), MAX_RESULT_CHARS))
       } catch (err) {
         results.set(step.id, `It failed: ${err instanceof Error ? err.message : 'unknown error'}`)

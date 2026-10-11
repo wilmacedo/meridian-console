@@ -61,4 +61,13 @@ describe('ScreenRegistry live documents', () => {
     expect(screens.doc('d-0')).toBeUndefined()
     expect(screens.doc('d-51')).toBeDefined()
   })
+
+  it('reaches the screen the owner used last while it is still there, else the newest of all', () => {
+    const screens = new ScreenRegistry()
+    screens.watch(screens.add(() => undefined), 'default', 'tab-a')
+    screens.watch(screens.add(() => undefined), 'office', 'tab-b')
+    expect(screens.reach('default', 'tab-a')).toEqual({ workspace: 'default', client: 'tab-a' })
+    expect(screens.reach('default', 'tab-gone')).toEqual({ workspace: 'office', client: 'tab-b' })
+    expect(new ScreenRegistry().reach('default', 'tab-a')).toBeUndefined()
+  })
 })

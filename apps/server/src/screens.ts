@@ -46,6 +46,14 @@ export class ScreenRegistry {
     return counts
   }
 
+  // Where to reach the owner unasked: the screen given, while it is still showing that workspace, or else the
+  // newest screen of any workspace. Undefined when no screen is open.
+  reach(workspace?: string, client?: string): { workspace: string; client?: string } | undefined {
+    const shown = [...this.screens.values()].filter((s) => s.workspace !== undefined)
+    const screen = shown.find((s) => client !== undefined && s.client === client && s.workspace === workspace) ?? shown.sort((a, b) => b.since - a.since)[0]
+    return screen && { workspace: screen.workspace!, client: screen.client }
+  }
+
   private pick(workspace: string, preferred?: string): Screen | undefined {
     const shown = [...this.screens.values()].filter((s) => s.workspace === workspace)
     return shown.find((s) => preferred !== undefined && s.client === preferred) ?? shown.sort((a, b) => b.since - a.since)[0]
