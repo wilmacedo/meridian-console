@@ -1,0 +1,6 @@
+{
+  "extends": "../../packages/service-sdk/tsconfig.service.json",
+  // Server only: no Svelte here.
+  "compilerOptions": { "types": ["node"] },
+  "include": ["server"]
+}
