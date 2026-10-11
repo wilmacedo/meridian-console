@@ -285,7 +285,7 @@
       {#if showing('layout')}
         <SettingSection title={head('layout')} delay={stagger('layout')}>
           {#if has('rails')}
-            <SettingRow title="Rails" note="Auto lays them along the top and bottom on a screen turned to portrait." wide>
+            <SettingRow title="Rails" note="Auto lays them along the top and bottom on a screen turned to portrait. A phone shows the widgets in a sheet instead." wide>
               <SegmentedControl options={LAYOUT_MODES.map((id) => ({ id, label: LAYOUT_LABELS[id] }))} value={layout.mode} onPick={(m) => (layout.mode = m)} />
             </SettingRow>
           {/if}
