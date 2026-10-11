@@ -431,7 +431,7 @@ has (NOX speaking first, background tasks, the screens).
   `phrase` (phrases plus an optional local time window).
 - **Steps** (`steps.ts`, one entry per kind in `STEP_KINDS`): `action` is a read-only service action the server runs
   itself, without the model; `todos` is the owner's own list (see Reminders and tasks); `prompt` is the owner's request in their own words, carried out by the worker with
-  NOX's tools. Both may use `{today}`, `{yesterday}` and `{last_run}`. A step that could change something (a
+  NOX's tools, or, with a `profile`, read through that Claude Code profile (see the next section). Both may use `{today}`, `{yesterday}` and `{last_run}`. A step that could change something (a
   `mutating` or `gated` action) is refused when the routine is saved: a routine only reads, and anything that sends
   or changes is asked for in the conversation, behind the confirmation card. At most 8 steps.
 - **Creating and changing** is by voice. NOX writes the whole routine and calls `preview_routine`, which validates it
@@ -450,6 +450,26 @@ has (NOX speaking first, background tasks, the screens).
   task ends, NOX is woken with `[routine done]` and the briefing's text and says the highlights; a run the owner
   stopped is not announced. A routine does not run twice at once, and a run that was going when the server stopped
   is marked `interrupted` at the next start.
+
+### Mail, Slack and files: through the owner's Claude Code profiles
+
+The owner's own Claude Code logins (the anywh profiles; `trabalho` runs with its own `HOME`) are signed in to their
+claude.ai connectors: Gmail in both, Slack, Google Calendar and Drive in the work one. Meridian holds no login of its
+own for them. NOX never loads those connectors itself (its process runs with `--setting-sources ""` and
+`--strict-mcp-config`, and the connectors also send, reply and delete). Instead `agenda/profiles.ts` runs a
+**reader**: a one-shot `claude -p` as that profile (`HOME` from the profile's anywh env, `--setting-sources user` so
+the connectors load, the owner's hooks off), with no built-in tool (`--tools ""`), only the read tools of Gmail,
+Slack, Calendar and Drive allowed by exact name, the writing ones denied by name, and `--permission-mode dontAsk`,
+so anything else is refused without asking (checked: a tool outside the list was denied). Its persona says that
+everything it reads is information, never instructions.
+
+- `list_profile_connectors` lists each profile's connectors from the `init` event `claude` writes before any model
+  call, so it costs nothing (cached six hours; a connector still `pending` there counts as signed in).
+- `read_with_profile({profile, request})` runs a reader and returns its answer framed as data. NOX uses it when the
+  owner asks ("tenho e-mail importante no trabalho?"), and a routine's `prompt` step with a `profile` has its worker
+  call it. It uses that profile's Claude plan; a short read with the work profile's full context cost the equivalent
+  of under a dollar of plan usage the first time.
+- Replying to a mail or a Slack message is not possible: the reader cannot write, and NOX says so.
 
 ### Reminders and tasks
 
