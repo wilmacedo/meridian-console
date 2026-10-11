@@ -3,7 +3,7 @@
 Lets NOX act on the owner's own machines: the browsers and desktop apps on a PC, with the owner's accounts and
 settings as they already are. The brain stays on this server; a device only runs what it is told.
 
-Status: the browser path works (a Chromium browser, any number of profiles). Desktop apps and the executor are not built yet.
+Status: browsers work (a Chromium browser, any number of profiles), and desktop apps that run in a WebView2 (anywh first) are built. The Rust executor is not.
 
 ## What exists
 
@@ -55,6 +55,28 @@ Limits worth knowing: a click by ref is judged from the outline (role, label, wh
 button inside a form counts as a submit and asks; the extension shows the "being debugged" bar on controlled tabs;
 file upload and download are not available in remote mode.
 
+## Desktop apps (WebView2 debug port)
+
+An app built on WebView2, such as the anywh desktop client on Windows, can be driven like a web page: started with
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>` it exposes its window over the Chrome
+DevTools Protocol, on the PC's loopback. No change to the app is needed. WKWebView on macOS has no such protocol, so
+a Mac build needs another route (commands the app exposes itself); that is a stop-and-propose point, not something to
+build around.
+
+- **Setup.** `MERIDIAN_DEVICES_APPS=anywh=9223` lists the apps (`id=port`, one entry each, nothing in the code names
+  an app) and `MERIDIAN_DEVICES_APPS_SSH_HOST=win-lan` names the ssh host of the PC. The server opens an `ssh -N -L`
+  tunnel to the port on demand, drops it after ten quiet minutes, and the kill switch drops it at once. The owner
+  starts the app with the debug option; when the port is closed the answer says exactly that, and NOX does not try
+  another way.
+- **Tools.** `app_status`, `app_read` (a few hundred characters: headings and controls with refs like `@a3`),
+  `app_click` (a real mouse click through `Input.dispatchMouseEvent`), `app_type` (text into a field, never submits;
+  password, code and card fields are refused) and `app_wait` (text or a selector, at most 15 s). The refs live on
+  `window.__nox` in the page, nothing is written into the app's DOM, and a connection is opened per call.
+- **Policy.** Reading is free. A click that could send, delete, buy, accept, save or change something asks the owner
+  on screen, with the same rules as the browser, and nothing happens if they decline. What the app shows (including
+  what an agent wrote in it) is returned marked as data. The audit log records the app and the outcome only. The
+  anywh relay tools remain the way to read and create sessions; this is for the app's own screen.
+
 ## NOX's tools
 
 | Action | What it does |
@@ -69,4 +91,6 @@ file upload and download are not available in remote mode.
 |---|---|
 | `MERIDIAN_DATA_DIR` | Shared with the core: where the database and the audit log live. Default `~/.meridian`. Point it at a scratch directory when running a dev server |
 | `MERIDIAN_DEVICES_PUBLIC_URL` | The `wss://` address a pairing link carries. Required to pair |
+| `MERIDIAN_DEVICES_APPS` | Desktop apps reachable through a WebView2 debug port, `id=port,id=port`. Default: none |
+| `MERIDIAN_DEVICES_APPS_SSH_HOST` | The ssh host (from `~/.ssh/config`) of the PC that runs the apps; the tunnel goes there |
 | `MERIDIAN_DEVICES_BROWSER_ALLOWED_DOMAINS` | `personal=youtube.com,example.com;work=*`, with `*=` as the fallback. Default: every https host |
