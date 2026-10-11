@@ -12,6 +12,9 @@ export interface AuditEntry {
 // The target is cut at the query or fragment here, so no caller can leak one into the log by mistake.
 const stripQuery = (target: string): string => target.replace(/[?#].*$/, '')
 
+// A field with a space or a newline in it would shift or forge the lines around it.
+const oneToken = (field: string): string => field.replace(/\s+/g, '_')
+
 export class AuditLog {
   constructor(
     private readonly file: string,
@@ -23,7 +26,7 @@ export class AuditLog {
   }
 
   record(entry: AuditEntry): void {
-    const fields = [this.now().toISOString(), entry.device, entry.tool, entry.target ? stripQuery(entry.target) : '-', entry.outcome]
+    const fields = [this.now().toISOString(), oneToken(entry.device), oneToken(entry.tool), entry.target ? oneToken(stripQuery(entry.target)) : '-', entry.outcome]
     appendFileSync(this.file, `${fields.join(' ')}\n`)
   }
 }

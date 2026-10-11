@@ -22,3 +22,13 @@ describe('AuditLog', () => {
     expect(readFileSync(file, 'utf8')).toBe('2026-10-11T12:00:00.000Z personal browser_open example.com/a/b ok\n2026-10-11T12:00:00.000Z personal browser_click - declined\n')
   })
 })
+
+describe('AuditLog fields', () => {
+  it('keeps a field with spaces or a newline on its own line', () => {
+    const { file, log } = make()
+    log.record({ device: 'x\n2026-10-11T00:00:00.000Z personal browser_click a.com ok', tool: 'browser_read', outcome: 'refused' })
+    const lines = readFileSync(file, 'utf8').trimEnd().split('\n')
+    expect(lines).toHaveLength(1)
+    expect(lines[0].split(' ')).toHaveLength(5)
+  })
+})
