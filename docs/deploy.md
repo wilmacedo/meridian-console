@@ -14,6 +14,9 @@ git commit on main
        4. wait for http://127.0.0.1:4000/health; if any step fails, go back to the previous commit
 ```
 
+A step that fails before the restart (typecheck, tests, build) goes back without restarting the running app; only
+a failure after the restart restarts it again, on the previous commit.
+
 The log is `~/.meridian/deploy.log`. The gate is `typecheck` and the test suites, under Node 24 (the
 project needs it; with an older Node pnpm refuses to run). Deploys are serialised with a lock, so a commit that lands during one waits.
 

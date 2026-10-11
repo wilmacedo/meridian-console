@@ -46,19 +46,28 @@ healthy() {
   return 1
 }
 
+# A failure before the restart (typecheck, tests, build) never touched the running app, so it is not restarted:
+# a restart interrupts a NOX turn in flight.
+restarted=0
+
 rollback() {
   trap - ERR
   log "failed, rolling back to ${current:0:7}"
   git -C "$PROD" checkout --detach --quiet "$current"
   (cd "$PROD" && pnpm install --frozen-lockfile --silent && pnpm build) || true
-  systemctl --user restart "$UNIT" || true
-  healthy && log "rolled back" || log "rollback is not healthy either, check: journalctl --user -u $UNIT"
+  if [ "$restarted" = 1 ]; then
+    systemctl --user restart "$UNIT" || true
+    healthy && log "rolled back" || log "rollback is not healthy either, check: journalctl --user -u $UNIT"
+  else
+    log "rolled back, the running app was not restarted"
+  fi
   exit 1
 }
 trap rollback ERR
 
 log "deploying ${current:0:7} -> ${target:0:7}"
 build "$target"
+restarted=1
 systemctl --user restart "$UNIT"
 healthy
 log "deployed ${target:0:7}"
