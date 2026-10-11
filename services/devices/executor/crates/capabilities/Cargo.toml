@@ -1,0 +1,11 @@
+[package]
+name = "meridian-executor-capabilities"
+description = "What the Meridian executor can do on a device, one module per capability"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+meridian-executor-core = { path = "../core" }
+serde_json = "1"

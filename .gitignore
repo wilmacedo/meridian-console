@@ -18,3 +18,6 @@ docs/https.md
 docs/running.md
 design/
 
+
+# Rust build output (services/devices/executor)
+target/
