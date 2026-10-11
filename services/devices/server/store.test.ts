@@ -53,14 +53,12 @@ describe('devices', () => {
 
   it('revoking removes the token', () => {
     const { store } = make()
-    const device = store.addDevice('executor', 'pc', 't', null)
-    store.addExecutorKey(device.id, 'pub')
+    const device = store.addDevice('browser', 'pc', 't', null)
     expect(store.revoke(device.id)).toBe(true)
     expect(store.deviceByToken('t')).toBeUndefined()
     expect(store.devices()).toEqual([])
     expect(store.revoke(device.id)).toBe(false)
   })
-})
 })
 
 describe('token rotation', () => {
