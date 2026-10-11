@@ -142,9 +142,10 @@ export function buildTools(d: ToolDeps): McpTool[] {
     },
     {
       name: 'end_conversation',
-      description: 'Ends the conversation: after you finish speaking the microphone stays closed instead of reopening. Call it when the owner\'s last words close the matter and expect no answer ("certo, deixa como está", "valeu", "é só isso").',
+      description: 'Ends the conversation: after you finish speaking the microphone stays closed instead of reopening. Call it when the owner\'s last words close the matter and expect no answer ("certo, deixa como está", "valeu", "é só isso"). Call it last, after your acknowledgement, and write nothing after it.',
       inputSchema: { type: 'object', properties: { workspace: workspaceProperty } },
-      handler: (a) => command(a, { name: 'end_conversation' }, 'ended the conversation'),
+      // Anything the model writes after this is spoken, so the answer leaves it nothing to reply to.
+      handler: (a) => (command(a, { name: 'end_conversation' }, 'ended the conversation'), 'Ended. Your turn is over: write nothing more.'),
     },
     {
       name: 'new_conversation',

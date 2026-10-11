@@ -26,13 +26,14 @@ async function setup(hint?: (text: string) => string | undefined) {
   const said: string[] = []
   const turns: { text: string; to?: Switch }[] = []
   // What NOX does during a turn, as its tools would.
-  const during: { act?: (text: string) => void } = {}
+  const during: { act?: (text: string) => void; script?: NoxEvent[] } = {}
   const current = { id: 'c1', title: 'baixa', lastUsed: Date.now() }
   const nox = {
     async *say(text: string, _workspace: string, _screen?: string, options: { to?: Switch } = {}): AsyncGenerator<NoxEvent> {
       said.push(text)
       turns.push(options.to ? { text, to: options.to } : { text })
       during.act?.(text)
+      yield* during.script ?? []
       yield { type: 'done' }
     },
     interrupt: () => undefined,
@@ -188,5 +189,19 @@ describe('a hint before what the owner said', () => {
     await say('abre a telemetria')
     expect(said[0]).toBe('[The owner may have said the activation phrase of the routine "Bom dia" (bom-dia).] bom dia nox')
     expect(said[1]).toBe('abre a telemetria')
+  })
+})
+
+describe('ending the conversation', () => {
+  it('says nothing NOX writes after it ends the conversation', async () => {
+    const { during, say } = await setup()
+    during.script = [
+      { type: 'text', text: 'Por nada, até mais.' },
+      { type: 'tool', name: 'end_conversation' },
+      { type: 'tool', name: 'end_conversation' },
+      { type: 'text', text: 'Valeu.' },
+    ]
+    const events = await say('valeu, é só isso')
+    expect(events.filter((e) => e.type === 'text')).toEqual([{ type: 'text', text: 'Por nada, até mais.' }])
   })
 })

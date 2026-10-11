@@ -77,6 +77,12 @@ function setup(services: ServiceSummary[] = [], confirm = true) {
 }
 
 describe('NOX tools', () => {
+  it('ends the conversation and leaves NOX nothing to answer after it', async () => {
+    const { call, commands } = setup()
+    expect(await call('end_conversation')).toBe('Ended. Your turn is over: write nothing more.')
+    expect(commands()).toEqual([{ name: 'end_conversation' }])
+  })
+
   it('opens windows on the current workspace, mapping events to the logs window', async () => {
     const { call, commands, bus } = setup()
     await call('open_window', { window: 'telemetry' })

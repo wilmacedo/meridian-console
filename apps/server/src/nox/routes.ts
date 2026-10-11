@@ -154,6 +154,7 @@ export function registerNox(
     screens.setAgentMode('thinking')
     let typing = false
     let saidSomething = false
+    let ended = false
     ownerTurn = options.owner ? { text, workspace, moved: options.to !== undefined } : undefined
     let leg: { text: string; to?: Switch } | undefined = { text: options.owner && !options.to ? awayHint(text) : text, to: options.to }
     try {
@@ -161,6 +162,10 @@ export function registerNox(
         const { text: said, to } = leg
         leg = undefined
         for await (const event of nox.say(said, workspace, screen, { owner: options.owner, to })) {
+          // The model tends to add a word after ending the conversation ("Pronto."), whatever it is told; the
+          // acknowledgement before it was the answer, so nothing after it is said.
+          if (event.type === 'text' && ended) continue
+          if (event.type === 'tool' && event.name === 'end_conversation') ended = true
           if (event.type === 'error') switching = undefined
           // The answer goes on in the other conversation.
           if (event.type === 'done' && switching) continue
