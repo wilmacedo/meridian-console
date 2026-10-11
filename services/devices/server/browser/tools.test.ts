@@ -40,7 +40,7 @@ function browser(opts: { url?: string; outline?: string; allowed?: string; evalu
   const ext = new FakeExtension()
   gateway.attach(ext.socket, store.addDevice('browser', 'b', 't', null))
   ext.hello('personal')
-  const page = { url: opts.url ?? 'https://example.com/home', title: 'Example', outline: opts.outline ?? OUTLINE }
+  const page = { url: opts.url ?? 'https://example.com/home', title: 'Example', outline: opts.outline ?? OUTLINE, afterClick: undefined as string | undefined }
   const calls: { method: string; params: Record<string, unknown> }[] = []
   ext.on('frame', (f: { id: string; method?: string; params?: Record<string, unknown> }) => {
     if (!f.method?.startsWith('tool.')) return
@@ -65,6 +65,7 @@ function browser(opts: { url?: string; outline?: string; allowed?: string; evalu
         case 'tool.session_stop':
           return {}
         default:
+          if (f.method === 'tool.click' && page.afterClick) page.url = page.afterClick
           return { tab_id: 1, x: 1, y: 1 }
       }
     }
@@ -108,6 +109,14 @@ describe('open', () => {
   it('reports a browser that is not connected, naming the ones that are', async () => {
     const b = browser()
     await expect(b.tools.open('work', 'https://example.com/', false)).rejects.toThrow('No browser called "work" is connected (connected: personal)')
+  })
+})
+
+describe('sessions', () => {
+  it('starts one window when two opens for a profile run at once', async () => {
+    const b = browser()
+    await Promise.all([open(b), open(b, 'https://example.com/other')])
+    expect(b.calls.filter((c) => c.method === 'tool.session_start')).toHaveLength(1)
   })
 })
 
@@ -194,6 +203,18 @@ describe('click', () => {
     expect(confirm).toHaveBeenCalledOnce()
   })
 
+  it('forgets what it knew of the refs once a click has moved to another page', async () => {
+    const b = browser()
+    await open(b)
+    await b.tools.read('personal')
+    b.page.afterClick = 'https://example.com/next'
+    await b.tools.click({ profile: 'personal', ref: 'e1' }, yes)
+    const confirm = vi.fn(yes)
+    await b.tools.click({ profile: 'personal', ref: 'e7' }, confirm)
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('not an element from the last read'))
+    expect(await b.tools.read('personal')).toContain('@e7')
+  })
+
   it('asks when the ref was not in the last read', async () => {
     const b = browser()
     await open(b)
@@ -277,6 +298,13 @@ describe('close and audit', () => {
     expect(await b.tools.close('personal')).toMatch(/Closed/)
     expect(b.calls.at(-1)?.method).toBe('tool.session_stop')
     expect(await b.tools.close('personal')).toBe('No session was open.')
+  })
+
+  it('names the connected profile in the log, not the string the caller passed', async () => {
+    const b = browser()
+    await expect(b.tools.read('x\nforged')).rejects.toThrow()
+    await open(b)
+    expect(readFileSync(b.logFile, 'utf8').trim().split('\n').map((l) => l.split(' ')[1])).toEqual(['-', 'personal'])
   })
 
   it('logs one line per call with host and path only', async () => {

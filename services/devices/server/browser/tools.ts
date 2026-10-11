@@ -18,6 +18,7 @@ interface Session {
   lastRead?: string
   // Host and path of the page the last step left us on, for the audit log.
   at?: string
+  href?: string
 }
 
 export interface Target {
@@ -42,6 +43,7 @@ export class DeclinedError extends Error {}
 
 export class BrowserTools {
   private readonly sessions = new WeakMap<BrowserConnection, Session>()
+  private readonly starting = new WeakMap<BrowserConnection, Promise<Session>>()
 
   constructor(
     private readonly gateway: BrowserGateway,
@@ -180,10 +182,16 @@ export class BrowserTools {
   private async session(conn: BrowserConnection, foreground: boolean): Promise<Session> {
     const known = this.sessions.get(conn)
     if (known) return known
+    // Parallel opens for one profile share the session being started instead of each starting a window.
+    const pending = this.starting.get(conn)
+    if (pending) return pending
     const session: Session = { id: newSessionId(), foreground, facts: new Map() }
-    await conn.call('tool.session_start', { session_id: session.id, focused: foreground })
-    this.sessions.set(conn, session)
-    return session
+    const start = conn.call('tool.session_start', { session_id: session.id, focused: foreground }).then(() => {
+      this.sessions.set(conn, session)
+      return session
+    })
+    this.starting.set(conn, start)
+    return start.finally(() => this.starting.delete(conn))
   }
 
   // The session for a step that needs a page, after checking the page is one we may touch.
@@ -201,11 +209,18 @@ export class BrowserTools {
   private async where(conn: BrowserConnection, session: Session): Promise<{ url: string; title: string }> {
     const [url, title] = await this.evaluate<[string, string]>(conn, session, page.where())
     session.at = hostPath(url)
+    session.href = url
     return { url, title }
   }
 
   private async landed(conn: BrowserConnection, session: Session, did: string): Promise<string> {
+    const before = session.href
     const { url, title } = await this.where(conn, session)
+    // A new document reuses ref numbers: what we knew about the old ones must not judge a click on the new page.
+    if (url !== before) {
+      session.facts = new Map()
+      session.lastRead = undefined
+    }
     if (classifyUrl(url, this.allowed(conn.profile)) === 'blocked') return `${did}, and the page moved to ${hostPath(url)}, which is not allowed. Nothing there was read; use browser_open to go back.`
     return `${did}; now at ${session.at}, title ${quote(title)}.`
   }
@@ -222,11 +237,11 @@ export class BrowserTools {
     try {
       conn = this.gateway.byProfile(profile)
       const out = await fn(conn, state)
-      this.audit.record({ device: profile, tool, target: state.at, outcome: 'ok' })
+      this.audit.record({ device: conn.profile, tool, target: state.at, outcome: 'ok' })
       return out
     } catch (err) {
       const outcome = err instanceof DeclinedError ? 'declined' : err instanceof RpcFailure ? 'error' : 'refused'
-      this.audit.record({ device: profile, tool, target: state.at, outcome })
+      this.audit.record({ device: conn?.profile ?? '-', tool, target: state.at, outcome })
       throw err instanceof RpcFailure ? new Error(`The browser said ${err.code}${err.reason ? ` (${err.reason})` : ''}: ${err.message}`) : err
     }
   }
