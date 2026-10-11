@@ -12,13 +12,6 @@ export interface Device {
   revokedAt: number | null
 }
 
-export interface ExecutorKey {
-  deviceId: string
-  publicKey: string
-  // Null until the owner approves the device on screen.
-  approvedAt: number | null
-}
-
 const PAIRING_TTL_MS = 5 * 60_000
 
 // Only hashes of secrets are stored: a copy of the database cannot be used to pair, or to connect as a device.
@@ -61,6 +54,7 @@ export class DeviceStore {
         approved_at INTEGER
       );
       CREATE TABLE IF NOT EXISTS device_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE UNIQUE INDEX IF NOT EXISTS device_executor_keys_public_key ON device_executor_keys (public_key);
     `)
   }
 
@@ -134,21 +128,35 @@ export class DeviceStore {
 
   revoke(id: string): boolean {
     const res = this.db.prepare('UPDATE devices SET revoked_at = ?, token_hash = NULL, prev_token_hash = NULL WHERE id = ? AND revoked_at IS NULL').run(this.now(), id)
-    this.db.prepare('DELETE FROM device_executor_keys WHERE device_id = ?').run(id)
+    // An executor's public key stays on record: a revoked device that dials in again is refused, not enrolled anew.
     return res.changes === 1
   }
 
-  addExecutorKey(deviceId: string, publicKey: string): void {
-    this.db.prepare('INSERT OR REPLACE INTO device_executor_keys (device_id, public_key, approved_at) VALUES (?, ?, NULL)').run(deviceId, publicKey)
+  // A new executor waits, with no power, until the owner approves it.
+  addExecutor(label: string, publicKey: string): Device {
+    const id = randomBytes(16).toString('hex')
+    const createdAt = this.now()
+    this.db.prepare("INSERT INTO devices (id, kind, label, created_at) VALUES (?, 'executor', ?, ?)").run(id, label, createdAt)
+    this.db.prepare('INSERT INTO device_executor_keys (device_id, public_key, approved_at) VALUES (?, ?, NULL)').run(id, publicKey)
+    return { id, kind: 'executor', label, createdAt, lastSeen: null, revokedAt: null }
+  }
+
+  executorByKey(publicKey: string): { device: Device; approvedAt: number | null } | undefined {
+    const r = this.db
+      .prepare('SELECT d.*, k.approved_at FROM device_executor_keys k JOIN devices d ON d.id = k.device_id WHERE k.public_key = ?')
+      .get(publicKey)
+    return r ? { device: asDevice(r), approvedAt: r.approved_at as number | null } : undefined
+  }
+
+  pendingExecutors(): Device[] {
+    return this.db
+      .prepare('SELECT d.* FROM device_executor_keys k JOIN devices d ON d.id = k.device_id WHERE k.approved_at IS NULL AND d.revoked_at IS NULL ORDER BY d.created_at')
+      .all()
+      .map(asDevice)
   }
 
   approveExecutorKey(deviceId: string): boolean {
     return this.db.prepare('UPDATE device_executor_keys SET approved_at = ? WHERE device_id = ? AND approved_at IS NULL').run(this.now(), deviceId).changes === 1
-  }
-
-  executorKey(deviceId: string): ExecutorKey | undefined {
-    const r = this.db.prepare('SELECT * FROM device_executor_keys WHERE device_id = ?').get(deviceId)
-    return r ? { deviceId, publicKey: r.public_key as string, approvedAt: r.approved_at as number | null } : undefined
   }
 
   getState(key: string): string | undefined {

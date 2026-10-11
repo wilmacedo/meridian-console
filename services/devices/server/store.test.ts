@@ -51,25 +51,16 @@ describe('devices', () => {
     expect(store.deviceByToken('t')).toBeUndefined()
   })
 
-  it('revoking removes the token and the executor key', () => {
+  it('revoking removes the token', () => {
     const { store } = make()
     const device = store.addDevice('executor', 'pc', 't', null)
     store.addExecutorKey(device.id, 'pub')
     expect(store.revoke(device.id)).toBe(true)
     expect(store.deviceByToken('t')).toBeUndefined()
-    expect(store.executorKey(device.id)).toBeUndefined()
     expect(store.devices()).toEqual([])
     expect(store.revoke(device.id)).toBe(false)
   })
-
-  it('holds a new executor key until it is approved', () => {
-    const { store } = make()
-    const device = store.addDevice('executor', 'pc', 't', null)
-    store.addExecutorKey(device.id, 'pub')
-    expect(store.executorKey(device.id)?.approvedAt).toBeNull()
-    expect(store.approveExecutorKey(device.id)).toBe(true)
-    expect(store.executorKey(device.id)?.approvedAt).not.toBeNull()
-  })
+})
 })
 
 describe('token rotation', () => {
@@ -106,5 +97,39 @@ describe('token rotation', () => {
     expect(store.active(device.id)).toBe(true)
     clock.now += day
     expect(store.active(device.id)).toBe(false)
+  })
+})
+
+describe('executors', () => {
+  it('enrolls a new executor as pending, with no token', () => {
+    const { store } = make()
+    const device = store.addExecutor('win-lan', 'KEY1')
+    expect(device.kind).toBe('executor')
+    expect(store.executorByKey('KEY1')).toMatchObject({ device: { id: device.id }, approvedAt: null })
+    expect(store.pendingExecutors().map((d) => d.id)).toEqual([device.id])
+    expect(store.devices().map((d) => d.id)).toContain(device.id)
+  })
+
+  it('moves out of pending when approved', () => {
+    const { store } = make()
+    const device = store.addExecutor('win-lan', 'KEY1')
+    expect(store.approveExecutorKey(device.id)).toBe(true)
+    expect(store.approveExecutorKey(device.id)).toBe(false)
+    expect(store.executorByKey('KEY1')?.approvedAt).not.toBeNull()
+    expect(store.pendingExecutors()).toEqual([])
+  })
+
+  it('remembers a revoked key so it can never enroll again', () => {
+    const { store } = make()
+    const device = store.addExecutor('win-lan', 'KEY1')
+    store.approveExecutorKey(device.id)
+    store.revoke(device.id)
+    expect(store.executorByKey('KEY1')?.device.revokedAt).not.toBeNull()
+    expect(() => store.addExecutor('again', 'KEY1')).toThrow()
+    expect(store.pendingExecutors()).toEqual([])
+  })
+
+  it('does not tell a key from an unknown one', () => {
+    expect(make().store.executorByKey('nope')).toBeUndefined()
   })
 })
