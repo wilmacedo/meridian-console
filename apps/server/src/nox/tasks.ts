@@ -142,11 +142,11 @@ export class Tasks {
     const entry = this.running_.get(task.id)
     if (!entry) return
     this.running_.delete(task.id)
+    task.state = state
     this.changed()
     clearTimeout(entry.timer)
     entry.process.stdin.end()
     entry.process.kill()
-    task.state = state
     const { bus, screens } = this.options
     bus.emit('nox', state === 'done' ? 'info' : 'warn', `task ${task.id} ${state}${note ? `: ${note}` : ''}`)
     // A task that ended well wrote its own outcome; one that didn't can't be trusted to have.
