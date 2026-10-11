@@ -154,9 +154,18 @@ importers:
         specifier: workspace:*
         version: link:../../packages/service-sdk
     devDependencies:
+      '@fastify/websocket':
+        specifier: ^11.3.0
+        version: 11.3.0
       '@types/node':
         specifier: ^24.13.3
         version: 24.13.3
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
+      fastify:
+        specifier: ^5.12.1
+        version: 5.12.1
       svelte:
         specifier: ^5.56.10
         version: 5.57.0
@@ -166,6 +175,9 @@ importers:
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(tsx@4.23.13))
+      ws:
+        specifier: ^8.21.3
+        version: 8.21.3
 
   services/tuya-feeder:
     dependencies:
@@ -593,6 +605,9 @@ packages:
 
   '@types/qrcode@1.5.6':
     resolution: {integrity: sha512-te7NQcV2BOvdj2b1hCAHzAoMNuj65kNBMz0KBaxM6c3VGBOhU0dURQKOtH8CFNI/dsKkwlv32p26qYQTWoB5bw==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@vitest/mocker@5.0.3':
     resolution: {integrity: sha512-T8sWAIbkSyAjkwTcaEc3Iu0o9A27X1/kdXrizhZkGuSKScRQtRzclfAMpOTcGdXCsqxeWlpGy3XjqaW8CpLORg==}
@@ -1595,6 +1610,10 @@ snapshots:
       undici-types: 7.18.2
 
   '@types/qrcode@1.5.6':
+    dependencies:
+      '@types/node': 24.13.3
+
+  '@types/ws@8.18.1':
     dependencies:
       '@types/node': 24.13.3
 
