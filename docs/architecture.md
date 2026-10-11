@@ -472,8 +472,10 @@ it, at a moment the owner gave, and delivering it is the only thing the server d
   time it was due. A reminder nobody answered is repeated once, ten minutes later, then waits for the next review.
 - **Other channels** are data the owner sets by voice (`configure_reminders`, table `agenda_settings`), so the core
   names no service: a `toast` action with `{title}` and `{text}` in its input (the PC's notification through the
-  devices executor) shown with every reminder, and a `note` action given `{text}` (WhatsApp's `note-to-self`) used
-  when no screen is open and for the one repeat. An action that is `mutating` is refused for either.
+  devices executor) shown with every reminder, and a `note` action given `{text}` used when no screen is open and for
+  the one repeat. The note goes through the owner's Telegram bot (`telegram`'s `notify-owner`): WhatsApp's
+  `note-to-self` reaches their phone too, but WhatsApp never notifies an account of its own messages, so it arrives
+  without a sound. An action that is `mutating` is refused for either.
 - **Putting off**: every `snooze_todo` counts. From the third time, its answer tells NOX to offer help in one sentence
   (a block on the calendar, a smaller first step, or dropping it) instead of postponing again.
 - **In routines**: a `todos` step reads the open list on the server, without the model: what is late, what is for
