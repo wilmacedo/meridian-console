@@ -31,8 +31,10 @@ export function browserActions({ store, tools, audit, publicUrl }: Runtime): Ser
       title: 'Pair a browser',
       description:
         'Makes a one-use pairing link, valid for 5 minutes, that the owner pastes into the BrowserSkill extension popup (Remote connection) of the browser profile to add. The owner confirms first. Show the link on screen with compose_doc as a code block and never read it aloud: it is a secret until used.',
-      mutating: true,
-      run: async () => {
+      mutating: false,
+      gated: true,
+      run: async (_: unknown, ctx) => {
+        if (!(await ctx.confirm('Make a pairing link for a browser: whoever pastes it into the extension gives NOX that browser'))) throw new Error('The owner did not confirm this, so it was not done.')
         if (!publicUrl) throw new Error('MERIDIAN_DEVICES_PUBLIC_URL is not set, so there is no address to put in the link.')
         const { link, expiresAt } = store.createPairingLink()
         audit.record({ device: '-', tool: 'browser_pair', outcome: 'ok' })

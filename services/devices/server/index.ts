@@ -59,8 +59,10 @@ export default defineServerService({
       path: '/resume',
       title: 'Kill switch off',
       description: 'Lets devices connect again after a kill switch. The owner confirms.',
-      mutating: true,
-      run: async () => {
+      mutating: false,
+      gated: true,
+      run: async (_: unknown, ctx) => {
+        if (!(await ctx.confirm('Turn the kill switch off: devices may connect again'))) throw new Error('The owner did not confirm this, so it was not done.')
         getRuntime().killSwitch.resume()
         return 'Kill switch off. Devices may connect again.'
       },

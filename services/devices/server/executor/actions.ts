@@ -47,10 +47,14 @@ export function executorActions({ gateway, executors, executorTools, store, audi
       path: '/device/approve',
       title: 'Approve a new device',
       description: 'Lets a device that is waiting for approval (see device_list) in. The owner confirms on screen: it gives that machine to NOX. Only do it when the owner has just started that executor themselves.',
-      mutating: true,
+      mutating: false,
+      gated: true,
       input: object({ device: { type: 'string', pattern: '^[a-f0-9]{32}$' } }, ['device']),
-      run: async (i: { device: string }) => {
-        if (!store.pendingExecutors().some((d) => d.id === i.device)) throw new Error('No device with that id is waiting for approval.')
+      run: async (i: { device: string }, ctx) => {
+        const waiting = store.pendingExecutors().find((d) => d.id === i.device)
+        if (!waiting) throw new Error('No device with that id is waiting for approval.')
+        // A caller with no screen (a script, NOX's own shell) gets no for an answer: handing a machine over is the owner's.
+        if (!(await ctx.confirm(`Let the device "${waiting.label}" in: NOX will be able to act on that machine`))) throw new Error('The owner did not confirm this, so it was not done.')
         store.approveExecutorKey(i.device)
         executors.admit(i.device)
         audit.record({ device: i.device, tool: 'device_approve', outcome: 'ok' })
