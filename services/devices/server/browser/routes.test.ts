@@ -62,7 +62,7 @@ describe('the extension endpoints, end to end', () => {
     await pair()
     expect(await outcome(open([`bsk-auth.${token('z')}`]))).toBe(401)
     expect(await outcome(open([`bsk-auth.${token('a')}`], 'https://evil.test'))).toBe(401)
-    expect(await outcome(open([`bsk-auth.${token("a")}`, `bsk-auth.${token("z")}`]))).toBe(401)
+    expect(await outcome(open([`bsk-auth.${token('a')}`, `bsk-auth.${token('z')}`]))).toBe(401)
     expect(await outcome(open(['plain']))).toBe(401)
   })
 
