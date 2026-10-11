@@ -1,7 +1,7 @@
 import type { AuditLog } from '../audit.js'
 import type { KillSwitch } from '../kill-switch.js'
 import { askOwner, DeclinedError, untrusted, type Confirm } from '../policy.js'
-import { refuseTyping, riskOfTarget, type ElementFacts } from '../browser/risk.js'
+import { norm, refuseTyping, riskOfTarget, type ElementFacts } from '../browser/risk.js'
 import * as page from './page-scripts.js'
 import type { AppTarget } from './targets.js'
 
@@ -30,6 +30,12 @@ export interface Located {
   y: number
 }
 
+// The app draws its own title bar, so its Close button looks like any harmless "close" but ends the app.
+const WINDOW_CLOSE = /^(close|fechar)$/
+const TITLE_BAR_PX = 48
+
+const riskOfAppClick = (at: Located): string | undefined => (WINDOW_CLOSE.test(norm(at.facts.name)) && at.y < TITLE_BAR_PX ? "it closes the app's window" : riskOfTarget(at.facts))
+
 const quote = (s: string | undefined): string => `"${(s ?? '').slice(0, 60)}"`
 
 export class AppTools {
@@ -56,7 +62,7 @@ export class AppTools {
   click(t: { app: string; ref: string }, confirm: Confirm): Promise<string> {
     return this.run('app_click', t.app, async (p) => {
       const at = await this.locate(p, t.ref)
-      await askOwner(t.app, `click ${at.facts.role ?? 'element'} ${quote(at.facts.name)}`, riskOfTarget(at.facts), confirm)
+      await askOwner(t.app, `click ${at.facts.role ?? 'element'} ${quote(at.facts.name)}`, riskOfAppClick(at), confirm)
       await p.click(at.x, at.y)
       return `Clicked ${at.facts.role ?? 'element'} ${quote(at.facts.name)}. Read again to see the result.`
     })

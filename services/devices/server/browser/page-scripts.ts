@@ -7,7 +7,9 @@ export const DESCRIBE = `(e) => {
   const type = (e.getAttribute('type') || '').toLowerCase()
   const role = e.getAttribute('role') || (tag === 'a' ? 'link' : tag === 'button' ? 'button' : tag === 'select' ? 'combobox' : tag === 'textarea' ? 'textbox' : tag === 'input' ? (type === 'checkbox' ? 'checkbox' : type === 'radio' ? 'radio' : type === 'submit' || type === 'button' ? 'button' : type === 'search' ? 'searchbox' : 'textbox') : tag)
   const form = e.closest('form')
-  const name = (e.getAttribute('aria-label') || e.innerText || e.value || e.getAttribute('placeholder') || e.getAttribute('title') || '').trim().replace(/\\s+/g, ' ').slice(0, 100)
+  const field = tag === 'input' && type !== 'submit' && type !== 'button' || tag === 'textarea'
+  // A field is named by its label, never by what is typed in it: that text is the owner's and may say anything.
+  const name = (e.getAttribute('aria-label') || (field ? '' : e.innerText || e.value) || e.getAttribute('placeholder') || e.getAttribute('title') || '').trim().replace(/\\s+/g, ' ').slice(0, 100)
   let hrefPath = ''
   try { hrefPath = e.href ? new URL(e.href).pathname : '' } catch {}
   return {

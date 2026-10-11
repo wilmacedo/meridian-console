@@ -100,6 +100,25 @@ describe('app_click', () => {
   })
 })
 
+describe('the title bar of the app', () => {
+  it('asks before the Close button of the window, which ends the app', async () => {
+    const { tools, pageFake } = setup()
+    where[7] = { facts: { name: 'Close', role: 'button' }, x: 1000, y: 12 }
+    const confirm = vi.fn(no)
+    await expect(tools.click({ app: 'anywh', ref: '@a7' }, confirm)).rejects.toThrow(/did not confirm/)
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("it closes the app's window"))
+    expect(pageFake.click).not.toHaveBeenCalled()
+  })
+
+  it('lets a Close lower in the window, such as a dialog, through', async () => {
+    const { tools } = setup()
+    where[8] = { facts: { name: 'Close', role: 'button' }, x: 400, y: 300 }
+    const confirm = vi.fn(yes)
+    await tools.click({ app: 'anywh', ref: '@a8' }, confirm)
+    expect(confirm).not.toHaveBeenCalled()
+  })
+})
+
 describe('app_type', () => {
   it('focuses the field, replaces its text and never echoes it or submits', async () => {
     const { tools, pageFake } = setup()

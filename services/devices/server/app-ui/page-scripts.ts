@@ -14,7 +14,7 @@ export const outline = (): string => `(() => {
     const type = (e.getAttribute('type') || '').toLowerCase()
     return e.getAttribute('role') || (tag === 'a' ? 'link' : tag === 'button' ? 'button' : tag === 'select' ? 'combobox' : tag === 'textarea' ? 'textbox' : tag === 'input' ? (type === 'checkbox' ? 'checkbox' : type === 'radio' ? 'radio' : type === 'submit' || type === 'button' ? 'button' : type === 'search' ? 'searchbox' : 'textbox') : tag)
   }
-  const label = (e) => (e.getAttribute('aria-label') || e.innerText || e.getAttribute('placeholder') || e.title || '').trim().replace(/\\s+/g, ' ').slice(0, 80)
+  const label = (e) => (e.getAttribute('aria-label') || (e.tagName === 'INPUT' || e.tagName === 'TEXTAREA' ? '' : e.innerText) || e.getAttribute('placeholder') || e.title || '').trim().replace(/\\s+/g, ' ').slice(0, 80)
   for (const e of document.querySelectorAll('h1, h2, h3, button, a[href], input, textarea, select, [role=button], [role=tab], [role=menuitem], [role=checkbox], [role=switch], [role=link]')) {
     const r = e.getBoundingClientRect()
     if (r.width <= 0 || r.height <= 0 || getComputedStyle(e).visibility === 'hidden') continue
