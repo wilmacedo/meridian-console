@@ -1,9 +1,13 @@
 import { defineServerService, type ServiceStatus } from '@meridian/service-sdk/server'
+import { browserActions } from './browser/actions.js'
+import { browserRoutes } from './browser/routes.js'
 import { getRuntime } from './runtime.js'
 
 async function status(): Promise<ServiceStatus> {
-  if (getRuntime().killSwitch.engaged()) return { state: 'degraded', message: 'kill switch on: every device is disconnected' }
-  return { state: 'online', message: 'standing by: no device is connected' }
+  const { killSwitch, gateway } = getRuntime()
+  if (killSwitch.engaged()) return { state: 'degraded', message: 'kill switch on: every device is disconnected' }
+  const online = gateway.list()
+  return { state: 'online', message: online.length ? `${online.length} browser(s) connected: ${online.map((c) => c.profile).join(', ')}` : 'standing by: no device is connected' }
 }
 
 export default defineServerService({
@@ -12,6 +16,11 @@ export default defineServerService({
     name: 'devices',
     desc: "Lets NOX act on the owner's own machines: browsers and desktop apps",
     runtime: 'node',
+  },
+  routes: async (app) => {
+    const { store, gateway } = getRuntime()
+    gateway.start()
+    await app.register(browserRoutes(store, gateway))
   },
   status,
   actions: [
@@ -23,8 +32,9 @@ export default defineServerService({
       description: 'Which devices are paired and whether the kill switch is on. It only looks.',
       mutating: false,
       run: async () => {
-        const { store, killSwitch } = getRuntime()
-        return { killSwitch: killSwitch.engaged() ? 'on' : 'off', devices: store.devices().map((d) => ({ id: d.id, kind: d.kind, label: d.label, lastSeen: d.lastSeen })) }
+        const { store, killSwitch, gateway } = getRuntime()
+        const online = new Set(gateway.list().map((c) => c.device.id))
+        return { killSwitch: killSwitch.engaged() ? 'on' : 'off', devices: store.devices().map((d) => ({ id: d.id, kind: d.kind, label: d.label, lastSeen: d.lastSeen, connected: online.has(d.id) })) }
       },
     },
     {
@@ -48,5 +58,6 @@ export default defineServerService({
         return 'Kill switch off. Devices may connect again.'
       },
     },
+    ...browserActions(getRuntime()),
   ],
 })
