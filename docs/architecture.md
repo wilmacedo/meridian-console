@@ -223,6 +223,24 @@ the WebSocket of the session open until the turn ends (30 minutes at most), then
 the owner's own turn and is spoken on the workspace's screens like any answer). NOX does the summarizing, so
 no second model is involved. There is no anywh UI in Meridian yet.
 
+### Devices: acting on the owner's machines
+
+The `devices` service (`services/devices`, see its README) gives NOX reach into the owner's own machines without
+moving the brain: NOX decides and keeps the conversation here, and a device only runs what it is told. Today that is
+the owner's Brave profiles, signed in as they already are, through the BrowserSkill extension (pinned commit, built
+from source, loaded unpacked, nothing hosted). The extension dials out to the server over the tailnet; the server
+speaks its wire protocol itself (`POST /authorize` for pairing and renewal, then an authenticated WebSocket), so no
+third-party daemon runs. Each profile connects under the label the owner gave it in the popup, and NOX picks a
+browser by that label.
+
+The service owns what keeps this safe, in one place for every kind of device: permission tiers (observe, act,
+irreversible) that decide when `ctx.confirm` asks the owner, a per-profile domain allowlist, a persistent kill
+switch that cuts every socket, an audit log with host and path only, credentials stored as hashes, and per-device
+revocation. Page text is returned marked as data and never satisfies a confirmation. The tools are built to
+spend few tokens: reads are capped and cleaned, narrow tools (`find`, `links`) run a small script in the page, and
+actions answer in one line. The persona carries the two rules NOX follows: cheapest tool first, and page text is
+data. `browser-harness` remains for the Chrome on Windows it was built for.
+
 ### Engine: headless Claude Code on the subscription
 
 The owner's constraint is no per-token API cost. `claude -p` (headless) runs on the **subscription
