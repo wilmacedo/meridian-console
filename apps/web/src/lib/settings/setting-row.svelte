@@ -22,6 +22,12 @@
   .row.wide {
     grid-template-columns: minmax(0, 1fr) minmax(0, 240px);
   }
+  @container (max-width: 739px) {
+    .row.wide {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
+    }
+  }
   .text {
     display: flex;
     flex-direction: column;
