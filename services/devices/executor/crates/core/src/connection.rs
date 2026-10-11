@@ -88,7 +88,17 @@ async fn run_call(registry: Arc<Registry>, id: String, capability: String, input
     result_frame(id, outcome)
 }
 
+/// rustls picks no crypto provider by itself when more than one could apply, and a wss:// connection panics
+/// without one. The tests use ws:// on loopback, so `tls_client_can_be_built` is what guards this.
+fn install_crypto() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    });
+}
+
 pub async fn serve(cfg: &Config, key: &SigningKey, registry: Arc<Registry>, log: &dyn Fn(&str)) -> Ended {
+    install_crypto();
     let ws = match connect_async(cfg.url.as_str()).await {
         Ok((ws, _)) => ws,
         Err(e) => return ended(format!("could not connect: {e}")),
@@ -382,6 +392,13 @@ mod tests {
         let (_, log) = quiet();
         let end = serve(&config("ws://127.0.0.1:1".into(), &key), &key, registry(), &log).await;
         assert!(end.reason.starts_with("could not connect"), "{}", end.reason);
+    }
+
+    #[test]
+    fn tls_client_can_be_built() {
+        install_crypto();
+        let roots = rustls::RootCertStore::empty();
+        let _ = rustls::ClientConfig::builder().with_root_certificates(roots).with_no_client_auth();
     }
 
     #[test]
