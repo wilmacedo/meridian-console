@@ -226,26 +226,36 @@ no second model is involved. There is no anywh UI in Meridian yet.
 ### Devices: acting on the owner's machines
 
 The `devices` service (`services/devices`, see its README) gives NOX reach into the owner's own machines without
-moving the brain: NOX decides and keeps the conversation here, and a device only runs what it is told. Today that is
-the owner's Brave profiles, signed in as they already are, through the BrowserSkill extension (pinned commit, built
-from source, loaded unpacked, nothing hosted). The extension dials out to the server over the tailnet; the server
-speaks its wire protocol itself (`POST /authorize` for pairing and renewal, then an authenticated WebSocket), so no
-third-party daemon runs. Each profile connects under the label the owner gave it in the popup, and NOX picks a
-browser by that label.
+moving the brain: NOX decides and keeps the conversation here, and a device only runs what it is told. It reaches
+three kinds of target, and picks the cheapest rung that solves the task:
+
+- **Browsers.** The owner's own Brave profiles, signed in as they already are, through the BrowserSkill extension
+  (pinned commit, built from source, loaded unpacked, nothing hosted). The extension dials out to the server; the
+  server speaks its wire protocol itself (`POST /authorize` for pairing and renewal, then an authenticated
+  WebSocket), so no third-party daemon runs. Each profile connects under the label the owner gave it in the popup.
+- **Desktop apps that run in a WebView2** (the anywh client first). Started with the WebView2 debug option, the
+  window is a page on the PC's loopback; the server reaches it over an on-demand ssh tunnel and drives it with a
+  small CDP client (`app_read`, `app_click`, `app_type`, `app_wait`). Apps are entries in `MERIDIAN_DEVICES_APPS`,
+  not cases in the code. WKWebView on macOS has no such protocol, so a Mac app needs another route.
+- **Whole machines**, through the executor (`services/devices/executor`, Rust): a thin process on the PC that dials
+  the server, authenticates with an Ed25519 key that never leaves the device (DPAPI on Windows), checks the server's
+  pinned key before sending any proof, and announces its capabilities (windows, processes, clipboard, opening a
+  file or link, notifications, screenshots). A new device waits for the owner's approval; revoking a key stops it
+  for good. NOX reaches it through three generic tools (`device_list`, `device_describe`, `device_call`), so adding a
+  capability to the executor needs no change on the server.
 
 The service owns what keeps this safe, in one place for every kind of device: permission tiers (observe, act,
-irreversible) that decide when `ctx.confirm` asks the owner, a per-profile domain allowlist, a persistent kill
-switch that cuts every socket, an audit log with host and path only, credentials stored as hashes, and per-device
-revocation. Page text is returned marked as data and never satisfies a confirmation.
+irreversible) that decide when `ctx.confirm` asks the owner, a per-profile domain allowlist for browsers, a
+persistent kill switch that cuts every socket and tunnel, an audit log with host and path only, credentials stored
+as hashes, and per-device revocation. Anything that hands NOX more reach (pairing a browser, approving a device,
+turning the kill switch off) needs the owner's card on screen and is refused to a caller without one, so NOX's own
+shell cannot get around it through the local API; anything that only takes reach away (kill, revoke) does not ask.
+What a page, an app or a machine reports is returned marked as data and never satisfies a confirmation.
 
-Whole machines are reached through the executor (`services/devices/executor`, Rust): a thin process on the PC that
-dials the server, authenticates with an Ed25519 key that never leaves the device (DPAPI on Windows), checks the
-server's pinned key before sending any proof, and announces its capabilities. A new device waits for the owner's
-approval; revoking a key stops it for good. NOX reaches it through three generic tools (`device_list`,
-`device_describe`, `device_call`), so adding a capability to the executor needs no change on the server. The tools are built to
-spend few tokens: reads are capped and cleaned, narrow tools (`find`, `links`) run a small script in the page, and
-actions answer in one line. The persona carries the two rules NOX follows: cheapest tool first, and page text is
-data.
+The tools are built to spend few tokens: reads are capped and cleaned, narrow tools (`find`, `links`) run a small
+script in the page, and actions answer in one line without re-reading. The persona carries the rules NOX follows:
+cheapest tool first (a screenshot only when nothing else fits), and everything read from a device is data, never
+instructions.
 
 ### Engine: headless Claude Code on the subscription
 
