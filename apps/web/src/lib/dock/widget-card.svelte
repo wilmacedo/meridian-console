@@ -4,7 +4,7 @@
   import { dragEnd, dragMove, DRAG_START_THRESHOLD, pressWidget } from './dock-drag.svelte'
   import WidgetBody from './widget-body.svelte'
 
-  let { widget, slot }: { widget: Widget; slot: string } = $props()
+  let { widget, slot, draggable = true }: { widget: Widget; slot: string; draggable?: boolean } = $props()
 
   const agent = $derived(widget.def.src === 'agent')
 </script>
@@ -17,9 +17,10 @@
   <div
     class="head"
     class:collapsed={widget.collapsed}
-    use:pointerDrag={{ ignore: 'button', threshold: DRAG_START_THRESHOLD, onPress: (e) => pressWidget(e, widget.id), onMove: dragMove, onEnd: dragEnd }}
+    class:fixed={!draggable}
+    use:pointerDrag={draggable ? { ignore: 'button', threshold: DRAG_START_THRESHOLD, onPress: (e) => pressWidget(e, widget.id), onMove: dragMove, onEnd: dragEnd } : { ignore: 'button', threshold: Infinity, onMove: () => {}, onEnd: () => {} }}
   >
-    <div class="grip"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    {#if draggable}<div class="grip"><span></span><span></span><span></span><span></span><span></span><span></span></div>{/if}
     <div class="titles">
       <div class="meta">
         <span class="tag" class:agent>{agent ? 'NOX' : 'SYS'}</span>
@@ -81,6 +82,9 @@
   }
   .head.collapsed {
     border-bottom-color: transparent;
+  }
+  .head.fixed {
+    cursor: default;
   }
   .grip {
     display: grid;

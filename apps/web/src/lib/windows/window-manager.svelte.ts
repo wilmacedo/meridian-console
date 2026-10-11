@@ -2,6 +2,7 @@ import { kick } from '../agent/agent-state.svelte'
 import { play } from '../sound/sfx.svelte'
 import type { ModuleId } from '../modules'
 import { isPhone } from '../shell/phone.svelte'
+import { shellUi } from '../shell/shell-ui.svelte'
 import { prefs } from '../workspace/prefs.svelte'
 import { cascade, clampRect, snapMove, snapResize, tile, toFrac, toRect, type Frac, type Guide, type Rect, type ResizeMode, type Size } from './window-layout'
 
@@ -76,6 +77,7 @@ export function open(id: WindowId): void {
   if (current.some((w) => w.id === id)) return focus(id)
   kick(1)
   play('window-open')
+  shellUi.sheetOpen = false
   let ids = current.map((w) => w.id)
   // In the car and on a phone one window has the screen at a time.
   if (prefs.carplay || isPhone()) {

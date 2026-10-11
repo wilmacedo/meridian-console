@@ -5,7 +5,9 @@
   import { viewMode } from '../agent/agent-state.svelte'
   import { clock } from '../clock.svelte'
   import MicButton from './mic-button.svelte'
+  import { placedWidgetIds } from '../dock/dock.svelte'
   import { isPhone } from './phone.svelte'
+  import { shellUi } from './shell-ui.svelte'
 
   const listening = $derived(viewMode() === 'listening')
   const modules = $derived(visibleModules())
@@ -13,6 +15,8 @@
   const left = $derived(modules.slice(0, half))
   const right = $derived(modules.slice(half))
   const phone = $derived(isPhone())
+  const widgets = $derived(placedWidgetIds().length)
+  const sheet = $derived(shellUi.sheetOpen && widgets > 0)
   const pad = (n: number): string => String(n).padStart(2, '0')
   const time = $derived(`${pad(clock.now.getHours())}:${pad(clock.now.getMinutes())}`)
   // Core is the screen with no window on it.
@@ -37,7 +41,15 @@
 
 <nav class:phone>
   <div class="side left" class:away={listening}>
-    {#if !phone}{#each left as m (m.id)}{@render moduleButton(m)}{/each}{/if}
+    {#if phone}
+      {#if widgets > 0}
+        <button class="wpill" class:open={sheet} onclick={() => (shellUi.sheetOpen = !shellUi.sheetOpen)}>
+          <span>{sheet ? 'CLOSE' : 'WIDGETS'}</span><b>{pad(widgets)}</b>
+        </button>
+      {/if}
+    {:else}
+      {#each left as m (m.id)}{@render moduleButton(m)}{/each}
+    {/if}
   </div>
   <MicButton />
   <div class="side right" class:away={listening}>
@@ -104,6 +116,30 @@
   .pill.active {
     background: rgba(var(--nx-mu), 0.2);
     border-color: rgba(var(--nx-ac), 0.65);
+    color: rgb(var(--nx-fg));
+  }
+  .wpill {
+    flex: none;
+    height: 36px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(var(--nx-pn), 0.6);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(var(--nx-ac), 0.28);
+    border-radius: 999px;
+    color: rgb(var(--nx-ac));
+    font: 400 9.5px/1 var(--font-mono);
+    letter-spacing: 0.16em;
+    cursor: pointer;
+    transition: border-color 0.25s;
+  }
+  .wpill.open {
+    border-color: rgba(var(--nx-ac), 0.7);
+  }
+  .wpill b {
+    font-weight: 400;
     color: rgb(var(--nx-fg));
   }
   .time {

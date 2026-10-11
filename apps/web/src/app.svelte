@@ -9,6 +9,7 @@
   import DragGhost from './lib/dock/drag-ghost.svelte'
   import PendingPin from './lib/dock/pending-pin.svelte'
   import Rail from './lib/dock/rail.svelte'
+  import WidgetSheet from './lib/dock/widget-sheet.svelte'
   import BottomDock from './lib/shell/bottom-dock.svelte'
   import CarListenBar from './lib/shell/car-listen-bar.svelte'
   import CarBar from './lib/shell/car-bar.svelte'
@@ -43,11 +44,16 @@
       shellUi.workspacesOpen = false
       return true
     }
+    if (shellUi.sheetOpen) {
+      shellUi.sheetOpen = false
+      return true
+    }
     return denyApproval() || cancelListening() || haltIfBusy() || cancelPending()
   }
 
   $effect(() => {
     if (isPhone()) keepTopWindow()
+    else shellUi.sheetOpen = false
   })
   $effect(() => configureScale(prefs.uiScale, prefs.carplay))
   // The wake word stays out of CarPlay mode for now (docs/carplay.md): there the microphone opens on a tap only.
@@ -102,6 +108,8 @@
     <CarTiles />
     <CarBar />
     <CarListenBar />
+  {:else if isPhone()}
+    <WidgetSheet />
   {:else}
     <PendingPin />
     <Rail rail="L" />

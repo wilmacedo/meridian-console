@@ -1,5 +1,6 @@
 import { kick } from '../agent/agent-state.svelte'
 import { isPhone } from '../shell/phone.svelte'
+import { shellUi } from '../shell/shell-ui.svelte'
 import { prefs } from '../workspace/prefs.svelte'
 import { railSides } from './stage-insets'
 import { tele, type RailId, type WidgetDef } from './widgets'
@@ -64,6 +65,9 @@ const railEls: Partial<Record<RailId, HTMLElement>> = {}
 export const setRailEl = (rail: RailId, el: HTMLElement | undefined): void => void (railEls[rail] = el)
 export const railEl = (rail: RailId): HTMLElement | undefined => railEls[rail]
 
+// The widgets on the rails, the left one's first, in order, the ones that are on their way out included.
+export const placedWidgetIds = (): string[] => [...dock.rails.L, ...dock.rails.R].filter((id) => dock.widgets[id])
+
 export const railOf = (id: string): RailId => (dock.rails.L.includes(id) ? 'L' : 'R')
 // Which sides of the stage make room for a rail (see railSides).
 export const stageSides = (): Record<RailId, boolean> => railSides(dock.rails, dock.drag !== null || dock.pending !== null)
@@ -110,8 +114,9 @@ export function requestPin(def: WidgetDef): void {
   if (existing) {
     scrollToWidget(existing)
     flashWidget(existing)
-  } else if (prefs.carplay) {
-    // There is no rail to drop a card on in the car: it becomes the last tile.
+    if (isPhone()) shellUi.sheetOpen = true
+  } else if (prefs.carplay || isPhone()) {
+    // There is no rail to drop a card on in the car or on a phone: it becomes the last tile.
     insertWidget(def, 'R', dock.rails.R.length)
   } else {
     dock.pending = def

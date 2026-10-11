@@ -1,4 +1,4 @@
-import { dock } from '../dock/dock.svelte'
+import { dock, placedWidgetIds } from '../dock/dock.svelte'
 import { layout } from '../workspace/layout.svelte'
 import { prefs } from '../workspace/prefs.svelte'
 import { carLayout, type CarLayout } from './car-layout'
@@ -6,7 +6,7 @@ import { carLayout, type CarLayout } from './car-layout'
 export const isCar = (): boolean => prefs.carplay
 
 // The widgets shown as tiles: the left rail's first, in order.
-export const carTileIds = (): string[] => [...dock.rails.L, ...dock.rails.R].filter((id) => dock.widgets[id] && !dock.widgets[id].closing)
+export const carTileIds = (): string[] => placedWidgetIds().filter((id) => !dock.widgets[id].closing)
 
 export const carGeometry = (): CarLayout => carLayout(layout.w, layout.h, carTileIds().length)
 
