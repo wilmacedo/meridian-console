@@ -1,7 +1,7 @@
 // Small scripts run inside the page through tool.evaluate. They return a few lines, which is where the token saving
 // over reading the whole outline comes from. Each is an expression that evaluates to a JSON string.
 
-const DESCRIBE = `(e) => {
+export const DESCRIBE = `(e) => {
   if (!e) return null
   const tag = e.tagName.toLowerCase()
   const type = (e.getAttribute('type') || '').toLowerCase()
