@@ -6,7 +6,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { EventBus } from '../event-bus.js'
 import { ScreenRegistry } from '../screens.js'
 import type { Registry } from '../service-registry.js'
+import { playbackDone } from '../voice/playback.js'
 import { VoiceMessages } from '../voice/voice-messages.js'
+import type { StreamMessage } from '@meridian/service-sdk'
 import { Approvals } from './approvals.js'
 import type { Nox, NoxEvent, Switch } from './process.js'
 import { registerNox } from './routes.js'
@@ -43,12 +45,13 @@ async function setup(hint?: (text: string) => string | undefined) {
   const screens = new ScreenRegistry()
   const messages = new VoiceMessages(dir)
   const app = Fastify()
-  const routes = registerNox(app, { nox, bus, screens, registry: { summaries: () => [] } as unknown as Registry, approvals: new Approvals(screens, bus), messages, wakeDir: join(dir, 'wake'), hint })
+  const approvals = new Approvals(screens, bus)
+  const routes = registerNox(app, { nox, bus, screens, registry: { summaries: () => [] } as unknown as Registry, approvals, messages, wakeDir: join(dir, 'wake'), hint })
   await app.ready()
-  const record = (capture: boolean) =>
-    app.inject({ method: 'POST', url: `/api/voice/ask?workspace=default${capture ? '&capture=1' : ''}`, headers: { 'content-type': 'audio/webm' }, payload: Buffer.from('opus') })
+  const record = (capture: boolean, query = '') =>
+    app.inject({ method: 'POST', url: `/api/voice/ask?workspace=default${capture ? '&capture=1' : ''}${query}`, headers: { 'content-type': 'audio/webm' }, payload: Buffer.from('opus') })
   const say = async (text: string) => (await app.inject({ method: 'POST', url: '/api/nox/say', payload: { text } })).body.trim().split('\n').map((l) => JSON.parse(l) as NoxEvent)
-  return { said, turns, during, current, messages, record, routes, say }
+  return { said, turns, during, current, messages, record, routes, say, approvals, screens }
 }
 
 describe('a voice message NOX asked the owner to record', () => {
@@ -203,5 +206,41 @@ describe('ending the conversation', () => {
     ]
     const events = await say('valeu, é só isso')
     expect(events.filter((e) => e.type === 'text')).toEqual([{ type: 'text', text: 'Por nada, até mais.' }])
+  })
+})
+
+describe('what the owner says while a card waits', () => {
+  const heard = (text: string) => vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ text })))
+
+  it('answers the card, and starts no turn', async () => {
+    const fetchSpy = heard('Sim, pode.')
+    const { said, record, approvals, screens } = await setup()
+    screens.watch(screens.add(() => undefined), 'default')
+    const result = approvals.ask('default', 'service_calendar_create-event', { command: 'Dentista amanhã às dez' })
+    await vi.waitFor(() => expect(approvals.has('default')).toBe(true))
+    const res = await record(false, '&card=1')
+    expect(res.json()).toEqual({ heard: 'Sim, pode.', answeredCard: true })
+    await expect(result).resolves.toBe(true)
+    expect(said).toEqual([])
+    fetchSpy.mockRestore()
+  })
+
+  it('goes up once NOX has said what it asks, which it says for it when it said nothing', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(new Uint8Array([1])))
+    const { during, say, approvals, screens } = await setup()
+    const shown: StreamMessage[] = []
+    screens.watch(screens.add((m) => shown.push(m)), 'default')
+    let result: Promise<boolean> | undefined
+    during.act = () => void (result = approvals.ask('default', 'service_calendar_create-event', { command: 'Dentista' }))
+    await say('marca o dentista amanhã às dez')
+    await vi.waitFor(() => expect(shown.some((m) => m.type === 'approval')).toBe(true))
+    const spoken = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body)) as { text: string }
+    expect(spoken.text).toBe('Preciso da sua confirmação.')
+    expect(shown.findIndex((m) => m.type === 'speech')).toBeLessThan(shown.findIndex((m) => m.type === 'approval'))
+    approvals.answerLatest('default', false)
+    await expect(result).resolves.toBe(false)
+    const speech = shown.find((m) => m.type === 'speech')
+    if (speech?.type === 'speech') playbackDone(speech.turn)
+    fetchSpy.mockRestore()
   })
 })

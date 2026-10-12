@@ -5,6 +5,8 @@ import type { ScreenRegistry } from '../screens.js'
 // A card nobody answers must not hold NOX's turn forever.
 export const APPROVAL_TIMEOUT_MS = 60_000
 const MAX_DETAIL = 600
+// A voice that never finishes delivering must not keep the card from showing.
+const HOLD_LIMIT_MS = 15_000
 
 interface Pending {
   workspace: string
@@ -18,18 +20,32 @@ interface Pending {
 // in front of the owner is not known), answered by a tap or by voice; the first answer closes it everywhere. Nothing is allowed unless a person said so; no screen, no answer or a timeout is a no.
 export class Approvals {
   private pending = new Map<string, Pending>()
+  // What a card of NOX's conversation waits for before it shows: NOX finishing saying what it is asking. The screen
+  // opens the microphone for the answer when the card shows, and must not hear NOX's own voice in it.
+  private hold: () => Promise<void> = async () => undefined
+  // Counts the interruptions of NOX's conversation, so a card still held when its turn was cut off never shows.
+  private cuts = 0
 
   constructor(
     private screens: ScreenRegistry,
     private bus: EventBus,
   ) {}
 
-  ask(workspace: string, tool: string, input: unknown, scope: Pending['scope'] = 'turn'): Promise<boolean> {
+  holdCardsFor(hold: () => Promise<void>): void {
+    this.hold = hold
+  }
+
+  async ask(workspace: string, tool: string, input: unknown, scope: Pending['scope'] = 'turn'): Promise<boolean> {
+    if (scope === 'turn') {
+      const cuts = this.cuts
+      await this.held()
+      if (cuts !== this.cuts) return false
+    }
     const detail = describe(input)
     const id = randomUUID()
     if (this.screens.sendToAll(workspace, { type: 'approval', id, tool, detail }) === 0) {
       this.bus.emit('nox', 'warn', `denied ${tool}: no screen to confirm on: ${detail}`)
-      return Promise.resolve(false)
+      return false
     }
     this.bus.emit('nox', 'info', `waiting for confirmation of ${tool}: ${detail}`)
     return new Promise((resolve) => {
@@ -44,6 +60,12 @@ export class Approvals {
         },
       })
     })
+  }
+
+  private async held(): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    await Promise.race([this.hold(), new Promise((resolve) => (timer = setTimeout(resolve, HOLD_LIMIT_MS)))])
+    clearTimeout(timer)
   }
 
   // False when the card was already answered, or never existed.
@@ -65,6 +87,7 @@ export class Approvals {
 
   // The cards of NOX's conversation, anywhere: the turn that asked for them was cut off.
   denyTurn(reason: string): void {
+    this.cuts++
     for (const [id, p] of [...this.pending]) if (p.scope === 'turn') this.answer(id, false, reason)
   }
 

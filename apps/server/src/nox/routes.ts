@@ -30,6 +30,8 @@ const AWAY_HINT_MS = 10 * 60_000
 // A yes or no to that question is taken without NOX only when it is all the owner said.
 const SHORT_ANSWER_WORDS = 4
 const LISTED_CONVERSATIONS = 20
+// Said when a card goes up and NOX has not said a word yet: the owner may not be looking at the screen.
+const CARD_LINE = 'Preciso da sua confirmação.'
 
 // Numbers each answer so a screen can tell one turn's speech from another's. It starts from the clock, not
 // from zero: a screen that stayed open across a server restart still remembers the last turn it played,
@@ -98,6 +100,15 @@ export function registerNox(
     active.speaker?.cancel()
     playbackDone(active.turn)
   }
+
+  // A card waits for what NOX said before it to be heard: the screen listens for the answer once it shows.
+  approvals.holdCardsFor(async () => {
+    const speaker = active?.speaker
+    if (!speaker) return
+    speaker.flush()
+    if (!speaker.spoke) speaker.say(CARD_LINE)
+    await speaker.delivered()
+  })
 
   async function answer(text: string, workspace: string, reply: FastifyReply, heardLine?: string, screen?: string, to?: Switch): Promise<void> {
     bus.emit('nox', 'info', `request: ${text.slice(0, 120)}`)

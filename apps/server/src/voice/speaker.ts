@@ -49,6 +49,16 @@ export class TurnSpeaker {
     if (rest) this.speak(rest)
   }
 
+  // Whether anything of this turn has gone to the TTS yet.
+  get spoke(): boolean {
+    return this.seq > 0
+  }
+
+  // Resolves once every sentence so far has been delivered to the screen.
+  delivered(): Promise<void> {
+    return this.chain
+  }
+
   // Speaks what is left and resolves once every sentence has been delivered.
   async finish(): Promise<void> {
     this.flush()
