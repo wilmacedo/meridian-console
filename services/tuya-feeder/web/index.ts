@@ -1,10 +1,12 @@
 import { defineWebService } from '@meridian/service-sdk/web'
+import FeederAutomation from './feeder-automation.svelte'
 import FeederCameras from './feeder-cameras.svelte'
 import { feeder, hopper, watchFeeder } from './feeder-state.svelte'
 import { feederTile } from './feeder-tile'
 import FeederWidget from './feeder-widget.svelte'
 
 export default defineWebService({
+  page: { sections: [{ id: 'automation', title: 'Automation', component: FeederAutomation }] },
   windows: [{ id: 'cameras', module: 'cameras', title: 'Cameras', kicker: 'Feeds · linked automation', pin: 'feeder', footer: '1 FEED', component: FeederCameras }],
   widgets: [
     {
