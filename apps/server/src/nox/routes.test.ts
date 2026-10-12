@@ -243,4 +243,13 @@ describe('what the owner says while a card waits', () => {
     if (speech?.type === 'speech') playbackDone(speech.turn)
     fetchSpy.mockRestore()
   })
+
+  it('is dropped, not taken for a request, when the card was answered elsewhere meanwhile', async () => {
+    const fetchSpy = heard('sim')
+    const { said, record } = await setup()
+    const res = await record(false, '&card=1')
+    expect(res.json()).toEqual({ heard: 'sim', answeredCard: false })
+    expect(said).toEqual([])
+    fetchSpy.mockRestore()
+  })
 })

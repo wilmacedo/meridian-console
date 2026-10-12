@@ -243,7 +243,7 @@ export function registerNox(
   // A recording in: transcribed first, with the service names as hints, then answered like any other
   // request. The first line of the stream tells the caller what was heard.
   app.addContentTypeParser(/^audio\/.*/, { parseAs: 'buffer', bodyLimit: MAX_AUDIO_BYTES }, (_request, body, done) => done(null, body))
-  app.post<{ Querystring: { workspace?: string; screen?: string; noise?: string; capture?: string; wake?: string } }>('/api/voice/ask', async (request, reply) => {
+  app.post<{ Querystring: { workspace?: string; screen?: string; noise?: string; capture?: string; wake?: string; card?: string } }>('/api/voice/ask', async (request, reply) => {
     const voice = voiceConfig()
     if (!voice) return reply.code(503).send({ error: 'voice is not configured (ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID)' })
     const audio = request.body as Buffer
@@ -296,11 +296,11 @@ export function registerNox(
     if (!heard) return reply.code(422).send({ error: 'nothing heard' })
     // The owner gave up while it was being transcribed: a request nobody is waiting for is not run.
     if (request.socket.destroyed) return
-    // NOX is waiting on a card: what was said is the owner's answer to it, not a new request.
-    if (approvals.has(workspace)) {
+    // NOX is waiting on a card: what was said is the owner's answer to it, not a new request. A recording the screen
+    // made to answer a card is never one either, even when the card was answered elsewhere meanwhile.
+    if (approvals.has(workspace) || request.query.card === '1') {
       const allow = spokenAnswer(heard)
-      if (allow !== undefined) approvals.answerLatest(workspace, allow)
-      return reply.send({ heard, answeredCard: allow !== undefined })
+      return reply.send({ heard, answeredCard: allow !== undefined && approvals.answerLatest(workspace, allow) })
     }
     return respond(heard, workspace, reply, heard, request.query.screen)
   })
