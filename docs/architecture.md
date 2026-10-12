@@ -340,7 +340,12 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   the screen that spoke, which shows a card with the command; the owner taps CONFIRMAR / NEGAR, presses Esc
   (no), or says it: while a card waits, `/api/voice/ask` treats the transcript as the answer
   (`spokenAnswer`: "confirma", "sim", "não", "cancela"; anything unclear leaves the card open) instead of
-  starting a turn. No screen, no answer in 60 s, or a dropped card is a no. Every decision is a `nox` event.
+  starting a turn. A card of NOX's conversation goes up only once what NOX said before the tool has been
+  delivered (it is told to say what it is about to do; if it said nothing, the server says "Preciso da sua
+  confirmação."), and the screen that asked then opens the microphone for the answer as soon as that speech has
+  played; a tap or the wake word over a card answers it instead of stopping NOX. A recording made for a card
+  carries `card=1` and is never taken for a new request, even if the card was answered elsewhere meanwhile.
+  No screen, no answer in 60 s, or a dropped card is a no. Every decision is a `nox` event.
   Verified with the real `claude` in `default` mode (every Bash call prompts): tap, Esc and voice each
   worked end to end. In `auto` mode the classifier allowed every in-scope command we tried without
   prompting, so the card was never reached there; whether auto mode ever hands a case to the prompt tool
