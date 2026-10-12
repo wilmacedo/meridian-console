@@ -29,3 +29,5 @@ export const contributedWindow = (windowId: string): ContributedWindow | undefin
 export const windowsOf = (serviceId: string): ContributedWindow[] => windows.filter((w) => w.serviceId === serviceId && !w.module)
 export const contributedWidgets = (): readonly ContributedWidget[] => widgets
 export const contributedWidget = (type: string): ContributedWidget | undefined => widgets.find((w) => w.type === type)
+// The window whose PIN button docks a widget of this type: the window it goes back to.
+export const windowPinning = (type: string): string | undefined => windows.find((w) => w.pin === type)?.windowId

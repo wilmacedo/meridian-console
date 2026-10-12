@@ -1,6 +1,7 @@
 <script lang="ts">
   import { pointerDrag } from '../windows/pointer-drag'
   import { closeWidget, dock, toggleCollapsed, type Widget } from './dock.svelte'
+  import { expandWidget } from './expand'
   import { dragEnd, dragMove, DRAG_START_THRESHOLD, pressWidget } from './dock-drag.svelte'
   import WidgetBody from './widget-body.svelte'
 
@@ -9,7 +10,7 @@
   const agent = $derived(widget.def.src === 'agent')
 </script>
 
-<div class="card">
+<div class="card" role="group" ondblclick={(e) => !(e.target as Element).closest('button') && expandWidget(widget.id)}>
   <div class="topline"></div>
   {#if dock.flash === widget.id}
     {#key dock.flashCount}<div class="flash"></div>{/key}
