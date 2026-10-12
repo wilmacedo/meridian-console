@@ -1,12 +1,11 @@
 <script lang="ts">
   import type { WidgetTone } from '@meridian/service-sdk/web'
   import { dock } from '../dock/dock.svelte'
-  import { eventsView } from '../live/events-view.svelte'
+  import { openWidgetWindow } from '../dock/expand'
   import { live } from '../live/stream.svelte'
   import { contributedWidget } from '../services/service-ui'
-  import { open } from '../windows/window-manager.svelte'
   import { visibleServices } from '../workspace/prefs.svelte'
-  import { BUILT_IN_WINDOW, carTile } from './car-tile'
+  import { carTile } from './car-tile'
 
   // A low screen (a phone turned sideways) gets tighter tiles, so a row of 84px still holds all of one.
   let { id, index, compact = false }: { id: string; index: number; compact?: boolean } = $props()
@@ -20,16 +19,9 @@
   const tile = $derived(carTile(def, { sample: live.telemetry.at(-1), services: visibleServices(), events: live.events }, own?.tile?.read))
   const dot = $derived(tile.accent ?? COLORS[tile.tone ?? 'ok'])
   const sub = $derived(tile.subTone && tile.subTone !== 'dim' ? COLORS[tile.subTone] : 'rgba(var(--nx-ac), 0.8)')
-
-  function openIt(): void {
-    const target = BUILT_IN_WINDOW[def.type] ?? own?.opens
-    if (!target) return
-    if (def.type === 'logs') eventsView.filter = def.svc ?? 'all'
-    open(target)
-  }
 </script>
 
-<button class="tile" class:compact style:animation-delay="{index * 0.06}s" onclick={openIt}>
+<button class="tile" class:compact style:animation-delay="{index * 0.06}s" onclick={() => openWidgetWindow(def)}>
   <i class="edge"></i>
   <span class="kicker"><span class="dot" style:background={dot} style:box-shadow="0 0 8px {dot}"></span><span class="text">{tile.kicker}</span><span class="more">›</span></span>
   <span class="value" class:text={tile.valueSize === 'text'}><span class="v">{tile.value}</span>{#if tile.unit}<span class="unit">{tile.unit}</span>{/if}</span>

@@ -56,6 +56,3 @@ export function carTile(def: WidgetDef, data: TileData, own?: () => WidgetTile):
   if (mine) return mine
   return { kicker: def.type === 'doc' ? 'NOX · BRIEF' : 'NOX', value: def.title, valueSize: 'text', sub: def.kicker }
 }
-
-// The window a tap on a built-in widget's tile opens; a service's widget names its own (`opens`).
-export const BUILT_IN_WINDOW: Record<string, string> = { tele: 'telemetry', services: 'services', logs: 'logs', doc: 'doc' }
