@@ -1,5 +1,6 @@
 <script lang="ts">
   import { answerApproval, approvals } from '../agent/approval.svelte'
+  import { mic } from '../voice/microphone.svelte'
 
   const current = $derived(approvals.pending[0])
 </script>
@@ -13,7 +14,11 @@
         <button class="no" onclick={() => answerApproval(false)}>NEGAR</button>
         <button class="yes" onclick={() => answerApproval(true)}>CONFIRMAR</button>
       </div>
-      <span class="hint">OU DIGA “CONFIRMA” · ESC NEGA</span>
+      {#if mic.phase === 'recording'}
+        <span class="hint listening">OUVINDO · DIGA “SIM” OU “NÃO”</span>
+      {:else}
+        <span class="hint">OU RESPONDA FALANDO: “SIM” OU “NÃO” · ESC NEGA</span>
+      {/if}
     </div>
   {/key}
 {/if}
@@ -49,6 +54,9 @@
   .hint {
     align-self: center;
     color: rgba(var(--nx-ac), 0.5);
+  }
+  .hint.listening {
+    color: rgb(var(--nx-ac));
   }
   .detail {
     max-height: 120px;
