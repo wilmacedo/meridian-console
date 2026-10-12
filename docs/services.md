@@ -101,6 +101,20 @@ export default defineWebService({
 | `windows[].pin` | The `type` of the widget this window's PIN button docks |
 | `windows[].footer` | Left side of the window footer |
 | `widgets[]` | A dock widget. `type` is stable so a workspace can persist and recreate it; system widgets are unique per `type` |
+| `page.sections[]` | Blocks of the service's page, shown between its overview and its endpoints, in order. `title` heads the block |
+
+Every service, of code or managed, has a **page**: the window its card's `DETAILS →` opens (and NOX, as
+`service:<id>`). It shows the status and what the card can't fit: the status message, the container's
+uptime, CPU and memory, every endpoint grouped by the first segment of its path (`/browser/open` goes under
+`browser`; a segment only one action uses joins `General`) with a search, and the service's recent events.
+An endpoint's row opens on its description, whether it is `mutating` or `gated`, and its input fields.
+What only one service has (the feeder's dispense button, say) goes in `page.sections`:
+
+```ts
+export default defineWebService({
+  page: { sections: [{ id: 'automation', title: 'Automation', component: FeederAutomation }] },
+})
+```
 
 Components take no props: they fetch their own data from `/api/services/<id>/...` and import nothing from
 `apps/web`. Style them with the design tokens (`--nx-*` CSS variables, `docs/design-handoff.md`); put

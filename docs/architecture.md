@@ -104,6 +104,7 @@ defineServerService({
 defineWebService({
   windows: [{ id, title, kicker, component }],
   widgets: [{ type, title, kicker, component }],
+  page: { sections: [{ id, title, component }] },  // blocks of the service's page
 })
 ```
 
@@ -112,6 +113,8 @@ defineWebService({
   Services window and NOX's tools.
 - **Events**: services `emit()` events (`info` / `warn` / `error`) into one core event stream, which is
   what the Events window, the `LOGS →` link and the Events dock widget read.
+- Every service has a **page** (window `service:<id>`, opened from its card): status, details and all its
+  endpoints, grouped and searchable. A service adds what is only its own there as page sections.
 - A service can contribute **windows** (for example cameras and feeder automation, or a packet console)
   and **dock widgets**. Widgets carry a stable `type` so a workspace can persist and recreate them.
 - **Docker is extra data, not the registry.** A host source (Docker socket and `/proc`) feeds the

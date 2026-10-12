@@ -504,9 +504,32 @@ enter with `nxSub .55s ease` delayed `.16s + .06s·index`. An offline card is at
 - **Actions** (bottom, `margin-top:auto`): `LOGS →` (opens Events filtered to this service) when the
   service emits events, `OPEN ↗` (new tab) when it has a URL. Both mono 9 `.16em`, border `ac/.28`,
   radius 3; hover brightens border and text.
+- *Ours:* every card has the same height (grid rows `1fr`). The description is clamped to two lines (line
+  height 1.35, always two lines tall), and the endpoints area always reserves 3 rows of 20px plus a 12px
+  line, whether filled or not: past 3 endpoints that line reads `+N MORE ENDPOINTS →` (mono 9 `.16em`,
+  `ac/.65`, no border) and opens the service's page; a service without endpoints shows `NO ENDPOINTS`
+  (`ac/.4`) in the first row. The links start with `DETAILS →` (also the page).
 - **Footnote** below the grid (mono 10, `ac/.5`): the prototype reads "Register or retire services in
   nix.config.json". That file is a design-tool artefact and is **not adopted**; the note stays as a
   hint but its wording is decided together with the settings mechanism (see architecture).
+
+### Service page
+
+*Ours* (the design has no per-service window): window `service:<id>`, badge the service's `mono`, title its
+name, kicker `Service`, footer `<STATE> · <n> ENDPOINTS`. One column, gap 22, in the Settings sections'
+style (diamond, mono 9.5 `.2em` label, fading rule):
+
+- **Overview**: a glass card (padding 14) with the card's head, the status message (12, `ac/.8`), a grid of
+  facts (`KIND`, `RUNTIME`, `ADDRESS`, `CONTAINER`, `UPTIME`, `CPU`, `MEMORY`; label mono 9 `.16em`
+  `ac/.5`, value mono 12 `fg`), and the card's links.
+- **The service's own sections**, if it has any.
+- **`ENDPOINTS · n`**: the Settings search field, plus `EXPAND ALL` / `COLLAPSE ALL` when there are groups.
+  Groups are collapsible rows (radius 8, fill `mu/.06`, border `ac/.12`; chevron, label in `fg`, count,
+  the methods it uses on the right); with more than 10 endpoints they start closed, and a search opens
+  every group that matches. An endpoint row is the card's row with its title under the path (Inter 11.5,
+  `ac/.65`); clicking it opens the description, `MUTATING` (red) / `GATED` (amber) / `ID` tags, and the
+  input fields (name, type, description).
+- **`RECENT EVENTS`**: the last 8 of the service's events, then `ALL EVENTS →` (Events, filtered).
 
 ### Telemetry
 
