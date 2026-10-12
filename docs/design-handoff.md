@@ -475,6 +475,16 @@ duplicate: it scrolls the existing widget into view and **flashes** it. Doc widg
 "docked" in this sense; each pin creates a new one. A NOX request to pin a widget goes through the
 same flow (the pending card appears, or the existing widget flashes).
 
+### Back to a window
+
+**Double-clicking** a widget (anywhere but its − and ✕ buttons) undoes the pin: the window it stands for
+opens like any other (same 4-window limit, the oldest closes; an open one is raised) and the widget leaves
+the rail with its exit animation. A system widget opens the window that pins it (`logs` with its filter
+restored); a `doc` widget reopens its document in the Doc window; a bound widget opens in the Doc window
+as a live document that keeps refreshing (footer `LIVE · EVERY Ns`), and the window's PIN docks it again
+as a bound widget. A widget with no window to go back to stays docked. A car tile's tap opens the same
+window without undocking.
+
 ## Windows' content
 
 ### Services

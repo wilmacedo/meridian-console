@@ -386,6 +386,8 @@ from use, skills NOX writes for itself, scheduled and proactive tasks, reaching 
   refuses mutating actions, runs the action once to render the template through the doc validator, and
   offers the widget like any pin (the owner drops it on a rail). Each screen then polls the action's
   REST endpoint itself while the tab is visible, and dims the widget when the source stops answering.
+  Double-clicking either kind takes it off the dock and back to the document window; a bound one stays
+  live there (the screen's document carries the binding instead of blocks, `ScreenDoc`).
 - **Task indicator:** the stream's `tasks` message tells each screen which tasks are running for its
   workspace; the header shows a pulsing `● N TASK(S)` chip (amber, the thinking tint) that opens the
   newest task's document, fetched from `GET /api/docs/<id>` (the server keeps the latest version of every
