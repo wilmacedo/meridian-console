@@ -19,7 +19,7 @@ Each returns one short text that says what happened, so no picture is needed to 
 |---|---|---|
 | `device_info` | observe | Host name, OS, executor version |
 | `window_list` | observe | Open windows: id, program, title, state, monitor (`contains` narrows it) |
-| `monitor_list` | observe | Monitors numbered from 1, primary first, in pixels |
+| `monitor_list` | observe | Monitors numbered from 1, primary first: size in pixels, portrait or landscape, and the work area (without the taskbar) |
 | `process_list` | observe | Programs by name and pid (a count without `name`) |
 | `clipboard_read` | observe | The text on the clipboard, first 2000 characters |
 | `screenshot` | observe | One monitor as a PNG, at most 1600 px wide. The expensive last resort |

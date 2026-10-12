@@ -45,7 +45,7 @@ impl Capability for List {
         Tier::Observe
     }
     fn description(&self) -> &'static str {
-        "The monitors, numbered from 1 (the primary first), with their size in pixels"
+        "The monitors, numbered from 1 (the primary first): size in pixels, orientation, and the work area (the screen without the taskbar) that window_place measures from"
     }
     fn input_schema(&self) -> Value {
         json!({ "type": "object", "additionalProperties": false, "properties": {} })
@@ -53,7 +53,19 @@ impl Capability for List {
     fn run(&self, _: Value) -> Result<Output, String> {
         let lines: Vec<String> = screens()
             .iter()
-            .map(|s| format!("{}: {}x{} at ({},{}){}", s.index, s.rect.right - s.rect.left, s.rect.bottom - s.rect.top, s.rect.left, s.rect.top, if s.primary { " primary" } else { "" }))
+            .map(|s| {
+                let (w, h) = (s.rect.right - s.rect.left, s.rect.bottom - s.rect.top);
+                format!(
+                    "{}: {w}x{h} {} at ({},{}), work area {}x{}{}",
+                    s.index,
+                    if h > w { "portrait" } else { "landscape" },
+                    s.rect.left,
+                    s.rect.top,
+                    s.work.right - s.work.left,
+                    s.work.bottom - s.work.top,
+                    if s.primary { ", primary" } else { "" }
+                )
+            })
             .collect();
         Ok(Output::text(lines.join("\n")))
     }
