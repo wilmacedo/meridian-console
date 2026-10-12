@@ -39,6 +39,7 @@
 
   function footLeft(id: WindowId): string {
     if (id === 'services') return `${visibleServices().filter((s) => s.status.state === 'online').length}/${visibleServices().length} SERVICES ONLINE`
+    if (id === 'doc' && docs.current?.bind) return `LIVE · EVERY ${docs.current.bind.everySec}S`
     if (id === 'doc') return `COMPOSED BY NOX · ${docs.current?.blocks.length ?? 0} BLOCKS`
     if (id === 'cameras' || id === 'calendar') return moduleContributions(id).map((c) => (typeof c.footer === 'function' ? c.footer() : c.footer)).filter(Boolean).join(' · ')
     if (id === 'logs') return `${eventsFor(eventsView.filter).length} EVENTS BUFFERED`

@@ -2,7 +2,7 @@ import { docs } from '../docs/docs.svelte'
 import { eventsView } from '../live/events-view.svelte'
 import { contributedWidget, contributedWindow, moduleContributions } from '../services/service-ui'
 import type { WindowId } from '../windows/window-manager.svelte'
-import { docWidget, logs, serviceWidget, services, tele, type WidgetDef } from './widgets'
+import { boundWidget, docWidget, logs, serviceWidget, services, tele, type WidgetDef } from './widgets'
 
 function contributed(type: string | undefined): WidgetDef | null {
   const w = type ? contributedWidget(type) : undefined
@@ -23,6 +23,7 @@ export function pinDef(id: WindowId): WidgetDef | null {
     case 'calendar':
       return contributed(moduleContributions('calendar').find((w) => w.pin)?.pin)
     case 'doc':
+      if (docs.current?.bind) return boundWidget(docs.current.bind)
       return docs.current ? docWidget(docs.current.title, docs.current.blocks, docs.current.id) : null
     default:
       return contributed(contributedWindow(id)?.pin)

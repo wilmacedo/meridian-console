@@ -1,8 +1,7 @@
 import type { Workspace, WorkspaceSummary } from '@meridian/service-sdk'
 import { cancelPending, resetDock, restoreDock, snapshotDock, type PersistedWidget } from '../dock/dock.svelte'
 import type { RailId } from '../dock/widgets'
-import type { DocSpec } from '../docs/doc-blocks'
-import { docs, restoreDoc } from '../docs/docs.svelte'
+import { docs, restoreDoc, type ScreenDoc } from '../docs/docs.svelte'
 import { watchWorkspace } from '../live/stream.svelte'
 import type { ModuleId } from '../modules'
 import type { PaletteId, ThemeMode } from '../theme/palettes'
@@ -29,7 +28,7 @@ interface WorkspaceState {
   theme?: { mode: ThemeMode; palette: PaletteId }
   windows?: { list: PersistedWindow[]; custom: boolean; active: string }
   dock?: { rails: Record<RailId, string[]>; widgets: Record<string, PersistedWidget> }
-  doc?: DocSpec | null
+  doc?: ScreenDoc | null
   hiddenServices?: string[]
   hiddenModules?: string[]
   layout?: LayoutMode
@@ -47,7 +46,7 @@ export function snapshot(): WorkspaceState {
     theme: { mode: theme.mode, palette: theme.palette },
     windows: snapshotWindows(),
     dock: snapshotDock(),
-    doc: docs.current ? ($state.snapshot(docs.current) as DocSpec) : null,
+    doc: docs.current ? ($state.snapshot(docs.current) as ScreenDoc) : null,
     hiddenServices: [...prefs.hiddenServices],
     hiddenModules: [...prefs.hiddenModules],
     layout: layout.mode,

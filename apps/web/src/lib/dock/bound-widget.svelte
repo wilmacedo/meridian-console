@@ -3,7 +3,7 @@
   import DocBlocks from '../docs/doc-blocks.svelte'
   import type { DocBlock } from '../docs/doc-blocks'
 
-  let { bind }: { bind: LiveWidgetSpec } = $props()
+  let { bind, compact = true }: { bind: LiveWidgetSpec; compact?: boolean } = $props()
 
   let blocks = $state<DocBlock[] | null>(null)
   let stale = $state(false)
@@ -45,7 +45,7 @@
 
 {#if blocks}
   <div class:stale>
-    <DocBlocks {blocks} compact />
+    <DocBlocks {blocks} {compact} />
   </div>
   {#if stale}<div class="note">SOURCE NOT ANSWERING · SHOWING THE LAST READING</div>{/if}
 {:else}

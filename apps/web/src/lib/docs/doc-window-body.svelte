@@ -1,11 +1,14 @@
 <script lang="ts">
+  import BoundWidget from '../dock/bound-widget.svelte'
   import DocBlocks from './doc-blocks.svelte'
   import { docs } from './docs.svelte'
 
   const total = $derived(docs.current?.blocks.length ?? 0)
 </script>
 
-{#if docs.current}
+{#if docs.current?.bind}
+  <BoundWidget bind={docs.current.bind} compact={false} />
+{:else if docs.current}
   <DocBlocks blocks={docs.current.blocks.slice(0, docs.shown)} />
   {#if docs.shown < total}
     <div class="composing">
