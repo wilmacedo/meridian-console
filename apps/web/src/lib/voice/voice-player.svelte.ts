@@ -86,6 +86,9 @@ export function stopWarmup(): void {
   warmup = undefined
 }
 
+// Speech has arrived that has not finished playing.
+export const speechPending = (): boolean => playing || decoding > 0 || ready.size > 0
+
 // The turn produced no speech to wait for: drop the warm-up unless something is about to play.
 export function settleWarmup(): void {
   setTimeout(() => {

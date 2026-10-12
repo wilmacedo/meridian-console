@@ -10,9 +10,15 @@ export interface Approval {
 // What NOX is waiting for the owner to confirm, oldest first; the card shows the first.
 export const approvals = $state({ pending: [] as Approval[] })
 
+let onShown: (() => void) | undefined
+
+// The microphone listens for the answer when a card goes up.
+export const setApprovalShown = (fn: () => void): void => void (onShown = fn)
+
 export function showApproval(a: Approval): void {
   approvals.pending.push(a)
   play('approval')
+  onShown?.()
 }
 
 export function hideApproval(id: string): void {

@@ -1,6 +1,6 @@
 import { agent, kick } from '../agent/agent-state.svelte'
 import { cancelPending } from '../dock/dock.svelte'
-import { approvals } from '../agent/approval.svelte'
+import { approvals, setApprovalShown } from '../agent/approval.svelte'
 import { workspaceId } from '../workspace/workspace-sync.svelte'
 import { live, onWakeVerdict, screenId, sendToServer } from '../live/stream.svelte'
 import { play } from '../sound/sfx.svelte'
@@ -9,7 +9,7 @@ import { deliver } from './deliver'
 import { createDetector } from './speech-detector'
 import { tuningFor } from './voice-prefs'
 import { applyAudioSession, voicePrefs } from './voice-prefs.svelte'
-import { audioContext, interruptPlayback, settleWarmup, startWarmup, stopWarmup } from './voice-player.svelte'
+import { audioContext, interruptPlayback, settleWarmup, speechPending, startWarmup, stopWarmup } from './voice-player.svelte'
 import { setWakeScoreHandler, startCapture, takeCapture, wakeStream } from './wake-listener.svelte'
 import { createTrigger } from './wake-trigger'
 
@@ -38,6 +38,8 @@ export const micAvailable = (): boolean => isSecureContext && !!navigator.mediaD
 const NO_SPEECH_MS = 7000
 // After NOX has spoken the mic reopens by itself; this is how long it waits for the owner to carry on.
 const FOLLOW_UP_MS = 5000
+// A card is read before it is answered: the mic that opens for it waits longer for the first word.
+const CARD_ANSWER_MS = 10_000
 // How long after the answer's text ends its speech may still start: the first sentence can still be on its way.
 const FOLLOW_UP_GRACE_MS = 10_000
 // A message to be sent (a WhatsApp voice note) has pauses a question to NOX does not, and the owner may take a
@@ -125,6 +127,9 @@ let conversationEnded = false
 
 export const endConversation = (): void => void (conversationEnded = true)
 
+// The recording was opened to answer a card.
+let forCard = false
+
 // NOX asked the owner to record a message to send: the next recording is that message, not something said to NOX.
 let messageNext = false
 
@@ -190,7 +195,36 @@ function finish(send: boolean, heardSpeech: boolean, message = false): void {
   if (!t) return idle()
   const sending = send && heardSpeech
   play(sending ? 'speech-end' : 'mic-off')
-  void t.stop().then(async (blob) => (sending && blob && (await (granted ?? true)) ? ask(blob, message, !!granted) : idle()))
+  // While a card waits, what the owner says is the answer to it (the server takes it so), not a new request: the turn
+  // that asked goes on, so nothing of it is touched.
+  const card = !message && (forCard || approvals.pending.length > 0)
+  forCard = false
+  void t.stop().then(async (blob) => {
+    if (!sending || !blob || !(await (granted ?? true))) return card ? afterCard() : idle()
+    return card ? answerCard(blob, !!granted) : ask(blob, message, !!granted)
+  })
+}
+
+// Back to whatever the turn that asked for the card is doing.
+function afterCard(): void {
+  mic.phase = asking ? 'sending' : 'idle'
+  if (agent.mode === 'listening') agent.mode = asking ? 'thinking' : 'idle'
+}
+
+async function answerCard(blob: Blob, woken: boolean): Promise<void> {
+  mic.phase = 'sending'
+  const strict = voicePrefs.noise === 'strict' ? '&noise=strict' : ''
+  const woke = woken ? '&wake=1' : ''
+  const url = `/api/voice/ask?workspace=${encodeURIComponent(workspaceId())}&screen=${encodeURIComponent(screenId)}&card=1${strict}${woke}`
+  const answered = await fetch(url, { method: 'POST', headers: { 'Content-Type': blob.type.split(';')[0] }, body: blob })
+    .then(async (res) => res.ok && ((await res.json()) as { answeredCard?: boolean }).answeredCard === true)
+    .catch(() => false)
+  afterCard()
+  // Words that were neither a yes nor a no leave the card open: say so, and listen again.
+  if (!answered && approvals.pending.length) {
+    play('unavailable')
+    void listenForCard()
+  }
 }
 
 // Another screen heard the wake word better and answers it: this one drops its recording without a sound.
@@ -203,12 +237,13 @@ function dropWake(): void {
   idle()
 }
 
-async function begin({ followUp = false, woken = false } = {}): Promise<void> {
+async function begin({ followUp = false, woken = false, card = false } = {}): Promise<void> {
   mic.phase = 'recording'
   // Used up by this recording, whatever becomes of it: the server forgets the request just as fast. A wake word
   // starts something said to NOX, and leaves the message for the recording after it.
   const message = !woken && messageNext
   if (!woken) messageNext = false
+  forCard = card
   stopWarmup()
   applyAudioSession()
   const shared = wakeStream()
@@ -247,11 +282,13 @@ async function begin({ followUp = false, woken = false } = {}): Promise<void> {
   const tuning = tuningFor(voicePrefs.noise)
   const detector = message
     ? createDetector({ ...tuning, silenceMs: Math.max(tuning.silenceMs, MESSAGE_PAUSE_MS), noiseEndMs: Math.max(tuning.noiseEndMs, MESSAGE_PAUSE_MS) }, startedAt, MESSAGE_START_MS, roomFloor)
-    : createDetector(tuning, startedAt, followUp || woken ? FOLLOW_UP_MS : NO_SPEECH_MS, roomFloor)
+    : createDetector(tuning, startedAt, card ? CARD_ANSWER_MS : followUp || woken ? FOLLOW_UP_MS : NO_SPEECH_MS, roomFloor)
   timer = setInterval(() => {
     analyser.getFloatTimeDomainData(data)
     const level = Math.sqrt(data.reduce((sum, v) => sum + v * v, 0) / data.length)
     agent.micLevel = Math.min(1, level * MIC_LEVEL_GAIN)
+    // Answered meanwhile, by a tap, Esc or another screen: what is said now is no answer to anything.
+    if (card && !approvals.pending.length) return finish(false, false)
     const now = performance.now()
     if (now < deafUntil) return
     const verdict = detector.push(level, now)
@@ -297,6 +334,8 @@ export async function toggleListening(): Promise<void> {
   if (mic.phase === 'recording') return stopEarly?.()
   // The confirmation of a halt is not a button: a tap on it must not open the microphone.
   if (mic.halted) return
+  // A card waits on the owner: the tap is to answer it, and stopping NOX would deny it.
+  if (approvals.pending.length) return begin({ card: true })
   if (busy()) return halt()
   await begin()
 }
@@ -326,16 +365,30 @@ export async function continueListening(speechStartedAt: number): Promise<void> 
     conversationEnded = false
     return
   }
-  if (!micAvailable() || live.link === 'offline' || mic.phase === 'recording' || approvals.pending.length) return
-  await begin({ followUp: true })
+  if (!micAvailable() || live.link === 'offline' || mic.phase === 'recording') return
+  await begin({ followUp: true, card: approvals.pending.length > 0 })
 }
+
+// A card went up for what the owner asked on this screen: once NOX has finished saying what it asks (the server shows
+// the card only after its words are delivered), listen for the answer, as after any reply. A card of a background task,
+// or one shown on a screen nobody spoke to, waits for a tap or the wake word.
+async function listenForCard(): Promise<void> {
+  if (!asking) return
+  while (speechPending()) await new Promise((resolve) => setTimeout(resolve, TICK_MS))
+  // What was handed to the output has not been heard yet.
+  await new Promise((resolve) => setTimeout(resolve, voicePrefs.tailMs + (audioContext().outputLatency ?? 0) * 1000))
+  if (!approvals.pending.length || !asking || !micAvailable() || live.link === 'offline' || mic.phase === 'recording' || mic.halted) return
+  await begin({ followUp: true, card: true })
+}
+setApprovalShown(() => void listenForCard())
 
 // The wake word: the same as a tap, said instead. Over NOX thinking or speaking it cuts the answer off and listens
 // (its background tasks go on: "para tudo" is something to say to it). Every screen in earshot asks the server, which
 // lets the one that heard it best answer.
 async function wakeUp(score: number): Promise<void> {
   if (!micAvailable() || live.link === 'offline' || mic.phase === 'recording' || mic.halted || !wakeStream()) return
-  if (mic.phase === 'sending' || agent.mode === 'thinking' || agent.mode === 'speaking') {
+  // Over a card, the turn is waiting for the owner's answer, which is what follows the word.
+  if (!approvals.pending.length && (mic.phase === 'sending' || agent.mode === 'thinking' || agent.mode === 'speaking')) {
     followUpUntil = 0
     cutOff()
     interruptPlayback()
