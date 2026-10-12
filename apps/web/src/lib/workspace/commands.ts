@@ -4,14 +4,16 @@ import { boundWidget } from '../dock/widgets'
 import { pinDef } from '../dock/pin'
 import { composeDoc } from '../docs/docs.svelte'
 import { MODULES } from '../modules'
-import { contributedWindow } from '../services/service-ui'
+import { live } from '../live/stream.svelte'
+import { contributedWindow, pageServiceId } from '../services/service-ui'
 import { theme } from '../theme/theme.svelte'
 import { arrange, close, closeAll, open } from '../windows/window-manager.svelte'
 import { captureNextMessage, endConversation } from '../voice/microphone.svelte'
 
-// A window the screen can actually show: a dock module (the server says "logs" for Events) or one a
-// service contributes.
-const isKnownWindow = (id: string): boolean => (id !== 'core' && MODULES.some((m) => m.id === id)) || id === 'doc' || contributedWindow(id) !== undefined
+// A window the screen can actually show: a dock module (the server says "logs" for Events), one a
+// service contributes, or a service's page.
+const isKnownWindow = (id: string): boolean =>
+  (id !== 'core' && MODULES.some((m) => m.id === id)) || id === 'doc' || contributedWindow(id) !== undefined || live.services.some((s) => s.id === pageServiceId(id))
 
 // What the server asks this screen to do (NOX's tools). The resulting layout reaches the other
 // screens through the workspace, like any change made by hand.

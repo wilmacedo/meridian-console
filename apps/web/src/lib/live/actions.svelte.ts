@@ -35,3 +35,11 @@ export async function runAction(serviceId: string, action: ServiceActionInfo, se
     results[key] = { pending: false, status: 0 }
   }
 }
+
+// What a RUN button's row shows: never run, running, then status and latency.
+export function resultText(key: string): string {
+  const r = results[key]
+  if (!r) return '—'
+  if (r.pending) return '· · ·'
+  return r.status ? `${r.status} · ${r.ms ?? 0}ms` : 'FAILED'
+}

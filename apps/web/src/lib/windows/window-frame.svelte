@@ -15,7 +15,7 @@
 
   const pin = $derived(pinDef(win.id))
   const rect = $derived(rectFor(win))
-  const meta = $derived(windowMeta(win.id, { hostName: live.host.name, workspaceName: currentWorkspace()?.name ?? '', doc: docs.current, monoOf: (id) => live.services.find((s) => s.id === id)?.mono ?? '··' }))
+  const meta = $derived(windowMeta(win.id, { hostName: live.host.name, workspaceName: currentWorkspace()?.name ?? '', doc: docs.current, monoOf: (id) => live.services.find((s) => s.id === id)?.mono ?? '··', nameOf: (id) => live.services.find((s) => s.id === id)?.name ?? id }))
   // A phone shows the window whole: it is neither moved nor resized.
   const fixed = $derived(isPhone())
   const focused = $derived(wm.active === win.id)

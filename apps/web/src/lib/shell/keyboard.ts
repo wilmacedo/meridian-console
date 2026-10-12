@@ -1,6 +1,6 @@
 import { visibleModules } from '../workspace/prefs.svelte'
 import { switchWorkspace, workspaces } from '../workspace/workspace-sync.svelte'
-import { close, closeActive, isOpen, open, openModule } from '../windows/window-manager.svelte'
+import { close, closeActive, isOpen, open, openModule, wm } from '../windows/window-manager.svelte'
 import { spaceAction } from '../voice/microphone.svelte'
 import { shellUi } from './shell-ui.svelte'
 
@@ -26,7 +26,8 @@ export function handleShortcut(e: KeyboardEvent, closeOverlay: () => boolean): v
     if (isOpen('settings')) close('settings')
     else open('settings')
   } else if (e.key === '/') {
-    const field = isOpen('settings') ? document.querySelector<HTMLInputElement>('[data-settings-search]') : null
+    // The focused window's own search first, else the settings' while that window is open.
+    const field = document.querySelector<HTMLInputElement>(`[data-search="${CSS.escape(wm.active)}"]`) ?? (isOpen('settings') ? document.querySelector<HTMLInputElement>('[data-search="settings"]') : null)
     if (!field) return
     e.preventDefault()
     field.focus()

@@ -1,5 +1,5 @@
 import { MODULES } from '../modules'
-import { contributedWindow } from '../services/service-ui'
+import { contributedWindow, pageServiceId } from '../services/service-ui'
 import type { WindowId } from './window-manager.svelte'
 
 export interface WindowMeta {
@@ -14,6 +14,7 @@ export interface MetaContext {
   doc: { title: string; kicker: string } | null
   // Two-letter badge of a service, for the windows it contributes.
   monoOf: (serviceId: string) => string
+  nameOf: (serviceId: string) => string
 }
 
 const KICKERS: Record<string, (ctx: MetaContext) => string> = {
@@ -27,6 +28,8 @@ const KICKERS: Record<string, (ctx: MetaContext) => string> = {
 export function windowMeta(id: WindowId, ctx: MetaContext): WindowMeta {
   if (id === 'settings') return { index: 'ST', title: 'Settings', kicker: `Workspace · ${ctx.workspaceName}` }
   if (id === 'doc') return { index: 'NX', title: ctx.doc?.title ?? 'Document', kicker: ctx.doc?.kicker ?? '' }
+  const page = pageServiceId(id)
+  if (page) return { index: ctx.monoOf(page), title: ctx.nameOf(page), kicker: 'Service' }
   const own = contributedWindow(id)
   if (own) return { index: ctx.monoOf(own.serviceId), title: own.title, kicker: own.kicker }
   const at = MODULES.findIndex((m) => m.id === id)

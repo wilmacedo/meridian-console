@@ -3,7 +3,8 @@
   import SettingsWindow from '../settings/settings-window.svelte'
   import CalendarModuleWindow from '../module-windows/calendar-module-window.svelte'
   import CamerasWindow from '../module-windows/cameras-window.svelte'
-  import { contributedWindow, moduleContributions } from '../services/service-ui'
+  import ServicePage from '../services/service-page.svelte'
+  import { contributedWindow, moduleContributions, pageServiceId } from '../services/service-ui'
   import TelemetryWindow from '../module-windows/telemetry-window.svelte'
   import ServicesWindow from '../module-windows/services-window.svelte'
   import EventsWindow from '../module-windows/events-window.svelte'
@@ -45,6 +46,11 @@
     if (id === 'logs') return `${eventsFor(eventsView.filter).length} EVENTS BUFFERED`
     if (id === 'settings') return `· SAVED TO “${(currentWorkspace()?.name ?? '').toUpperCase()}”`
     if (id === 'telemetry') return `${live.host.name.toUpperCase()} · LIVE`
+    const page = pageServiceId(id)
+    if (page) {
+      const s = live.services.find((x) => x.id === page)
+      return s ? `${s.status.state.toUpperCase()} · ${s.actions.length} ENDPOINTS` : ''
+    }
     return ''
   }
 
@@ -69,7 +75,7 @@
     <!-- A new document replaces the old one with a fresh open animation, hence the title in the key. -->
     {#each wm.wins as win (win.id === 'doc' ? `doc:${docs.current?.title}` : win.id)}
       <WindowFrame {win} footLeft={footLeft(win.id)}>
-        {#if win.id === 'doc'}<DocWindowBody />{:else if win.id === 'settings'}<SettingsWindow />{:else if win.id === 'logs'}<EventsWindow />{:else if win.id === 'services'}<ServicesWindow />{:else if win.id === 'telemetry'}<TelemetryWindow />{:else if win.id === 'cameras'}<CamerasWindow />{:else if win.id === 'calendar'}<CalendarModuleWindow />{:else}{@const own = contributedWindow(win.id)}{#if own}{@const Body = own.component}<Body />{:else}<WindowPlaceholder />{/if}{/if}
+        {#if win.id === 'doc'}<DocWindowBody />{:else if win.id === 'settings'}<SettingsWindow />{:else if win.id === 'logs'}<EventsWindow />{:else if win.id === 'services'}<ServicesWindow />{:else if win.id === 'telemetry'}<TelemetryWindow />{:else if win.id === 'cameras'}<CamerasWindow />{:else if win.id === 'calendar'}<CalendarModuleWindow />{:else if pageServiceId(win.id)}<ServicePage serviceId={pageServiceId(win.id)!} />{:else}{@const own = contributedWindow(win.id)}{#if own}{@const Body = own.component}<Body />{:else}<WindowPlaceholder />{/if}{/if}
       </WindowFrame>
     {/each}
   {/if}

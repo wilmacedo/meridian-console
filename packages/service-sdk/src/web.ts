@@ -58,9 +58,18 @@ export interface ServiceWidget {
   opens?: string
 }
 
+// A block of the service's page (the window its Services card opens), shown above the endpoints.
+export interface ServicePageSection {
+  // Unique within the service.
+  id: string
+  title: string
+  component: Contribution
+}
+
 export interface WebService {
   windows?: ServiceWindow[]
   widgets?: ServiceWidget[]
+  page?: { sections: ServicePageSection[] }
 }
 
 export const defineWebService = (service: WebService): WebService => service

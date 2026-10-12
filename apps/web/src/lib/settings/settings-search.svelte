@@ -1,5 +1,6 @@
 <script lang="ts">
-  let { value = $bindable('') }: { value: string } = $props()
+  // `scope` is the window the field searches, so "/" can find it (see keyboard.ts).
+  let { value = $bindable(''), scope = 'settings', placeholder = 'Search settings' }: { value: string; scope?: string; placeholder?: string } = $props()
   let input: HTMLInputElement
 
   function onkeydown(e: KeyboardEvent): void {
@@ -12,7 +13,7 @@
 
 <div class="search" class:filled={value}>
   <i class="glass"></i>
-  <input bind:this={input} bind:value {onkeydown} data-settings-search placeholder="Search settings" aria-label="Search settings" spellcheck="false" />
+  <input bind:this={input} bind:value {onkeydown} data-search={scope} {placeholder} aria-label={placeholder} spellcheck="false" />
   {#if value}
     <button aria-label="Clear search" onclick={() => ((value = ''), input.focus())}>✕</button>
   {:else}
