@@ -64,7 +64,7 @@ const MAX_ANYWH_SENT_CHARS = 300
 const workspaceProperty = { type: 'string', description: 'Workspace id. Defaults to the workspace of the screen you are answering.' }
 const windowProperty = {
   type: 'string',
-  description: `One of ${MODULE_WINDOWS.join(', ')}, or a window a service contributes as "<service>:<window>", for example "aqw-idle:console".`,
+  description: `One of ${MODULE_WINDOWS.join(', ')}, a window a service contributes as "<service>:<window>", for example "aqw-idle:console", or a service's page (its status, details and every endpoint) as "service:<service>", for example "service:devices".`,
 }
 
 const text = (args: Record<string, unknown>, key: string): string | undefined => {
@@ -130,7 +130,7 @@ export function buildTools(d: ToolDeps): McpTool[] {
     },
     {
       name: 'open_window',
-      description: 'Opens a window on the screen: services, telemetry, events, cameras or calendar, or a window a service contributes. At most 4 windows are open; opening a fifth closes the least recently used one.',
+      description: "Opens a window on the screen: services, telemetry, events, cameras or calendar, a window a service contributes, or a service's page. At most 4 windows are open; opening a fifth closes the least recently used one.",
       inputSchema: { type: 'object', required: ['window'], properties: { window: windowProperty, workspace: workspaceProperty } },
       handler: (a) => command(a, { name: 'open_window', window: windowArg(a) }, `opened window ${windowArg(a)}`),
     },
