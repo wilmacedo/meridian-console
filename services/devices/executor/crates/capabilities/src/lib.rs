@@ -2,6 +2,9 @@
 //! that exist on every OS live here, and per-OS ones sit in a module selected by `cfg`.
 
 mod device_info;
+// Only the Windows capabilities use it today; it is plain arithmetic, so its tests run everywhere.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod placement;
 
 #[cfg(windows)]
 pub mod windows;

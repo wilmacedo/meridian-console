@@ -4,13 +4,14 @@ use std::time::{Duration, Instant};
 use meridian_executor_core::capability::{Capability, Output, Tier};
 use serde_json::{Value, json};
 use windows::Win32::Foundation::{HWND, LPARAM, RECT, TRUE, WPARAM};
-use windows::Win32::Graphics::Dwm::{DWMWA_CLOAKED, DwmGetWindowAttribute};
+use windows::Win32::Graphics::Dwm::{DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute};
 use windows::Win32::Graphics::Gdi::{MONITOR_DEFAULTTONEAREST, MonitorFromWindow};
 use windows::Win32::UI::Input::KeyboardAndMouse::{KEYEVENTF_KEYUP, VK_MENU, keybd_event};
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::BOOL;
 
-use super::monitor::screens;
+use super::monitor::{Screen, screens};
+use crate::placement::{AREAS, Rect, area, inside, landed, miss, outer_for};
 use super::util::{from_wide, hwnd_id, id_schema, parse_hwnd, process_name, short};
 
 const MAX_WINDOWS: usize = 40;
@@ -211,6 +212,13 @@ impl Capability for Act {
     }
 }
 
+fn monitor(input: &Value) -> Result<(usize, Screen), String> {
+    let target = input["monitor"].as_u64().ok_or("monitor is required")? as usize;
+    let all = screens();
+    let to = all.iter().find(|s| s.index == target).copied().ok_or_else(|| format!("there is no monitor {target}; monitor_list shows {}", all.len()))?;
+    Ok((target, to))
+}
+
 pub struct Move;
 
 impl Capability for Move {
@@ -228,9 +236,7 @@ impl Capability for Move {
     }
     fn run(&self, input: Value) -> Result<Output, String> {
         let h = parse_hwnd(&input)?;
-        let target = input["monitor"].as_u64().ok_or("monitor is required")? as usize;
-        let all = screens();
-        let to = all.iter().find(|s| s.index == target).ok_or_else(|| format!("there is no monitor {target}; monitor_list shows {}", all.len()))?;
+        let (target, to) = monitor(&input)?;
         if !unsafe { IsWindow(Some(h)) }.as_bool() {
             return Err("there is no such window any more; list the windows again".into());
         }
@@ -249,5 +255,94 @@ impl Capability for Move {
         }
         let now = monitor_of(h);
         Ok(Output::text(if now == target { format!("{} is on monitor {target}.", describe(h)) } else { format!("{} did not land on monitor {target} (it is on {now}).", describe(h)) }))
+    }
+}
+
+fn rect(r: RECT) -> Rect {
+    Rect { left: r.left, top: r.top, right: r.right, bottom: r.bottom }
+}
+
+/// The window's outer bounds and its visible frame. If DWM cannot say, the outer bounds stand for both.
+fn bounds(h: HWND) -> Result<(Rect, Rect), String> {
+    let mut outer = RECT::default();
+    unsafe { GetWindowRect(h, &mut outer) }.map_err(|e| e.to_string())?;
+    let mut visible = RECT::default();
+    let dwm = unsafe { DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, &mut visible as *mut RECT as *mut c_void, std::mem::size_of::<RECT>() as u32) };
+    Ok((rect(outer), if dwm.is_ok() { rect(visible) } else { rect(outer) }))
+}
+
+pub struct Place;
+
+impl Capability for Place {
+    fn name(&self) -> &'static str {
+        "window_place"
+    }
+    fn tier(&self) -> Tier {
+        Tier::Act
+    }
+    fn description(&self) -> &'static str {
+        "Put a window at a place and size on a monitor (numbered as monitor_list shows): an area (a half, a quarter, a third or full) or a rect in pixels inside the monitor's work area, the screen without the taskbar. A maximized or minimized window is restored first. The answer says if the app would not take that size"
+    }
+    fn input_schema(&self) -> Value {
+        let px = |min: i64| json!({ "type": "integer", "minimum": min, "maximum": 100000 });
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "monitor"],
+            "properties": {
+                "id": id_schema(),
+                "monitor": { "type": "integer", "minimum": 1, "maximum": 16 },
+                "area": { "type": "string", "enum": AREAS, "description": "Halves (left, right, top, bottom), quarters (top_left, top_right, bottom_left, bottom_right), thirds as columns (left_third, center_third, right_third) or as rows (top_third, middle_third, bottom_third), or full" },
+                "rect": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["x", "y", "width", "height"],
+                    "description": "Pixels from the top-left corner of the monitor's work area; monitor_list shows its size",
+                    "properties": { "x": px(0), "y": px(0), "width": px(1), "height": px(1) }
+                }
+            },
+            "oneOf": [{ "required": ["area"] }, { "required": ["rect"] }]
+        })
+    }
+    fn run(&self, input: Value) -> Result<Output, String> {
+        let h = parse_hwnd(&input)?;
+        let (n, to) = monitor(&input)?;
+        let work = rect(to.work);
+        let (target, place) = match (input["area"].as_str(), input.get("rect")) {
+            (Some(name), None) => (area(work, name).ok_or_else(|| format!("{name} is not an area; use one of {}", AREAS.join(", ")))?, if name == "full" { format!("whole work area of monitor {n}") } else { format!("{} of monitor {n}", name.replace('_', " ")) }),
+            (None, Some(r)) => {
+                let px = |k: &str| r[k].as_i64().and_then(|v| i32::try_from(v).ok()).ok_or_else(|| format!("rect needs a whole number {k}"));
+                let target = inside(work, px("x")?, px("y")?, px("width")?, px("height")?)?;
+                (target, format!("{}x{} at ({},{}) of monitor {n}'s work area", target.width(), target.height(), target.left - work.left, target.top - work.top))
+            }
+            _ => return Err("give either area or rect".into()),
+        };
+        if !unsafe { IsWindow(Some(h)) }.as_bool() {
+            return Err("there is no such window any more; list the windows again".into());
+        }
+        unsafe {
+            if IsZoomed(h).as_bool() || IsIconic(h).as_bool() {
+                let _ = ShowWindow(h, SW_RESTORE);
+                wait_for(|| state(h) == "normal");
+            }
+        }
+        // A monitor with another scale makes a DPI-aware app resize itself on arrival, and the invisible border
+        // changes with the scale: a second pass corrects what the first could not know.
+        for _ in 0..2 {
+            let (outer, visible) = bounds(h)?;
+            if landed(target, visible) {
+                break;
+            }
+            let o = outer_for(target, outer, visible);
+            unsafe { SetWindowPos(h, None, o.left, o.top, o.width(), o.height(), SWP_NOZORDER | SWP_NOACTIVATE) }.map_err(|e| e.to_string())?;
+            wait_for(|| bounds(h).is_ok_and(|(_, v)| landed(target, v)));
+        }
+        let (_, actual) = bounds(h)?;
+        let what = describe(h);
+        Ok(Output::text(if landed(target, actual) {
+            format!("{what} is at the {place}: {}x{}.", actual.width(), actual.height())
+        } else {
+            format!("{what} did not land at the {place}: {}.", miss(target, actual))
+        }))
     }
 }

@@ -24,6 +24,7 @@ Each returns one short text that says what happened, so no picture is needed to 
 | `clipboard_read` | observe | The text on the clipboard, first 2000 characters |
 | `screenshot` | observe | One monitor as a PNG, at most 1600 px wide. The expensive last resort |
 | `window_focus`, `_maximize`, `_minimize`, `_restore`, `_close`, `window_move` | act | Verified afterwards: the answer says whether it really happened |
+| `window_place` | act | A window at an `area` of a monitor's work area (`full`, halves, quarters, thirds as columns or rows) or at a `rect` in pixels inside it. Restores a maximized or minimized window first, sizes the visible frame (the invisible resize border is added back), and says if the app would not shrink that far |
 | `process_start` | act | An installed program by its plain name, no path, no arguments. Shells and interpreters are refused |
 | `clipboard_write` | act | Replaces the clipboard text |
 | `open` | act | An http(s) link, or a document or folder by full path. Programs and scripts are refused |

@@ -21,6 +21,7 @@ pub fn register(r: &mut Registry) {
     r.register(window::Act::Restore);
     r.register(window::Act::Close);
     r.register(window::Move);
+    r.register(window::Place);
     r.register(monitor::List);
     r.register(process::List);
     r.register(process::Start);
