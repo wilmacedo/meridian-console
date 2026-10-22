@@ -6,6 +6,7 @@ import { live, onWakeVerdict, screenId, sendToServer } from '../live/stream.svel
 import { play } from '../sound/sfx.svelte'
 import { encodeClip } from './clip-encoder'
 import { deliver } from './deliver'
+import { audioConstraints } from './mic-device.svelte'
 import { createDetector } from './speech-detector'
 import { tuningFor } from './voice-prefs'
 import { applyAudioSession, voicePrefs } from './voice-prefs.svelte'
@@ -248,7 +249,7 @@ async function begin({ followUp = false, woken = false, card = false } = {}): Pr
   applyAudioSession()
   const shared = wakeStream()
   try {
-    stream = shared ?? (await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }))
+    stream = shared ?? (await navigator.mediaDevices.getUserMedia(audioConstraints()))
   } catch {
     return idle()
   }

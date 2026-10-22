@@ -6,8 +6,9 @@
   import { hasLightVariant, theme } from '../theme/theme.svelte'
   import { UI_SCALES, type UiScaleSetting } from '../workspace/ui-scale'
   import { TAIL_MAX, TAIL_MIN, TAIL_STEP, type AudioSession, type NoiseLevel } from '../voice/voice-prefs'
+  import { micDevice, refreshMicInputs, setMicId } from '../voice/mic-device.svelte'
   import { voicePrefs } from '../voice/voice-prefs.svelte'
-  import { wake } from '../voice/wake-listener.svelte'
+  import { reopenWake, wake } from '../voice/wake-listener.svelte'
   import type { WakeSensitivity } from '../voice/wake-trigger'
   import { close } from '../windows/window-manager.svelte'
   import { layout } from '../workspace/layout.svelte'
@@ -78,6 +79,15 @@
         ? 'No wake word model on the server.'
         : `Say "${wake.phrase}" and your request in one go. The microphone stays on while this page is on screen; nothing leaves the device before the wake word.`,
   )
+
+  const pickMic = (id: string): void => {
+    setMicId(id)
+    reopenWake()
+  }
+  const micValue = $derived(micDevice.inputs.some((m) => m.id === micDevice.id) ? micDevice.id : '')
+  $effect(() => {
+    if (showing('device')) void refreshMicInputs()
+  })
 
   let section = $state('appearance')
   let query = $state('')
@@ -343,6 +353,16 @@
       {#if showing('device')}
         <SettingSection title={head('device')} delay={stagger('device')}>
           <div class="scope"><span class="tag">SCOPE</span><span class="where">This device only, not the workspace</span></div>
+          {#if has('microphone')}
+            <SettingRow title="Microphone" note="Where NOX listens, for talking and for the wake word. A microphone that is gone falls back to the system default." wide>
+              <select class="mic" value={micValue} onchange={(e) => pickMic(e.currentTarget.value)}>
+                <option value="">System default</option>
+                {#each micDevice.inputs as m (m.id)}
+                  <option value={m.id}>{m.label}</option>
+                {/each}
+              </select>
+            </SettingRow>
+          {/if}
           {#if has('orb-quality')}
             <SettingRow title="Orb quality" note="Low draws half the strands, drops the wide glow and renders at 1x." wide>
               <SegmentedControl options={QUALITIES} value={orbQuality.value} onPick={setOrbQuality} />
@@ -654,6 +674,22 @@
   .readout.dim {
     font-size: 10px;
     color: rgba(var(--nx-ac), 0.7);
+  }
+  .mic {
+    width: 100%;
+    height: 32px;
+    box-sizing: border-box;
+    padding: 0 8px;
+    background: rgba(var(--nx-bg), 0.5);
+    border: 1px solid rgba(var(--nx-ac), 0.3);
+    border-radius: 8px;
+    color: rgb(var(--nx-fg));
+    font: 400 13px var(--font-ui);
+    cursor: pointer;
+  }
+  .mic:focus {
+    outline: none;
+    border-color: rgba(var(--nx-ac), 0.7);
   }
   .slider .ms {
     width: 40px;

@@ -53,6 +53,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     id: 'device',
     label: 'Device',
     rows: [
+      { key: 'microphone', keywords: 'microphone mic input device select choose audio headset' },
       { key: 'orb-quality', keywords: 'orb quality performance low high glow' },
       { key: 'sound', keywords: 'sound effects sfx audio interface' },
       { key: 'display', keywords: 'display screen resolution size pixels dpr' },

@@ -1,4 +1,5 @@
 import workletUrl from './wake-capture-worklet.ts?worker&url'
+import { audioConstraints } from './mic-device.svelte'
 import { audioContext } from './voice-player.svelte'
 import type { WakeWorkerIn, WakeWorkerOut } from './wake-worker'
 
@@ -60,6 +61,14 @@ export function syncWake(on: boolean): void {
   void apply()
 }
 
+// The microphone was changed: the listener reopens on the new one.
+export function reopenWake(): void {
+  applying = applying.then(() => {
+    if (stream) stop()
+  })
+  void apply()
+}
+
 let applying: Promise<void> = Promise.resolve()
 const apply = (): Promise<void> =>
   (applying = applying.then(async () => {
@@ -72,7 +81,7 @@ document.addEventListener('visibilitychange', () => void apply())
 
 async function start(): Promise<void> {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    stream = await navigator.mediaDevices.getUserMedia(audioConstraints())
     const ctx = audioContext()
     await (workletLoaded ??= ctx.audioWorklet.addModule(workletUrl))
     source = ctx.createMediaStreamSource(stream)
